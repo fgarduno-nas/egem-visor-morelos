@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Atlas de Riesgo de Morelos - Visor (MVP)</title>
+  <link rel="icon" href="data:,">
+
+  <!-- MapLibre CSS -->
+  <link
+    href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css"
+    rel="stylesheet"
+  />
+
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <!-- Barra superior -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand__title">Estudio Geoespacial del estado de Morelos para la Gestión y Evaluación de Fenómenos Socio-naturales - EGEM</div>
+      <div class="brand__subtitle">Visor SIG Web (MVP)</div>
+    </div>
+  </header>
+
+  <!-- Layout principal -->
+  <main class="layout">
+    <!-- Panel lateral (por ahora solo placeholder) -->
+    <aside class="sidebar">
+      <h2>Capas</h2>
+      <p class="hint">(En el siguiente paso agregaremos checkboxes y leyenda)</p>
+
+      <div class="group">
+        <h3>Base</h3>
+        <label><input type="checkbox" checked disabled /> Estado</label><br />
+        <label><input type="checkbox" checked disabled /> Municipios</label>
+      </div>
+
+      <div class="group">
+        <h3>Riesgos (demo)</h3>
+        <label><input type="checkbox" disabled /> Peligro sísmico</label><br />
+        <label><input type="checkbox" disabled /> Inundación</label>
+      </div>
+
+      <hr />
+      <p class="hint">
+        Objetivo del MVP: cargar 4 capas, mostrar leyenda y popup por clic.
+      </p>
+    </aside>
+
+    <!-- Contenedor del mapa -->
+    <section class="map-wrap">
+      <div id="map"></div>
+      <div class="statusbar" id="statusbar">Coords: —</div>
+    </section>
+  </main>
+
+  <!-- MapLibre JS -->
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+
+  <!-- Tu script -->
+  <script src="js/map.js"></script>
+</body>
+</html>

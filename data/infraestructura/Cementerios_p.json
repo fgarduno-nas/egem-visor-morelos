@@ -1,0 +1,6152 @@
+{
+  "type" : "FeatureCollection",
+  "crs" : {
+    "type" : "name",
+    "properties" : {
+      "name" : "EPSG:6365"
+    }
+  },
+  "features" : [
+    {
+      "type" : "Feature",
+      "id" : 0,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.313070881359195,
+          18.682035863037754
+        ]
+      },
+      "properties" : {
+        "FID" : 0,
+        "fid_1" : 123,
+        "id" : 327762964,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 0
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 1,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.274634668821449,
+          18.559329632029904
+        ]
+      },
+      "properties" : {
+        "FID" : 1,
+        "fid_1" : 207,
+        "id" : 1488255,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 1
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 2,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.332401691065087,
+          18.61231881949044
+        ]
+      },
+      "properties" : {
+        "FID" : 2,
+        "fid_1" : 226,
+        "id" : 321703484,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 2
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 3,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.157778240379173,
+          18.623246199678444
+        ]
+      },
+      "properties" : {
+        "FID" : 3,
+        "fid_1" : 257,
+        "id" : 1488273,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 3
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 4,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.141138036976258,
+          18.676593892061948
+        ]
+      },
+      "properties" : {
+        "FID" : 4,
+        "fid_1" : 553,
+        "id" : 1488264,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 4
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 5,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.950154863827578,
+          18.585342608070061
+        ]
+      },
+      "properties" : {
+        "FID" : 5,
+        "fid_1" : 822,
+        "id" : 327759961,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 5
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 6,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.150034515834264,
+          18.518869687547589
+        ]
+      },
+      "properties" : {
+        "FID" : 6,
+        "fid_1" : 826,
+        "id" : 327788717,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 6
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 7,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.189883606876307,
+          18.516125266310336
+        ]
+      },
+      "properties" : {
+        "FID" : 7,
+        "fid_1" : 833,
+        "id" : 327788763,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 7
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 8,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.072978532607763,
+          18.524682386937929
+        ]
+      },
+      "properties" : {
+        "FID" : 8,
+        "fid_1" : 835,
+        "id" : 327788836,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 8
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 9,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.120363699967925,
+          18.518491691991876
+        ]
+      },
+      "properties" : {
+        "FID" : 9,
+        "fid_1" : 1114,
+        "id" : 327760245,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 9
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 10,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.103465405276054,
+          18.545515797987637
+        ]
+      },
+      "properties" : {
+        "FID" : 10,
+        "fid_1" : 1115,
+        "id" : 327762365,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 10
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 11,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.144909571457617,
+          18.873880219627896
+        ]
+      },
+      "properties" : {
+        "FID" : 11,
+        "fid_1" : 1190,
+        "id" : 34396190,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 11
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 12,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.171955215332602,
+          18.590448338755007
+        ]
+      },
+      "properties" : {
+        "FID" : 12,
+        "fid_1" : 1251,
+        "id" : 1488270,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 12
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 13,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.709660896273093,
+          18.501108221706851
+        ]
+      },
+      "properties" : {
+        "FID" : 13,
+        "fid_1" : 1454,
+        "id" : 327792187,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 13
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 14,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.110228458448148,
+          18.554355947402261
+        ]
+      },
+      "properties" : {
+        "FID" : 14,
+        "fid_1" : 1464,
+        "id" : 327762534,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 14
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 15,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.116095873417819,
+          18.713083414884547
+        ]
+      },
+      "properties" : {
+        "FID" : 15,
+        "fid_1" : 1534,
+        "id" : 327763020,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 15
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 16,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.18291805572801,
+          18.569417529955416
+        ]
+      },
+      "properties" : {
+        "FID" : 16,
+        "fid_1" : 1584,
+        "id" : 1488266,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 16
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 17,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.174802028545585,
+          18.59092897271314
+        ]
+      },
+      "properties" : {
+        "FID" : 17,
+        "fid_1" : 1760,
+        "id" : 1488271,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 17
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 18,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.800110590108332,
+          18.718189319222823
+        ]
+      },
+      "properties" : {
+        "FID" : 18,
+        "fid_1" : 1817,
+        "id" : 34397465,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 18
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 19,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.84462922889567,
+          18.589298936132128
+        ]
+      },
+      "properties" : {
+        "FID" : 19,
+        "fid_1" : 1893,
+        "id" : 34397452,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 19
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 20,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.205018209546623,
+          18.638606187868117
+        ]
+      },
+      "properties" : {
+        "FID" : 20,
+        "fid_1" : 1916,
+        "id" : 327763146,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 20
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 21,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.165566946804333,
+          18.639706519521575
+        ]
+      },
+      "properties" : {
+        "FID" : 21,
+        "fid_1" : 2076,
+        "id" : 327763520,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 21
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 22,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.890426257741126,
+          18.684995389564317
+        ]
+      },
+      "properties" : {
+        "FID" : 22,
+        "fid_1" : 2122,
+        "id" : 34397459,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 22
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 23,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.773395576978913,
+          18.74443347525067
+        ]
+      },
+      "properties" : {
+        "FID" : 23,
+        "fid_1" : 2249,
+        "id" : 327793326,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 23
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 24,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.856019925719281,
+          18.702911201616104
+        ]
+      },
+      "properties" : {
+        "FID" : 24,
+        "fid_1" : 2554,
+        "id" : 34397461,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 24
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 25,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.259533780783372,
+          18.73512434175472
+        ]
+      },
+      "properties" : {
+        "FID" : 25,
+        "fid_1" : 2589,
+        "id" : 327763590,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 25
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 26,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.313159318771852,
+          18.594541669243686
+        ]
+      },
+      "properties" : {
+        "FID" : 26,
+        "fid_1" : 3179,
+        "id" : 1488246,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 26
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 27,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.284259610222648,
+          18.646977712434587
+        ]
+      },
+      "properties" : {
+        "FID" : 27,
+        "fid_1" : 3391,
+        "id" : 1488247,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 27
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 28,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.962215985439727,
+          18.7342511019021
+        ]
+      },
+      "properties" : {
+        "FID" : 28,
+        "fid_1" : 3722,
+        "id" : 34397467,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 28
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 29,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.046408110613996,
+          18.587155139930189
+        ]
+      },
+      "properties" : {
+        "FID" : 29,
+        "fid_1" : 3888,
+        "id" : 1488254,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 29
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 30,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.073014366444909,
+          18.57006279845158
+        ]
+      },
+      "properties" : {
+        "FID" : 30,
+        "fid_1" : 3892,
+        "id" : 1488256,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 30
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 31,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.156558003688161,
+          18.660749822514113
+        ]
+      },
+      "properties" : {
+        "FID" : 31,
+        "fid_1" : 3894,
+        "id" : 1488267,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 31
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 32,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.325339806116133,
+          18.73521866636078
+        ]
+      },
+      "properties" : {
+        "FID" : 32,
+        "fid_1" : 4207,
+        "id" : 1488248,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 32
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 33,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.228144865879486,
+          18.739909202671331
+        ]
+      },
+      "properties" : {
+        "FID" : 33,
+        "fid_1" : 4464,
+        "id" : 1488249,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 33
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 34,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.28073894452109,
+          18.501254221602743
+        ]
+      },
+      "properties" : {
+        "FID" : 34,
+        "fid_1" : 6408,
+        "id" : 1488250,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 34
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 35,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.156276426953468,
+          18.723980041787843
+        ]
+      },
+      "properties" : {
+        "FID" : 35,
+        "fid_1" : 6528,
+        "id" : 1488251,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 35
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 36,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.034243627123203,
+          18.588553520991393
+        ]
+      },
+      "properties" : {
+        "FID" : 36,
+        "fid_1" : 6583,
+        "id" : 1488252,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 36
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 37,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.301482510771791,
+          18.789884811391989
+        ]
+      },
+      "properties" : {
+        "FID" : 37,
+        "fid_1" : 7110,
+        "id" : 34396203,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 37
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 38,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.396298096209549,
+          18.877849259804179
+        ]
+      },
+      "properties" : {
+        "FID" : 38,
+        "fid_1" : 7452,
+        "id" : 327796990,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 38
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 39,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.960879408304635,
+          18.644561406632729
+        ]
+      },
+      "properties" : {
+        "FID" : 39,
+        "fid_1" : 7729,
+        "id" : 327797047,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 39
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 40,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.754870598062126,
+          18.616278476173051
+        ]
+      },
+      "properties" : {
+        "FID" : 40,
+        "fid_1" : 7751,
+        "id" : 327797318,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 40
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 41,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.912658401476435,
+          19.038511565625825
+        ]
+      },
+      "properties" : {
+        "FID" : 41,
+        "fid_1" : 7756,
+        "id" : 327797614,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "Panteón Municipal",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 41
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 42,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.729701161146536,
+          18.537724241084746
+        ]
+      },
+      "properties" : {
+        "FID" : 42,
+        "fid_1" : 7770,
+        "id" : 327797274,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 42
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 43,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.96323005170693,
+          19.009691948860368
+        ]
+      },
+      "properties" : {
+        "FID" : 43,
+        "fid_1" : 7912,
+        "id" : 327797586,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 43
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 44,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.938994869370902,
+          19.040590626689028
+        ]
+      },
+      "properties" : {
+        "FID" : 44,
+        "fid_1" : 7931,
+        "id" : 327782515,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 44
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 45,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.931020485031254,
+          18.639205793589124
+        ]
+      },
+      "properties" : {
+        "FID" : 45,
+        "fid_1" : 8018,
+        "id" : 327798155,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 45
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 46,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.739716702301862,
+          18.573362447978312
+        ]
+      },
+      "properties" : {
+        "FID" : 46,
+        "fid_1" : 8070,
+        "id" : 327797889,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 46
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 47,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.772459524208045,
+          18.557989015923365
+        ]
+      },
+      "properties" : {
+        "FID" : 47,
+        "fid_1" : 8090,
+        "id" : 327797959,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 47
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 48,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.769915906400357,
+          18.608171736433661
+        ]
+      },
+      "properties" : {
+        "FID" : 48,
+        "fid_1" : 8265,
+        "id" : 327798326,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 48
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 49,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.237441491864175,
+          18.547320282515642
+        ]
+      },
+      "properties" : {
+        "FID" : 49,
+        "fid_1" : 8348,
+        "id" : 1488258,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 49
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 50,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.260069215196495,
+          18.606763838231988
+        ]
+      },
+      "properties" : {
+        "FID" : 50,
+        "fid_1" : 8432,
+        "id" : 1488259,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 50
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 51,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.17806375128005,
+          18.686979481928297
+        ]
+      },
+      "properties" : {
+        "FID" : 51,
+        "fid_1" : 8533,
+        "id" : 1488260,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 51
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 52,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.463313188425019,
+          18.76638126038176
+        ]
+      },
+      "properties" : {
+        "FID" : 52,
+        "fid_1" : 8537,
+        "id" : 327783672,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 52
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 53,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.988668746561927,
+          19.008128782083887
+        ]
+      },
+      "properties" : {
+        "FID" : 53,
+        "fid_1" : 8983,
+        "id" : 1483315,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 53
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 54,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.152028630442871,
+          18.697932165652354
+        ]
+      },
+      "properties" : {
+        "FID" : 54,
+        "fid_1" : 9051,
+        "id" : 327784966,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 54
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 55,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.467507909563579,
+          18.761199573457329
+        ]
+      },
+      "properties" : {
+        "FID" : 55,
+        "fid_1" : 9095,
+        "id" : 327769554,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 55
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 56,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.009664844225142,
+          18.638542856808161
+        ]
+      },
+      "properties" : {
+        "FID" : 56,
+        "fid_1" : 9702,
+        "id" : 327757738,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 56
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 57,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.896715682879801,
+          18.695060171469979
+        ]
+      },
+      "properties" : {
+        "FID" : 57,
+        "fid_1" : 9786,
+        "id" : 327757978,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 57
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 58,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.902281795397656,
+          18.719269999654987
+        ]
+      },
+      "properties" : {
+        "FID" : 58,
+        "fid_1" : 9833,
+        "id" : 327758139,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 58
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 59,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.997765652430587,
+          18.691340163482298
+        ]
+      },
+      "properties" : {
+        "FID" : 59,
+        "fid_1" : 10082,
+        "id" : 327758584,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 59
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 60,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.980440619438525,
+          18.662008474239954
+        ]
+      },
+      "properties" : {
+        "FID" : 60,
+        "fid_1" : 10215,
+        "id" : 327759084,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 60
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 61,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.905510651208843,
+          18.714524379596174
+        ]
+      },
+      "properties" : {
+        "FID" : 61,
+        "fid_1" : 10267,
+        "id" : 327758926,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 61
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 62,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.124982625161806,
+          18.683269914597204
+        ]
+      },
+      "properties" : {
+        "FID" : 62,
+        "fid_1" : 10336,
+        "id" : 1488261,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 62
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 63,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.77989356276359,
+          18.690027669385369
+        ]
+      },
+      "properties" : {
+        "FID" : 63,
+        "fid_1" : 10392,
+        "id" : 327759133,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 63
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 64,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.024060142043894,
+          18.50900103918282
+        ]
+      },
+      "properties" : {
+        "FID" : 64,
+        "fid_1" : 10477,
+        "id" : 327787442,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 64
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 65,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.239775981567348,
+          18.680106213751181
+        ]
+      },
+      "properties" : {
+        "FID" : 65,
+        "fid_1" : 10530,
+        "id" : 1488262,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 65
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 66,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.729843017909218,
+          18.610033748659852
+        ]
+      },
+      "properties" : {
+        "FID" : 66,
+        "fid_1" : 10560,
+        "id" : 327759430,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 66
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 67,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.183033863665599,
+          18.709865133516839
+        ]
+      },
+      "properties" : {
+        "FID" : 67,
+        "fid_1" : 10610,
+        "id" : 1488253,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 67
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 68,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.207553475414301,
+          18.667553645639135
+        ]
+      },
+      "properties" : {
+        "FID" : 68,
+        "fid_1" : 10614,
+        "id" : 1488265,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 68
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 69,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.19124838968834,
+          18.648924182750928
+        ]
+      },
+      "properties" : {
+        "FID" : 69,
+        "fid_1" : 10617,
+        "id" : 1488269,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 69
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 70,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.210683608265825,
+          18.630237456006711
+        ]
+      },
+      "properties" : {
+        "FID" : 70,
+        "fid_1" : 10618,
+        "id" : 1488268,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 70
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 71,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.18803731180931,
+          18.597437324466387
+        ]
+      },
+      "properties" : {
+        "FID" : 71,
+        "fid_1" : 10626,
+        "id" : 1488272,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 71
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 72,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.1922058367239,
+          18.677497507398428
+        ]
+      },
+      "properties" : {
+        "FID" : 72,
+        "fid_1" : 10668,
+        "id" : 1488263,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 72
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 73,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.938652151360344,
+          18.526754728592355
+        ]
+      },
+      "properties" : {
+        "FID" : 73,
+        "fid_1" : 11048,
+        "id" : 327760053,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 73
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 74,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.362694478564521,
+          18.770244376490872
+        ]
+      },
+      "properties" : {
+        "FID" : 74,
+        "fid_1" : 11327,
+        "id" : 327771499,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "Panteón de Dolores",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 74
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 75,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.789252076192795,
+          18.520029649873688
+        ]
+      },
+      "properties" : {
+        "FID" : 75,
+        "fid_1" : 11599,
+        "id" : 34397445,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 75
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 76,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.841944681365021,
+          18.522398490319766
+        ]
+      },
+      "properties" : {
+        "FID" : 76,
+        "fid_1" : 11602,
+        "id" : 34397446,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 76
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 77,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.832812080546987,
+          18.645813840561448
+        ]
+      },
+      "properties" : {
+        "FID" : 77,
+        "fid_1" : 11626,
+        "id" : 34397454,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 77
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 78,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.960749150198168,
+          18.673923117936841
+        ]
+      },
+      "properties" : {
+        "FID" : 78,
+        "fid_1" : 11630,
+        "id" : 34397455,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 78
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 79,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.804133473144091,
+          18.674172658203485
+        ]
+      },
+      "properties" : {
+        "FID" : 79,
+        "fid_1" : 11631,
+        "id" : 34397456,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 79
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 80,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.992517023005007,
+          18.68525542577445
+        ]
+      },
+      "properties" : {
+        "FID" : 80,
+        "fid_1" : 11633,
+        "id" : 34397458,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 80
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 81,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.812917118023009,
+          18.693581588153286
+        ]
+      },
+      "properties" : {
+        "FID" : 81,
+        "fid_1" : 11634,
+        "id" : 34397460,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 81
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 82,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.94578342432969,
+          18.709282291805195
+        ]
+      },
+      "properties" : {
+        "FID" : 82,
+        "fid_1" : 11635,
+        "id" : 34397462,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 82
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 83,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.777033131701145,
+          18.710907518605481
+        ]
+      },
+      "properties" : {
+        "FID" : 83,
+        "fid_1" : 11636,
+        "id" : 34397463,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 83
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 84,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.998605618062584,
+          18.716657099151593
+        ]
+      },
+      "properties" : {
+        "FID" : 84,
+        "fid_1" : 11637,
+        "id" : 34397464,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 84
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 85,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.948884934906388,
+          18.730064854647484
+        ]
+      },
+      "properties" : {
+        "FID" : 85,
+        "fid_1" : 11638,
+        "id" : 34397466,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 85
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 86,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.999483023064229,
+          18.740483053710978
+        ]
+      },
+      "properties" : {
+        "FID" : 86,
+        "fid_1" : 11640,
+        "id" : 34397469,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 86
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 87,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.330715631215341,
+          18.529769693760684
+        ]
+      },
+      "properties" : {
+        "FID" : 87,
+        "fid_1" : 11756,
+        "id" : 327788910,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 87
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 88,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.020579635183509,
+          18.552195502404416
+        ]
+      },
+      "properties" : {
+        "FID" : 88,
+        "fid_1" : 11788,
+        "id" : 327788968,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 88
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 89,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.097332898610063,
+          18.557684738007559
+        ]
+      },
+      "properties" : {
+        "FID" : 89,
+        "fid_1" : 11881,
+        "id" : 327789007,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 89
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 90,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.230039640618401,
+          18.554144832380022
+        ]
+      },
+      "properties" : {
+        "FID" : 90,
+        "fid_1" : 12193,
+        "id" : 327789151,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 90
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 91,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.247707090560482,
+          18.574375199643114
+        ]
+      },
+      "properties" : {
+        "FID" : 91,
+        "fid_1" : 12282,
+        "id" : 327789247,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 91
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 92,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.299163417619667,
+          18.5708103396158
+        ]
+      },
+      "properties" : {
+        "FID" : 92,
+        "fid_1" : 12423,
+        "id" : 327789414,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 92
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 93,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.093784108831002,
+          18.691204616155332
+        ]
+      },
+      "properties" : {
+        "FID" : 93,
+        "fid_1" : 12535,
+        "id" : 327789501,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 93
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 94,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.192652954510649,
+          18.605730046907425
+        ]
+      },
+      "properties" : {
+        "FID" : 94,
+        "fid_1" : 12581,
+        "id" : 327760382,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 94
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 95,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.111610574894272,
+          18.71301715755753
+        ]
+      },
+      "properties" : {
+        "FID" : 95,
+        "fid_1" : 12660,
+        "id" : 327789662,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 95
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 96,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.00921678800816,
+          18.615788975281419
+        ]
+      },
+      "properties" : {
+        "FID" : 96,
+        "fid_1" : 12696,
+        "id" : 327760619,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 96
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 97,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.181126287960922,
+          18.608198164520104
+        ]
+      },
+      "properties" : {
+        "FID" : 97,
+        "fid_1" : 12963,
+        "id" : 327790025,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 97
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 98,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.110622641529645,
+          18.582405402807119
+        ]
+      },
+      "properties" : {
+        "FID" : 98,
+        "fid_1" : 13278,
+        "id" : 327761865,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 98
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 99,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.225113810376811,
+          18.616271376195563
+        ]
+      },
+      "properties" : {
+        "FID" : 99,
+        "fid_1" : 13281,
+        "id" : 327790610,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 99
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 100,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.15212169313115,
+          18.698583211389156
+        ]
+      },
+      "properties" : {
+        "FID" : 100,
+        "fid_1" : 13530,
+        "id" : 327790740,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 100
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 101,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.79166861973934,
+          18.499929574198266
+        ]
+      },
+      "properties" : {
+        "FID" : 101,
+        "fid_1" : 13806,
+        "id" : 34400128,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 101
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 102,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.289787846369123,
+          18.571035347168802
+        ]
+      },
+      "properties" : {
+        "FID" : 102,
+        "fid_1" : 14351,
+        "id" : 327977690,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 102
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 103,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.981162170583644,
+          18.720117156393744
+        ]
+      },
+      "properties" : {
+        "FID" : 103,
+        "fid_1" : 14971,
+        "id" : 328142810,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 103
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 104,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.180148360836185,
+          18.806270991171399
+        ]
+      },
+      "properties" : {
+        "FID" : 104,
+        "fid_1" : 16892,
+        "id" : 34396249,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "Mundo Celestial",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 104
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 105,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.181552824856226,
+          18.806580950875222
+        ]
+      },
+      "properties" : {
+        "FID" : 105,
+        "fid_1" : 17041,
+        "id" : 34396250,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "Mundo Celestial",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 105
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 106,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.049210076309436,
+          18.42250494444729
+        ]
+      },
+      "properties" : {
+        "FID" : 106,
+        "fid_1" : 17216,
+        "id" : 34394639,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 106
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 107,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.396645992301799,
+          18.735696963155902
+        ]
+      },
+      "properties" : {
+        "FID" : 107,
+        "fid_1" : 17459,
+        "id" : 34399563,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 107
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 108,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.374643481657969,
+          18.580349410511531
+        ]
+      },
+      "properties" : {
+        "FID" : 108,
+        "fid_1" : 17460,
+        "id" : 34399564,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 108
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 109,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.375611339560919,
+          18.702668490242502
+        ]
+      },
+      "properties" : {
+        "FID" : 109,
+        "fid_1" : 17463,
+        "id" : 34399596,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 109
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 110,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.421692426599392,
+          18.614946156161732
+        ]
+      },
+      "properties" : {
+        "FID" : 110,
+        "fid_1" : 17469,
+        "id" : 34399571,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 110
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 111,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.456493183123811,
+          18.721144250925072
+        ]
+      },
+      "properties" : {
+        "FID" : 111,
+        "fid_1" : 17470,
+        "id" : 34399572,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 111
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 112,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.370678778345805,
+          18.595280194472895
+        ]
+      },
+      "properties" : {
+        "FID" : 112,
+        "fid_1" : 17471,
+        "id" : 34399573,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 112
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 113,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.369305295406889,
+          18.728617066166809
+        ]
+      },
+      "properties" : {
+        "FID" : 113,
+        "fid_1" : 17472,
+        "id" : 34399574,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 113
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 114,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.350899563515782,
+          18.610561901986088
+        ]
+      },
+      "properties" : {
+        "FID" : 114,
+        "fid_1" : 17473,
+        "id" : 34399575,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 114
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 115,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.463106520391534,
+          18.746737171281744
+        ]
+      },
+      "properties" : {
+        "FID" : 115,
+        "fid_1" : 17492,
+        "id" : 34399593,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 115
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 116,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.41657981176229,
+          18.735099439091947
+        ]
+      },
+      "properties" : {
+        "FID" : 116,
+        "fid_1" : 17494,
+        "id" : 34399594,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 116
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 117,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.466320228939537,
+          18.675462184555851
+        ]
+      },
+      "properties" : {
+        "FID" : 117,
+        "fid_1" : 17496,
+        "id" : 34399600,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 117
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 118,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.378654893364285,
+          18.670678841256514
+        ]
+      },
+      "properties" : {
+        "FID" : 118,
+        "fid_1" : 17497,
+        "id" : 34399601,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 118
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 119,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.45024765087949,
+          18.655637482210711
+        ]
+      },
+      "properties" : {
+        "FID" : 119,
+        "fid_1" : 17498,
+        "id" : 34399602,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 119
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 120,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.455847095853898,
+          18.625434614458779
+        ]
+      },
+      "properties" : {
+        "FID" : 120,
+        "fid_1" : 17505,
+        "id" : 34399607,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 120
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 121,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.367983955720945,
+          18.554075147934956
+        ]
+      },
+      "properties" : {
+        "FID" : 121,
+        "fid_1" : 17509,
+        "id" : 34399611,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 121
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 122,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.36844866010297,
+          18.727731186711996
+        ]
+      },
+      "properties" : {
+        "FID" : 122,
+        "fid_1" : 17513,
+        "id" : 34399615,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 122
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 123,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.425683180779913,
+          18.748186190442098
+        ]
+      },
+      "properties" : {
+        "FID" : 123,
+        "fid_1" : 17514,
+        "id" : 34399616,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 123
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 124,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.154876895502625,
+          18.859498304833313
+        ]
+      },
+      "properties" : {
+        "FID" : 124,
+        "fid_1" : 18307,
+        "id" : 34396198,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 124
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 125,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.137642225898873,
+          18.96951789992006
+        ]
+      },
+      "properties" : {
+        "FID" : 125,
+        "fid_1" : 18325,
+        "id" : 34396236,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 125
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 126,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.264075307664115,
+          18.814390967631574
+        ]
+      },
+      "properties" : {
+        "FID" : 126,
+        "fid_1" : 18339,
+        "id" : 34396189,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 126
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 127,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.905218938271389,
+          18.881936217574083
+        ]
+      },
+      "properties" : {
+        "FID" : 127,
+        "fid_1" : 18572,
+        "id" : 34396626,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 127
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 128,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.027543371825288,
+          18.889149757508452
+        ]
+      },
+      "properties" : {
+        "FID" : 128,
+        "fid_1" : 18634,
+        "id" : 34396232,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 128
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 129,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.013594731333143,
+          18.938904683012613
+        ]
+      },
+      "properties" : {
+        "FID" : 129,
+        "fid_1" : 18655,
+        "id" : 34396233,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 129
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 130,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.191734900099064,
+          18.971184381193609
+        ]
+      },
+      "properties" : {
+        "FID" : 130,
+        "fid_1" : 18656,
+        "id" : 34396192,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 130
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 131,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.230714491390032,
+          18.849579442414495
+        ]
+      },
+      "properties" : {
+        "FID" : 131,
+        "fid_1" : 18657,
+        "id" : 34396193,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 131
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 132,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.245592017885855,
+          18.826251249468612
+        ]
+      },
+      "properties" : {
+        "FID" : 132,
+        "fid_1" : 18658,
+        "id" : 34396194,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 132
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 133,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.311611712639916,
+          18.781252278520356
+        ]
+      },
+      "properties" : {
+        "FID" : 133,
+        "fid_1" : 18659,
+        "id" : 34396195,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 133
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 134,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.10132809894678,
+          18.823059981905228
+        ]
+      },
+      "properties" : {
+        "FID" : 134,
+        "fid_1" : 18660,
+        "id" : 34396240,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 134
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 135,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.187298048467198,
+          18.845357348546596
+        ]
+      },
+      "properties" : {
+        "FID" : 135,
+        "fid_1" : 18661,
+        "id" : 34396196,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 135
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 136,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.245118200421629,
+          18.785910422622248
+        ]
+      },
+      "properties" : {
+        "FID" : 136,
+        "fid_1" : 18662,
+        "id" : 34396200,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 136
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 137,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.243682996412815,
+          18.848608264635345
+        ]
+      },
+      "properties" : {
+        "FID" : 137,
+        "fid_1" : 18663,
+        "id" : 34396201,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 137
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 138,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.23741406318922,
+          18.813718469952065
+        ]
+      },
+      "properties" : {
+        "FID" : 138,
+        "fid_1" : 18664,
+        "id" : 34396202,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "San Gregorio",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 138
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 139,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.235500139282749,
+          18.793841578988815
+        ]
+      },
+      "properties" : {
+        "FID" : 139,
+        "fid_1" : 18665,
+        "id" : 34396204,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 139
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 140,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.220062711857537,
+          18.928721393779732
+        ]
+      },
+      "properties" : {
+        "FID" : 140,
+        "fid_1" : 18666,
+        "id" : 34396205,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 140
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 141,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.194724970217777,
+          18.913503046722482
+        ]
+      },
+      "properties" : {
+        "FID" : 141,
+        "fid_1" : 18667,
+        "id" : 34396206,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 141
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 142,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.170403619154925,
+          18.900326894630737
+        ]
+      },
+      "properties" : {
+        "FID" : 142,
+        "fid_1" : 18668,
+        "id" : 34396207,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 142
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 143,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.204366265194508,
+          18.899069010459133
+        ]
+      },
+      "properties" : {
+        "FID" : 143,
+        "fid_1" : 18669,
+        "id" : 34396208,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 143
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 144,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.03382885871514,
+          18.92368711926246
+        ]
+      },
+      "properties" : {
+        "FID" : 144,
+        "fid_1" : 18670,
+        "id" : 34396234,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 144
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 145,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.262641804212166,
+          18.966370834275875
+        ]
+      },
+      "properties" : {
+        "FID" : 145,
+        "fid_1" : 18672,
+        "id" : 34396209,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 145
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 146,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.248826977835662,
+          18.950160498695642
+        ]
+      },
+      "properties" : {
+        "FID" : 146,
+        "fid_1" : 18673,
+        "id" : 34396210,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 146
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 147,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.2555819849686,
+          18.993369478183897
+        ]
+      },
+      "properties" : {
+        "FID" : 147,
+        "fid_1" : 18674,
+        "id" : 34396211,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 147
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 148,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.228443970458926,
+          18.969007340622102
+        ]
+      },
+      "properties" : {
+        "FID" : 148,
+        "fid_1" : 18675,
+        "id" : 34396212,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 148
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 149,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.116876905231706,
+          18.761749221444994
+        ]
+      },
+      "properties" : {
+        "FID" : 149,
+        "fid_1" : 18676,
+        "id" : 34396235,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 149
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 150,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.228442775132407,
+          18.969988016156073
+        ]
+      },
+      "properties" : {
+        "FID" : 150,
+        "fid_1" : 18677,
+        "id" : 34396213,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 150
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 151,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.229805569143821,
+          18.980190883614888
+        ]
+      },
+      "properties" : {
+        "FID" : 151,
+        "fid_1" : 18678,
+        "id" : 34396214,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 151
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 152,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.250359935712964,
+          18.875621652422812
+        ]
+      },
+      "properties" : {
+        "FID" : 152,
+        "fid_1" : 18680,
+        "id" : 34396216,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 152
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 153,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.180814362966672,
+          18.766985295292038
+        ]
+      },
+      "properties" : {
+        "FID" : 153,
+        "fid_1" : 18682,
+        "id" : 34396241,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 153
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 154,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.231175175613487,
+          18.889352641151206
+        ]
+      },
+      "properties" : {
+        "FID" : 154,
+        "fid_1" : 18683,
+        "id" : 34396217,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 154
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 155,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.231589804421148,
+          18.895436685808622
+        ]
+      },
+      "properties" : {
+        "FID" : 155,
+        "fid_1" : 18684,
+        "id" : 34396218,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 155
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 156,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.243969288633551,
+          18.927523172851185
+        ]
+      },
+      "properties" : {
+        "FID" : 156,
+        "fid_1" : 18685,
+        "id" : 34396220,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "La Leona",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 156
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 157,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.211930268489482,
+          18.776537164296357
+        ]
+      },
+      "properties" : {
+        "FID" : 157,
+        "fid_1" : 18686,
+        "id" : 34396221,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 157
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 158,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.17282037180324,
+          18.879392199633887
+        ]
+      },
+      "properties" : {
+        "FID" : 158,
+        "fid_1" : 18688,
+        "id" : 34396222,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 158
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 159,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.200214000168799,
+          18.95013485386038
+        ]
+      },
+      "properties" : {
+        "FID" : 159,
+        "fid_1" : 18689,
+        "id" : 34396223,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 159
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 160,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.222205684929236,
+          18.906958369093214
+        ]
+      },
+      "properties" : {
+        "FID" : 160,
+        "fid_1" : 18690,
+        "id" : 34396224,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 160
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 161,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.214229252912048,
+          18.917242260645349
+        ]
+      },
+      "properties" : {
+        "FID" : 161,
+        "fid_1" : 18691,
+        "id" : 34396225,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "Chapultepec",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 161
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 162,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.270465962947952,
+          18.866521631592086
+        ]
+      },
+      "properties" : {
+        "FID" : 162,
+        "fid_1" : 18692,
+        "id" : 34396226,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 162
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 163,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.182679200269547,
+          18.864452641906681
+        ]
+      },
+      "properties" : {
+        "FID" : 163,
+        "fid_1" : 18693,
+        "id" : 34396227,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "Reposo Eterno",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 163
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 164,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.237299821225562,
+          18.813188680528945
+        ]
+      },
+      "properties" : {
+        "FID" : 164,
+        "fid_1" : 18695,
+        "id" : 34396228,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "San Gregorio",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 164
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 165,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.026735661108859,
+          18.906802476277317
+        ]
+      },
+      "properties" : {
+        "FID" : 165,
+        "fid_1" : 18696,
+        "id" : 34396229,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "Itzamatitlán",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 165
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 166,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.175688485202869,
+          18.782971715849119
+        ]
+      },
+      "properties" : {
+        "FID" : 166,
+        "fid_1" : 18697,
+        "id" : 34396230,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 166
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 167,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.001373634736851,
+          18.977477696714733
+        ]
+      },
+      "properties" : {
+        "FID" : 167,
+        "fid_1" : 18698,
+        "id" : 34396231,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 167
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 168,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.067609613384363,
+          18.881546895486267
+        ]
+      },
+      "properties" : {
+        "FID" : 168,
+        "fid_1" : 18699,
+        "id" : 34396237,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 168
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 169,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.107702748543375,
+          18.811996261536521
+        ]
+      },
+      "properties" : {
+        "FID" : 169,
+        "fid_1" : 18700,
+        "id" : 34396238,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 169
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 170,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.061784942661816,
+          18.80561237568876
+        ]
+      },
+      "properties" : {
+        "FID" : 170,
+        "fid_1" : 18701,
+        "id" : 34396239,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 170
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 171,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.073360882822939,
+          18.899954480341563
+        ]
+      },
+      "properties" : {
+        "FID" : 171,
+        "fid_1" : 18703,
+        "id" : 34396242,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 171
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 172,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.090252814213031,
+          18.983541692192876
+        ]
+      },
+      "properties" : {
+        "FID" : 172,
+        "fid_1" : 18704,
+        "id" : 34396243,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 172
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 173,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.008707115229427,
+          18.938455443920802
+        ]
+      },
+      "properties" : {
+        "FID" : 173,
+        "fid_1" : 18705,
+        "id" : 34396244,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 173
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 174,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.076496560862324,
+          18.96397294073531
+        ]
+      },
+      "properties" : {
+        "FID" : 174,
+        "fid_1" : 18706,
+        "id" : 34396245,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 174
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 175,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.036539794673985,
+          18.976581578096237
+        ]
+      },
+      "properties" : {
+        "FID" : 175,
+        "fid_1" : 18707,
+        "id" : 34396246,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 175
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 176,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.118083846004239,
+          18.953290045776118
+        ]
+      },
+      "properties" : {
+        "FID" : 176,
+        "fid_1" : 18708,
+        "id" : 34396247,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 176
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 177,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.115632782280258,
+          18.873871969169258
+        ]
+      },
+      "properties" : {
+        "FID" : 177,
+        "fid_1" : 18709,
+        "id" : 34396248,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "La Paz",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 177
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 178,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.99935955929918,
+          18.827580807092652
+        ]
+      },
+      "properties" : {
+        "FID" : 178,
+        "fid_1" : 18733,
+        "id" : 34393851,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 178
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 179,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.968947268037297,
+          18.98420087000666
+        ]
+      },
+      "properties" : {
+        "FID" : 179,
+        "fid_1" : 18842,
+        "id" : 34396595,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 179
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 180,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.285119526083406,
+          18.829605272368212
+        ]
+      },
+      "properties" : {
+        "FID" : 180,
+        "fid_1" : 18843,
+        "id" : 34396199,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 180
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 181,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.234029121401207,
+          18.877299677378655
+        ]
+      },
+      "properties" : {
+        "FID" : 181,
+        "fid_1" : 18844,
+        "id" : 34396219,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 181
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 182,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.753949634162794,
+          18.49560949770926
+        ]
+      },
+      "properties" : {
+        "FID" : 182,
+        "fid_1" : 19244,
+        "id" : 34394614,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 182
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 183,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.976607832458569,
+          18.466089865562317
+        ]
+      },
+      "properties" : {
+        "FID" : 183,
+        "fid_1" : 19245,
+        "id" : 34394615,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 183
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 184,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.092432036654728,
+          18.457594898057035
+        ]
+      },
+      "properties" : {
+        "FID" : 184,
+        "fid_1" : 19265,
+        "id" : 34394635,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 184
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 185,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.023492085092556,
+          18.438647621346036
+        ]
+      },
+      "properties" : {
+        "FID" : 185,
+        "fid_1" : 19268,
+        "id" : 34394638,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 185
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 186,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.148562515789024,
+          18.483493253641619
+        ]
+      },
+      "properties" : {
+        "FID" : 186,
+        "fid_1" : 19269,
+        "id" : 34394640,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 186
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 187,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.727300606972662,
+          18.465729010857611
+        ]
+      },
+      "properties" : {
+        "FID" : 187,
+        "fid_1" : 19369,
+        "id" : 34394621,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 187
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 188,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.203812125555032,
+          18.804297134419155
+        ]
+      },
+      "properties" : {
+        "FID" : 188,
+        "fid_1" : 19425,
+        "id" : 34396197,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 188
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 189,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.211225022569479,
+          19.030428484481739
+        ]
+      },
+      "properties" : {
+        "FID" : 189,
+        "fid_1" : 19809,
+        "id" : 34395268,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "Cuaximalco",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 189
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 190,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.27025695635821,
+          19.026816519614211
+        ]
+      },
+      "properties" : {
+        "FID" : 190,
+        "fid_1" : 19874,
+        "id" : 34395290,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "Huitzilac",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 190
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 191,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.985894643001387,
+          18.778218300754563
+        ]
+      },
+      "properties" : {
+        "FID" : 191,
+        "fid_1" : 19998,
+        "id" : 34396573,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 191
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 192,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.91202617166195,
+          18.876837849122214
+        ]
+      },
+      "properties" : {
+        "FID" : 192,
+        "fid_1" : 20220,
+        "id" : 34396604,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 192
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 193,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.737167969655474,
+          18.887225360365175
+        ]
+      },
+      "properties" : {
+        "FID" : 193,
+        "fid_1" : 20554,
+        "id" : 34396624,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 193
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 194,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.208772323538753,
+          18.783031078809827
+        ]
+      },
+      "properties" : {
+        "FID" : 194,
+        "fid_1" : 20556,
+        "id" : 34396185,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 194
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 195,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.306254563237786,
+          18.944528418237191
+        ]
+      },
+      "properties" : {
+        "FID" : 195,
+        "fid_1" : 20557,
+        "id" : 34396186,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 195
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 196,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.32216743394261,
+          18.859168229765729
+        ]
+      },
+      "properties" : {
+        "FID" : 196,
+        "fid_1" : 20558,
+        "id" : 34396187,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 196
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 197,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.230136914259205,
+          18.820136989638605
+        ]
+      },
+      "properties" : {
+        "FID" : 197,
+        "fid_1" : 20559,
+        "id" : 34396188,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 197
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 198,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.234488524757893,
+          18.77835229466297
+        ]
+      },
+      "properties" : {
+        "FID" : 198,
+        "fid_1" : 20560,
+        "id" : 34396191,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 198
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 199,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.250938561787365,
+          19.048032222543039
+        ]
+      },
+      "properties" : {
+        "FID" : 199,
+        "fid_1" : 20688,
+        "id" : 34395266,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "San José",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 199
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 200,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.094401401266325,
+          19.010694441820462
+        ]
+      },
+      "properties" : {
+        "FID" : 200,
+        "fid_1" : 20689,
+        "id" : 34395267,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "San Juan Tlacotenco",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 200
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 201,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.97263488279188,
+          18.871254055229564
+        ]
+      },
+      "properties" : {
+        "FID" : 201,
+        "fid_1" : 20901,
+        "id" : 34396538,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 201
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 202,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.909211161471831,
+          18.787439786199968
+        ]
+      },
+      "properties" : {
+        "FID" : 202,
+        "fid_1" : 20902,
+        "id" : 34396539,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "Jardines del Recuerdo",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 202
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 203,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.891781640848535,
+          18.94822921097964
+        ]
+      },
+      "properties" : {
+        "FID" : 203,
+        "fid_1" : 20904,
+        "id" : 34396541,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 203
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 204,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.796481398868167,
+          18.934872811849992
+        ]
+      },
+      "properties" : {
+        "FID" : 204,
+        "fid_1" : 20905,
+        "id" : 34396542,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 204
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 205,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.777368335634364,
+          18.908662578713614
+        ]
+      },
+      "properties" : {
+        "FID" : 205,
+        "fid_1" : 20906,
+        "id" : 34396543,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 205
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 206,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.869783598182011,
+          18.881188752894932
+        ]
+      },
+      "properties" : {
+        "FID" : 206,
+        "fid_1" : 20907,
+        "id" : 34396544,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 206
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 207,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.926219637661106,
+          18.989599209746974
+        ]
+      },
+      "properties" : {
+        "FID" : 207,
+        "fid_1" : 20910,
+        "id" : 34396546,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 207
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 208,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.901776876927755,
+          18.93625614312792
+        ]
+      },
+      "properties" : {
+        "FID" : 208,
+        "fid_1" : 20911,
+        "id" : 34396547,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 208
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 209,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.957754888222027,
+          18.787714763590905
+        ]
+      },
+      "properties" : {
+        "FID" : 209,
+        "fid_1" : 20912,
+        "id" : 34396548,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 209
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 210,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.941092539211667,
+          18.834766035193923
+        ]
+      },
+      "properties" : {
+        "FID" : 210,
+        "fid_1" : 20913,
+        "id" : 34396549,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 210
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 211,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.745377322549771,
+          18.916872463532407
+        ]
+      },
+      "properties" : {
+        "FID" : 211,
+        "fid_1" : 20915,
+        "id" : 34396550,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 211
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 212,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.757868787077612,
+          18.937424093032593
+        ]
+      },
+      "properties" : {
+        "FID" : 212,
+        "fid_1" : 20919,
+        "id" : 34396553,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 212
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 213,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.777534320439997,
+          18.754519577343419
+        ]
+      },
+      "properties" : {
+        "FID" : 213,
+        "fid_1" : 20921,
+        "id" : 34396609,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 213
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 214,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.767378697464238,
+          18.765785226039331
+        ]
+      },
+      "properties" : {
+        "FID" : 214,
+        "fid_1" : 20922,
+        "id" : 34396555,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "Popotlán",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 214
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 215,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.767464206806011,
+          18.781521441772064
+        ]
+      },
+      "properties" : {
+        "FID" : 215,
+        "fid_1" : 20923,
+        "id" : 34396556,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 215
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 216,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.752780381031386,
+          18.807604106153772
+        ]
+      },
+      "properties" : {
+        "FID" : 216,
+        "fid_1" : 20924,
+        "id" : 34396557,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 216
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 217,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.779704834041269,
+          18.770119550590245
+        ]
+      },
+      "properties" : {
+        "FID" : 217,
+        "fid_1" : 20928,
+        "id" : 34396562,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 217
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 218,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.881423161149485,
+          18.75690118057549
+        ]
+      },
+      "properties" : {
+        "FID" : 218,
+        "fid_1" : 20929,
+        "id" : 34396563,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 218
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 219,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.92933578737366,
+          18.871152335481089
+        ]
+      },
+      "properties" : {
+        "FID" : 219,
+        "fid_1" : 20930,
+        "id" : 34396564,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "Panteón Indígena de Tetelcingo",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 219
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 220,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.935552168782763,
+          18.822371811896051
+        ]
+      },
+      "properties" : {
+        "FID" : 220,
+        "fid_1" : 20931,
+        "id" : 34396565,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "Panteón Municipal Otilio Montaño",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 220
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 221,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.919625430964558,
+          18.815860006788377
+        ]
+      },
+      "properties" : {
+        "FID" : 221,
+        "fid_1" : 20932,
+        "id" : 34396566,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 221
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 222,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.972333253664672,
+          18.992853230524187
+        ]
+      },
+      "properties" : {
+        "FID" : 222,
+        "fid_1" : 20933,
+        "id" : 34396592,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 222
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 223,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.955146829508678,
+          18.808773825423227
+        ]
+      },
+      "properties" : {
+        "FID" : 223,
+        "fid_1" : 20935,
+        "id" : 34396567,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 223
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 224,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.944040689465965,
+          18.803559235909475
+        ]
+      },
+      "properties" : {
+        "FID" : 224,
+        "fid_1" : 20936,
+        "id" : 34396568,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "Gabriel Tepepa",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 224
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 225,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.994503518100089,
+          18.808241597954304
+        ]
+      },
+      "properties" : {
+        "FID" : 225,
+        "fid_1" : 20937,
+        "id" : 34396569,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 225
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 226,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.902175629504526,
+          18.798377580547971
+        ]
+      },
+      "properties" : {
+        "FID" : 226,
+        "fid_1" : 20938,
+        "id" : 34396571,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 226
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 227,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.994784803592893,
+          18.780699172040499
+        ]
+      },
+      "properties" : {
+        "FID" : 227,
+        "fid_1" : 20942,
+        "id" : 34396572,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 227
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 228,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.988838159798817,
+          18.762670081928778
+        ]
+      },
+      "properties" : {
+        "FID" : 228,
+        "fid_1" : 20945,
+        "id" : 34396574,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 228
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 229,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.777093915715497,
+          18.879602507043192
+        ]
+      },
+      "properties" : {
+        "FID" : 229,
+        "fid_1" : 20956,
+        "id" : 34396576,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 229
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 230,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.752579683783708,
+          18.906494049451222
+        ]
+      },
+      "properties" : {
+        "FID" : 230,
+        "fid_1" : 20962,
+        "id" : 34396577,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 230
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 231,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.725470963692104,
+          18.891046926505577
+        ]
+      },
+      "properties" : {
+        "FID" : 231,
+        "fid_1" : 20963,
+        "id" : 34396578,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 231
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 232,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.692692079774403,
+          18.880224685618277
+        ]
+      },
+      "properties" : {
+        "FID" : 232,
+        "fid_1" : 20964,
+        "id" : 34396579,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 232
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 233,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.719163612250043,
+          18.89122460676418
+        ]
+      },
+      "properties" : {
+        "FID" : 233,
+        "fid_1" : 20966,
+        "id" : 34396580,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 233
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 234,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.74287764750909,
+          18.87740728945839
+        ]
+      },
+      "properties" : {
+        "FID" : 234,
+        "fid_1" : 20967,
+        "id" : 34396581,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 234
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 235,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.87226188387865,
+          18.882971081603486
+        ]
+      },
+      "properties" : {
+        "FID" : 235,
+        "fid_1" : 20969,
+        "id" : 34396583,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 235
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 236,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.85142542452023,
+          18.882784069237495
+        ]
+      },
+      "properties" : {
+        "FID" : 236,
+        "fid_1" : 20970,
+        "id" : 34396584,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "Panteón del Señor de la Misericordia",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 236
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 237,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.846204560428035,
+          18.878095865873608
+        ]
+      },
+      "properties" : {
+        "FID" : 237,
+        "fid_1" : 20971,
+        "id" : 34396585,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 237
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 238,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.816036057467173,
+          18.887849213983078
+        ]
+      },
+      "properties" : {
+        "FID" : 238,
+        "fid_1" : 20972,
+        "id" : 34396586,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "San Antonio",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 238
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 239,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.881446645065935,
+          18.982803747885448
+        ]
+      },
+      "properties" : {
+        "FID" : 239,
+        "fid_1" : 20980,
+        "id" : 34396589,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 239
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 240,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.848567623097182,
+          18.874038406407625
+        ]
+      },
+      "properties" : {
+        "FID" : 240,
+        "fid_1" : 20994,
+        "id" : 34396616,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 240
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 241,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.94354091798499,
+          18.817713478334102
+        ]
+      },
+      "properties" : {
+        "FID" : 241,
+        "fid_1" : 20995,
+        "id" : 34396617,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "San Agustín",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 241
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 242,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.928380382516679,
+          18.977651065505775
+        ]
+      },
+      "properties" : {
+        "FID" : 242,
+        "fid_1" : 20996,
+        "id" : 34396618,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 242
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 243,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.905879728614181,
+          18.876567536461874
+        ]
+      },
+      "properties" : {
+        "FID" : 243,
+        "fid_1" : 20997,
+        "id" : 34396619,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 243
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 244,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.853866987936897,
+          18.78740516000537
+        ]
+      },
+      "properties" : {
+        "FID" : 244,
+        "fid_1" : 21000,
+        "id" : 34396622,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 244
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 245,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.756995160338889,
+          18.898177619410635
+        ]
+      },
+      "properties" : {
+        "FID" : 245,
+        "fid_1" : 21002,
+        "id" : 34396625,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 245
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 246,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.891952255098062,
+          18.798575145185904
+        ]
+      },
+      "properties" : {
+        "FID" : 246,
+        "fid_1" : 21882,
+        "id" : 34396570,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "Hermenegildo Galeana",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 246
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 247,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.950106888310714,
+          18.975925567597749
+        ]
+      },
+      "properties" : {
+        "FID" : 247,
+        "fid_1" : 21883,
+        "id" : 34396593,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 247
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 248,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.983776392636415,
+          18.95304133770405
+        ]
+      },
+      "properties" : {
+        "FID" : 248,
+        "fid_1" : 21884,
+        "id" : 34396594,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 248
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 249,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.931411919511305,
+          18.938883346968034
+        ]
+      },
+      "properties" : {
+        "FID" : 249,
+        "fid_1" : 21885,
+        "id" : 34396596,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 249
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 250,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.939997073310906,
+          18.997952009617446
+        ]
+      },
+      "properties" : {
+        "FID" : 250,
+        "fid_1" : 21886,
+        "id" : 34396597,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 250
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 251,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.93234757058606,
+          18.992755455094791
+        ]
+      },
+      "properties" : {
+        "FID" : 251,
+        "fid_1" : 21887,
+        "id" : 34396598,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 251
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 252,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.980273528309922,
+          18.92155628020917
+        ]
+      },
+      "properties" : {
+        "FID" : 252,
+        "fid_1" : 21888,
+        "id" : 34396599,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 252
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 253,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.989741682296312,
+          18.887762880078938
+        ]
+      },
+      "properties" : {
+        "FID" : 253,
+        "fid_1" : 21889,
+        "id" : 34396600,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "Paraíso Eterno",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 253
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 254,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.978133367775158,
+          18.887616740084752
+        ]
+      },
+      "properties" : {
+        "FID" : 254,
+        "fid_1" : 21890,
+        "id" : 34396601,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 254
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 255,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.94239070833649,
+          18.878111718853042
+        ]
+      },
+      "properties" : {
+        "FID" : 255,
+        "fid_1" : 21891,
+        "id" : 34396602,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 255
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 256,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.893571654894544,
+          18.909590842947683
+        ]
+      },
+      "properties" : {
+        "FID" : 256,
+        "fid_1" : 21892,
+        "id" : 34396603,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 256
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 257,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.976271932251024,
+          18.903370221212807
+        ]
+      },
+      "properties" : {
+        "FID" : 257,
+        "fid_1" : 21893,
+        "id" : 34396605,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 257
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 258,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.948008576656477,
+          18.860064451236184
+        ]
+      },
+      "properties" : {
+        "FID" : 258,
+        "fid_1" : 21894,
+        "id" : 34396606,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 258
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 259,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.960246365593918,
+          18.852961467459295
+        ]
+      },
+      "properties" : {
+        "FID" : 259,
+        "fid_1" : 21895,
+        "id" : 34396607,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "Casasano",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 259
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 260,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.869598621730859,
+          18.80271306353271
+        ]
+      },
+      "properties" : {
+        "FID" : 260,
+        "fid_1" : 21896,
+        "id" : 34396608,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 260
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 261,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.815688708484274,
+          18.798059120675092
+        ]
+      },
+      "properties" : {
+        "FID" : 261,
+        "fid_1" : 21897,
+        "id" : 34396610,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 261
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 262,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.817432976541355,
+          18.88278579216416
+        ]
+      },
+      "properties" : {
+        "FID" : 262,
+        "fid_1" : 21898,
+        "id" : 34396611,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 262
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 263,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.949404434566006,
+          18.856781799681286
+        ]
+      },
+      "properties" : {
+        "FID" : 263,
+        "fid_1" : 21899,
+        "id" : 34396612,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 263
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 264,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.953425358568325,
+          18.860826401715244
+        ]
+      },
+      "properties" : {
+        "FID" : 264,
+        "fid_1" : 21900,
+        "id" : 34396613,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 264
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 265,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.849266254941014,
+          18.87633784930032
+        ]
+      },
+      "properties" : {
+        "FID" : 265,
+        "fid_1" : 21901,
+        "id" : 34396614,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 265
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 266,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.948513994900324,
+          18.9861097953033
+        ]
+      },
+      "properties" : {
+        "FID" : 266,
+        "fid_1" : 21902,
+        "id" : 34396615,
+        "nom_obj" : "Cementerio",
+        "codigo" : 6250,
+        "calif_pos" : "Definida",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones",
+        "ORIG_FID" : 266
+      }
+    }
+  ]
+}

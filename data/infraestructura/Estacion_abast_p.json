@@ -1,0 +1,1414 @@
+{
+  "type" : "FeatureCollection",
+  "crs" : {
+    "type" : "name",
+    "properties" : {
+      "name" : "EPSG:6365"
+    }
+  },
+  "features" : [
+    {
+      "type" : "Feature",
+      "id" : 0,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.150665750000002,
+          18.65938895
+        ]
+      },
+      "properties" : {
+        "FID" : 0,
+        "fid_1" : 30,
+        "id" : 328789600,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 469,
+        "calif_pos" : "Aproximada",
+        "tipo" : "Estación de carburación",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 1,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.913406100000003,
+          18.889844199999999
+        ]
+      },
+      "properties" : {
+        "FID" : 1,
+        "fid_1" : 31,
+        "id" : 328794546,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 468,
+        "calif_pos" : "Aproximada",
+        "tipo" : "Gasolinera",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 2,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.032094549999997,
+          18.894338599999998
+        ]
+      },
+      "properties" : {
+        "FID" : 2,
+        "fid_1" : 32,
+        "id" : 328802844,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 468,
+        "calif_pos" : "Aproximada",
+        "tipo" : "Gasolinera",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 3,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.094386249999999,
+          18.814961199999999
+        ]
+      },
+      "properties" : {
+        "FID" : 3,
+        "fid_1" : 33,
+        "id" : 328803641,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 469,
+        "calif_pos" : "Aproximada",
+        "tipo" : "Estación de carburación",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 4,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.276227500000005,
+          18.702410999999998
+        ]
+      },
+      "properties" : {
+        "FID" : 4,
+        "fid_1" : 85,
+        "id" : 328791551,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 468,
+        "calif_pos" : "Aproximada",
+        "tipo" : "Gasolinera",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 5,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.791128450000002,
+          18.726083899999999
+        ]
+      },
+      "properties" : {
+        "FID" : 5,
+        "fid_1" : 86,
+        "id" : 328795089,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 468,
+        "calif_pos" : "Definida",
+        "tipo" : "Gasolinera",
+        "nom_geo" : "PEMEX E06819",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 6,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.2058143,
+          18.645584299999999
+        ]
+      },
+      "properties" : {
+        "FID" : 6,
+        "fid_1" : 89,
+        "id" : 328803746,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 468,
+        "calif_pos" : "Aproximada",
+        "tipo" : "Gasolinera",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 7,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.243054900000004,
+          18.756230649999999
+        ]
+      },
+      "properties" : {
+        "FID" : 7,
+        "fid_1" : 124,
+        "id" : 328791600,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 468,
+        "calif_pos" : "Aproximada",
+        "tipo" : "Gasolinera",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 8,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.8002319,
+          18.70486245
+        ]
+      },
+      "properties" : {
+        "FID" : 8,
+        "fid_1" : 130,
+        "id" : 328796284,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 468,
+        "calif_pos" : "Definida",
+        "tipo" : "Gasolinera",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 9,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.217058249999994,
+          18.83486555
+        ]
+      },
+      "properties" : {
+        "FID" : 9,
+        "fid_1" : 140,
+        "id" : 328804406,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 468,
+        "calif_pos" : "Aproximada",
+        "tipo" : "Gasolinera",
+        "nom_geo" : "N/D",
+        "nom_cono" : "PL/2507/EXP/ES/2015",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 10,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.225799699999996,
+          18.834149750000002
+        ]
+      },
+      "properties" : {
+        "FID" : 10,
+        "fid_1" : 190,
+        "id" : 328792411,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 468,
+        "calif_pos" : "Aproximada",
+        "tipo" : "Gasolinera",
+        "nom_geo" : "N/D",
+        "nom_cono" : "PL/3867/EXP/ES/2015",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 11,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.835562850000002,
+          18.616307949999999
+        ]
+      },
+      "properties" : {
+        "FID" : 11,
+        "fid_1" : 197,
+        "id" : 328796320,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 468,
+        "calif_pos" : "Aproximada",
+        "tipo" : "Gasolinera",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 12,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.965403600000002,
+          18.801657200000001
+        ]
+      },
+      "properties" : {
+        "FID" : 12,
+        "fid_1" : 198,
+        "id" : 328804464,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 469,
+        "calif_pos" : "Aproximada",
+        "tipo" : "Estación de carburación",
+        "nom_geo" : "Estación Ayala",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 13,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.734037700000002,
+          18.476544699999998
+        ]
+      },
+      "properties" : {
+        "FID" : 13,
+        "fid_1" : 273,
+        "id" : 37036434,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 468,
+        "calif_pos" : "Definida",
+        "tipo" : "Gasolinera",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 14,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.243600299999997,
+          18.788883849999998
+        ]
+      },
+      "properties" : {
+        "FID" : 14,
+        "fid_1" : 286,
+        "id" : 37036870,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 468,
+        "calif_pos" : "Aproximada",
+        "tipo" : "Gasolinera",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 15,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.056626300000005,
+          18.874475699999998
+        ]
+      },
+      "properties" : {
+        "FID" : 15,
+        "fid_1" : 288,
+        "id" : 37036871,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 468,
+        "calif_pos" : "Aproximada",
+        "tipo" : "Gasolinera",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 16,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.257279150000002,
+          18.724953849999999
+        ]
+      },
+      "properties" : {
+        "FID" : 16,
+        "fid_1" : 304,
+        "id" : 328792518,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 468,
+        "calif_pos" : "Aproximada",
+        "tipo" : "Gasolinera",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 17,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.822276349999996,
+          18.736420500000001
+        ]
+      },
+      "properties" : {
+        "FID" : 17,
+        "fid_1" : 305,
+        "id" : 328805180,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 468,
+        "calif_pos" : "Aproximada",
+        "tipo" : "Gasolinera",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 18,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.969233700000004,
+          18.7984723
+        ]
+      },
+      "properties" : {
+        "FID" : 18,
+        "fid_1" : 373,
+        "id" : 37036903,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 468,
+        "calif_pos" : "Definida",
+        "tipo" : "Gasolinera",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 19,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.902960849999999,
+          18.783086949999998
+        ]
+      },
+      "properties" : {
+        "FID" : 19,
+        "fid_1" : 400,
+        "id" : 37036904,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 468,
+        "calif_pos" : "Aproximada",
+        "tipo" : "Gasolinera",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 20,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.975155150000006,
+          18.94145735
+        ]
+      },
+      "properties" : {
+        "FID" : 20,
+        "fid_1" : 401,
+        "id" : 37036905,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 468,
+        "calif_pos" : "Aproximada",
+        "tipo" : "Gasolinera",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 21,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.996839749999992,
+          18.888245349999998
+        ]
+      },
+      "properties" : {
+        "FID" : 21,
+        "fid_1" : 402,
+        "id" : 37036906,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 468,
+        "calif_pos" : "Aproximada",
+        "tipo" : "Gasolinera",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 22,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.913043049999999,
+          18.89142395
+        ]
+      },
+      "properties" : {
+        "FID" : 22,
+        "fid_1" : 403,
+        "id" : 37036907,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 468,
+        "calif_pos" : "Aproximada",
+        "tipo" : "Gasolinera",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 23,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.895268650000006,
+          18.916545200000002
+        ]
+      },
+      "properties" : {
+        "FID" : 23,
+        "fid_1" : 404,
+        "id" : 37036908,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 468,
+        "calif_pos" : "Definida",
+        "tipo" : "Gasolinera",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 24,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.894733149999993,
+          18.771220549999999
+        ]
+      },
+      "properties" : {
+        "FID" : 24,
+        "fid_1" : 405,
+        "id" : 37036909,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 468,
+        "calif_pos" : "Definida",
+        "tipo" : "Gasolinera",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 25,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.372192850000005,
+          18.725130799999999
+        ]
+      },
+      "properties" : {
+        "FID" : 25,
+        "fid_1" : 480,
+        "id" : 37037252,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 468,
+        "calif_pos" : "Definida",
+        "tipo" : "Gasolinera",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 26,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.461837450000004,
+          18.6919878
+        ]
+      },
+      "properties" : {
+        "FID" : 26,
+        "fid_1" : 521,
+        "id" : 37037251,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 468,
+        "calif_pos" : "Definida",
+        "tipo" : "Gasolinera",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 27,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.316501049999999,
+          18.7802604
+        ]
+      },
+      "properties" : {
+        "FID" : 27,
+        "fid_1" : 621,
+        "id" : 328792550,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 468,
+        "calif_pos" : "Aproximada",
+        "tipo" : "Gasolinera",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 28,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.887203849999992,
+          18.929816549999998
+        ]
+      },
+      "properties" : {
+        "FID" : 28,
+        "fid_1" : 634,
+        "id" : 328796440,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 469,
+        "calif_pos" : "Aproximada",
+        "tipo" : "Estación de carburación",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 29,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.198966749999997,
+          18.842625049999999
+        ]
+      },
+      "properties" : {
+        "FID" : 29,
+        "fid_1" : 654,
+        "id" : 328792602,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 468,
+        "calif_pos" : "Aproximada",
+        "tipo" : "Gasolinera",
+        "nom_geo" : "N/D",
+        "nom_cono" : "PL/9262/EXP/ES/2015",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 30,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.919388299999994,
+          18.819940750000001
+        ]
+      },
+      "properties" : {
+        "FID" : 30,
+        "fid_1" : 658,
+        "id" : 328796458,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 468,
+        "calif_pos" : "Aproximada",
+        "tipo" : "Gasolinera",
+        "nom_geo" : "N/D",
+        "nom_cono" : "PL/6697/EXP/ES/2015",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 31,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.300728599999999,
+          18.6476769
+        ]
+      },
+      "properties" : {
+        "FID" : 31,
+        "fid_1" : 703,
+        "id" : 328792716,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 469,
+        "calif_pos" : "Definida",
+        "tipo" : "Estación de carburación",
+        "nom_geo" : "Gas de Cuernavaca",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 32,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.969630199999997,
+          18.8187207
+        ]
+      },
+      "properties" : {
+        "FID" : 32,
+        "fid_1" : 716,
+        "id" : 328797146,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 468,
+        "calif_pos" : "Aproximada",
+        "tipo" : "Gasolinera",
+        "nom_geo" : "N/D",
+        "nom_cono" : "PL/12905/EXP/ES/2015",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 33,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.9721878,
+          18.795061099999998
+        ]
+      },
+      "properties" : {
+        "FID" : 33,
+        "fid_1" : 727,
+        "id" : 328797531,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 468,
+        "calif_pos" : "Aproximada",
+        "tipo" : "Gasolinera",
+        "nom_geo" : "PEMEX E12140",
+        "nom_cono" : "PL/10049/EXP/ES/2015",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 34,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.2818252,
+          18.691831000000001
+        ]
+      },
+      "properties" : {
+        "FID" : 34,
+        "fid_1" : 747,
+        "id" : 328792841,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 468,
+        "calif_pos" : "Aproximada",
+        "tipo" : "Gasolinera",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 35,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.885052799999997,
+          18.762553099999998
+        ]
+      },
+      "properties" : {
+        "FID" : 35,
+        "fid_1" : 749,
+        "id" : 328798339,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 468,
+        "calif_pos" : "Aproximada",
+        "tipo" : "Gasolinera",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 36,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.009640849999997,
+          18.894261999999998
+        ]
+      },
+      "properties" : {
+        "FID" : 36,
+        "fid_1" : 776,
+        "id" : 328792953,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 469,
+        "calif_pos" : "Aproximada",
+        "tipo" : "Estación de carburación",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 37,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.002842950000002,
+          18.627681450000001
+        ]
+      },
+      "properties" : {
+        "FID" : 37,
+        "fid_1" : 778,
+        "id" : 328799176,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 468,
+        "calif_pos" : "Definida",
+        "tipo" : "Gasolinera",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 38,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.818472450000002,
+          18.733858699999999
+        ]
+      },
+      "properties" : {
+        "FID" : 38,
+        "fid_1" : 783,
+        "id" : 328806653,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 468,
+        "calif_pos" : "Aproximada",
+        "tipo" : "Gasolinera",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 39,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.224517750000004,
+          19.0853243
+        ]
+      },
+      "properties" : {
+        "FID" : 39,
+        "fid_1" : 796,
+        "id" : 328793000,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 468,
+        "calif_pos" : "Aproximada",
+        "tipo" : "Gasolinera",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 40,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.747825550000002,
+          18.481275449999998
+        ]
+      },
+      "properties" : {
+        "FID" : 40,
+        "fid_1" : 798,
+        "id" : 328799296,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 469,
+        "calif_pos" : "Aproximada",
+        "tipo" : "Estación de carburación",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 41,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.971701100000004,
+          18.730179
+        ]
+      },
+      "properties" : {
+        "FID" : 41,
+        "fid_1" : 820,
+        "id" : 328807465,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 468,
+        "calif_pos" : "Aproximada",
+        "tipo" : "Gasolinera",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 42,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.202710850000003,
+          18.957298899999998
+        ]
+      },
+      "properties" : {
+        "FID" : 42,
+        "fid_1" : 892,
+        "id" : 328793093,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 468,
+        "calif_pos" : "Aproximada",
+        "tipo" : "Gasolinera",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 43,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.746830149999994,
+          18.51360785
+        ]
+      },
+      "properties" : {
+        "FID" : 43,
+        "fid_1" : 897,
+        "id" : 328799801,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 468,
+        "calif_pos" : "Aproximada",
+        "tipo" : "Gasolinera",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 44,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.774233449999997,
+          18.510275149999998
+        ]
+      },
+      "properties" : {
+        "FID" : 44,
+        "fid_1" : 904,
+        "id" : 328807670,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 468,
+        "calif_pos" : "Aproximada",
+        "tipo" : "Gasolinera",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 45,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.194514349999992,
+          18.95401455
+        ]
+      },
+      "properties" : {
+        "FID" : 45,
+        "fid_1" : 919,
+        "id" : 328793457,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 468,
+        "calif_pos" : "Definida",
+        "tipo" : "Gasolinera",
+        "nom_geo" : "PEMEX E07716",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 46,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.365527,
+          18.751600799999999
+        ]
+      },
+      "properties" : {
+        "FID" : 46,
+        "fid_1" : 920,
+        "id" : 328800734,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 468,
+        "calif_pos" : "Aproximada",
+        "tipo" : "Gasolinera",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 47,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.988553350000004,
+          18.968019049999999
+        ]
+      },
+      "properties" : {
+        "FID" : 47,
+        "fid_1" : 925,
+        "id" : 328807693,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 468,
+        "calif_pos" : "Aproximada",
+        "tipo" : "Gasolinera",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 48,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.279458599999998,
+          18.503289800000001
+        ]
+      },
+      "properties" : {
+        "FID" : 48,
+        "fid_1" : 965,
+        "id" : 328793559,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 468,
+        "calif_pos" : "Aproximada",
+        "tipo" : "Gasolinera",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 49,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.203526150000002,
+          18.600837849999998
+        ]
+      },
+      "properties" : {
+        "FID" : 49,
+        "fid_1" : 976,
+        "id" : 328800853,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 468,
+        "calif_pos" : "Aproximada",
+        "tipo" : "Gasolinera",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 50,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.223112,
+          18.802623449999999
+        ]
+      },
+      "properties" : {
+        "FID" : 50,
+        "fid_1" : 1003,
+        "id" : 328807749,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 468,
+        "calif_pos" : "Aproximada",
+        "tipo" : "Gasolinera",
+        "nom_geo" : "N/D",
+        "nom_cono" : "PL/3912/EXP/ES/2015",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 51,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.932531400000002,
+          18.9803508
+        ]
+      },
+      "properties" : {
+        "FID" : 51,
+        "fid_1" : 1010,
+        "id" : 328793658,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 468,
+        "calif_pos" : "Aproximada",
+        "tipo" : "Gasolinera",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 52,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.284093900000002,
+          18.690813949999999
+        ]
+      },
+      "properties" : {
+        "FID" : 52,
+        "fid_1" : 1020,
+        "id" : 328801587,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 469,
+        "calif_pos" : "Aproximada",
+        "tipo" : "Estación de carburación",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 53,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.192531149999994,
+          18.812770149999999
+        ]
+      },
+      "properties" : {
+        "FID" : 53,
+        "fid_1" : 1024,
+        "id" : 328807802,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 468,
+        "calif_pos" : "Aproximada",
+        "tipo" : "Gasolinera",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 54,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.887204600000004,
+          18.890197650000001
+        ]
+      },
+      "properties" : {
+        "FID" : 54,
+        "fid_1" : 1088,
+        "id" : 328793679,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 468,
+        "calif_pos" : "Aproximada",
+        "tipo" : "Gasolinera",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 55,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.222065400000005,
+          18.8372329
+        ]
+      },
+      "properties" : {
+        "FID" : 55,
+        "fid_1" : 1115,
+        "id" : 328807854,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 468,
+        "calif_pos" : "Aproximada",
+        "tipo" : "Gasolinera",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 56,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.220493199999993,
+          18.798513400000001
+        ]
+      },
+      "properties" : {
+        "FID" : 56,
+        "fid_1" : 1643,
+        "id" : 328807892,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 468,
+        "calif_pos" : "Aproximada",
+        "tipo" : "Gasolinera",
+        "nom_geo" : "N/D",
+        "nom_cono" : "PL/2237/EXP/ES/2019",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 57,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.211247150000005,
+          18.83763605
+        ]
+      },
+      "properties" : {
+        "FID" : 57,
+        "fid_1" : 1832,
+        "id" : 328807969,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 468,
+        "calif_pos" : "Aproximada",
+        "tipo" : "Gasolinera",
+        "nom_geo" : "N/D",
+        "nom_cono" : "PL/9507/EXP/ES/2015",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 58,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -98.821528299999997,
+          18.572381199999999
+        ]
+      },
+      "properties" : {
+        "FID" : 58,
+        "fid_1" : 2280,
+        "id" : 328812001,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 468,
+        "calif_pos" : "Aproximada",
+        "tipo" : "Gasolinera",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 59,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.202924249999995,
+          18.7495735
+        ]
+      },
+      "properties" : {
+        "FID" : 59,
+        "fid_1" : 2299,
+        "id" : 328812262,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 468,
+        "calif_pos" : "Aproximada",
+        "tipo" : "Gasolinera",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    },
+    {
+      "type" : "Feature",
+      "id" : 60,
+      "geometry" : {
+        "type" : "Point",
+        "coordinates" : [
+          -99.184917850000005,
+          18.639109300000001
+        ]
+      },
+      "properties" : {
+        "FID" : 60,
+        "fid_1" : 2327,
+        "id" : 328812390,
+        "nom_obj" : "Estación de abastecimiento de combustible",
+        "codigo" : 469,
+        "calif_pos" : "Aproximada",
+        "tipo" : "Estación de carburación",
+        "nom_geo" : "N/D",
+        "nom_cono" : "N/D",
+        "clase_geo" : "Servicios e instalaciones"
+      }
+    }
+  ]
+}
