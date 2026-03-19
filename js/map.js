@@ -19,6 +19,10 @@
     statusbar.textContent = `Coords: ${e.lngLat.lat.toFixed(5)}, ${e.lngLat.lng.toFixed(5)}`;
   });
 
+  map.on("error", (e) => {
+    console.error("❌ Error de MapLibre:", e);
+  });
+
   map.on("load", () => {
     console.log("✅ Mapa cargó. Cargando estado y municipios...");
 
@@ -136,27 +140,47 @@
       console.warn("⚠️ fitBounds no disponible:", e);
     }
 
-  // =========================
-  // RASTER: Inestabilidad de laderas
-  // =========================
-  map.addSource("laderas", {
-    type: "image",
-    url: "data/geologicos/inestabilidad_laderas.png",
-    coordinates: [
-      [-99.59064917145143, 19.21817655306682], // top-left
-      [-98.54297903389683, 19.21817655306682], // top-right
-      [-98.54297903389683, 18.24194005423244], // bottom-right
-      [-99.59064917145143, 18.24194005423244]  // bottom-left
-    ]
-  });
+    // =========================
+    // Verificación previa del PNG
+    // =========================
+    fetch("data/geologicos/inestabilidad_laderas.png")
+      .then((r) => {
+        console.log("🖼️ PNG status:", r.status, r.url);
+        if (!r.ok) {
+          throw new Error(`No se pudo cargar el PNG. HTTP ${r.status}`);
+        }
+        return r.blob();
+      })
+      .then((blob) => {
+        console.log("✅ PNG encontrado. Tamaño (bytes):", blob.size);
 
-  map.addLayer({
-    id: "laderas-layer",
-    type: "raster",
-    source: "laderas",
-    paint: {
-      "raster-opacity": 0.6
-    }
-  });
+        // =========================
+        // RASTER: Inestabilidad de laderas
+        // =========================
+        map.addSource("laderas", {
+          type: "image",
+          url: "data/geologicos/inestabilidad_laderas.png",
+          coordinates: [
+            [-99.59064917145143, 19.21817655306682], // top-left
+            [-98.54297903389683, 19.21817655306682], // top-right
+            [-98.54297903389683, 18.24194005423244], // bottom-right
+            [-99.59064917145143, 18.24194005423244], // bottom-left
+          ],
+        });
+
+        map.addLayer({
+          id: "laderas-layer",
+          type: "raster",
+          source: "laderas",
+          paint: {
+            "raster-opacity": 1
+          },
+        });
+
+        console.log("✅ Raster 'laderas-layer' agregado.");
+      })
+      .catch((err) => {
+        console.error("❌ Error al verificar/agregar raster:", err);
+      });
   });
 })();
