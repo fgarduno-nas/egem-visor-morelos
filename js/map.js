@@ -135,5 +135,28 @@
     } catch (e) {
       console.warn("⚠️ fitBounds no disponible:", e);
     }
+
+  // =========================
+  // RASTER: Inestabilidad de laderas
+  // =========================
+  map.addSource("laderas", {
+    type: "image",
+    url: "data/geologicos/inestabilidad_laderas.png",
+    coordinates: [
+      [-99.59064917145143, 19.21817655306682], // top-left
+      [-98.54297903389683, 19.21817655306682], // top-right
+      [-98.54297903389683, 18.24194005423244], // bottom-right
+      [-99.59064917145143, 18.24194005423244]  // bottom-left
+    ]
+  });
+
+  map.addLayer({
+    id: "laderas-layer",
+    type: "raster",
+    source: "laderas",
+    paint: {
+      "raster-opacity": 0.6
+    }
+  });
   });
 })();
