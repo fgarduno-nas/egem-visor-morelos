@@ -173,11 +173,26 @@
           type: "raster",
           source: "laderas",
           paint: {
-            "raster-opacity": 1
+            "raster-opacity": 0.45
           },
         });
 
         console.log("✅ Raster 'laderas-layer' agregado.");
+
+        // =========================
+        // Checkbox para activar/desactivar raster
+        // =========================
+        const chkLaderas = document.getElementById("chkLaderas");
+
+        if (chkLaderas) {
+          chkLaderas.addEventListener("change", (e) => {
+            map.setLayoutProperty(
+              "laderas-layer",
+              "visibility",
+              e.target.checked ? "visible" : "none"
+            );
+          });
+        }
       })
       .catch((err) => {
         console.error("❌ Error al verificar/agregar raster:", err);
