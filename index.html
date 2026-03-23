@@ -3,40 +3,51 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Atlas de Riesgo de Morelos - Visor (MVP)</title>
-  <link rel="icon" href="data:,">
+  <title>EGEM - Visor SIG Web</title>
 
-  <!-- MapLibre CSS -->
   <link
     href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css"
     rel="stylesheet"
   />
 
+  <link rel="icon" href="data:," />
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
-  <!-- Barra superior -->
-  <header class="topbar">
-    <div class="brand">
-      <div class="brand__title">Estudio Geoespacial del estado de Morelos para la Gestión y Evaluación de Fenómenos Socio-naturales - EGEM</div>
-      <div class="brand__subtitle">Visor SIG Web (MVP)</div>
+  <!-- Encabezado institucional -->
+  <header class="gov-header">
+    <div class="gov-header__inner">
+      <img
+        src="assets/header-morelos-cepcm.png"
+        alt="Morelos Gobierno CEPCM"
+        class="gov-header__image"
+      />
     </div>
   </header>
 
+  <!-- Encabezado del proyecto -->
+  <section class="project-header">
+    <div class="project-header__text">
+      <h1>Estudio Geoespacial del estado de Morelos para la Gestión y Evaluación de Fenómenos Socio-naturales - EGEM</h1>
+      <p>Geoportal de consulta, visualización y análisis territorial</p>
+    </div>
+  </section>
+
   <!-- Layout principal -->
   <main class="layout">
-    <!-- Panel lateral (por ahora solo placeholder) -->
     <aside class="sidebar">
-      <h2>Capas</h2>
-      <p class="hint">(En el siguiente paso agregaremos checkboxes y leyenda)</p>
+      <div class="sidebar__section">
+        <h2>Capas</h2>
+        <p class="hint">Activa o desactiva capas temáticas del atlas.</p>
+      </div>
 
-      <div class="group">
+      <div class="sidebar__section">
         <h3>Base</h3>
         <label><input type="checkbox" checked disabled /> Estado</label><br />
         <label><input type="checkbox" checked disabled /> Municipios</label>
       </div>
 
-      <div class="group">
+      <div class="sidebar__section">
         <h3>Geológicos</h3>
         <label>
           <input type="checkbox" id="chkLaderas" checked />
@@ -44,29 +55,27 @@
         </label>
       </div>
 
-      <div class="group">
+      <div class="sidebar__section">
         <h3>Riesgos (demo)</h3>
         <label><input type="checkbox" disabled /> Peligro sísmico</label><br />
         <label><input type="checkbox" disabled /> Inundación</label>
       </div>
 
-      <hr />
-      <p class="hint">
-        Objetivo del MVP: cargar 4 capas, mostrar leyenda y popup por clic.
-      </p>
+      <div class="sidebar__section sidebar__legend">
+        <h3>Referencia</h3>
+        <p class="hint">
+          Diseño base inspirado en estructura de geoportal institucional.
+        </p>
+      </div>
     </aside>
 
-    <!-- Contenedor del mapa -->
     <section class="map-wrap">
       <div id="map"></div>
       <div class="statusbar" id="statusbar">Coords: —</div>
     </section>
   </main>
-
-  <!-- MapLibre JS -->
-  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
-
-  <!-- Tu script -->
-  <script src="js/map.js"></script>
 </body>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="js/map.js"></script>
 </html>
