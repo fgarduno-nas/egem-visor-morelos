@@ -60,7 +60,7 @@ html, body {
 .layout {
   height: calc(100% - 190px);
   display: grid;
-  grid-template-columns: 340px 1fr;
+  grid-template-columns: 360px 1fr;
 }
 
 /* =========================
@@ -69,8 +69,49 @@ html, body {
 .sidebar {
   background: #FAF8F2;
   border-right: 1px solid #D8D2C4;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  border-bottom: 1px solid #D8D2C4;
+  background: #F1EBDD;
+}
+
+.tab-btn {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 14px 10px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #6A0F2E;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.tab-btn:hover {
+  background: #E8E1D1;
+}
+
+.tab-btn.active {
+  background: #6A0F2E;
+  color: #ffffff;
+}
+
+/* Tab content */
+.tab-content {
+  display: none;
   padding: 18px 16px;
   overflow-y: auto;
+  height: 100%;
+}
+
+.tab-content.active {
+  display: block;
 }
 
 .sidebar__section {
@@ -104,6 +145,45 @@ html, body {
   line-height: 1.5;
 }
 
+.info-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #444;
+}
+
+/* Leyenda */
+.legend-item,
+.legend-line-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0;
+  font-size: 14px;
+}
+
+.legend-color {
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  border: 1px solid #aaa;
+}
+
+.legend-line {
+  width: 28px;
+  height: 0;
+  border-top: 2px solid #000;
+  display: inline-block;
+}
+
+.legend-line-strong {
+  border-top-width: 3px;
+}
+
+.legend-line-light {
+  border-top-width: 1px;
+}
+
 /* =========================
    Mapa
    ========================= */
@@ -130,4 +210,15 @@ html, body {
   border-radius: 10px;
   font-size: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+} 
+
+.basemap-select {
+  width: 100%;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border: 1px solid #D8D2C4;
+  border-radius: 8px;
+  background: #fff;
+  color: #2B2B2B;
+  font-size: 14px;
 }

@@ -28,7 +28,7 @@
   <!-- Encabezado del proyecto -->
   <section class="project-header">
     <div class="project-header__text">
-      <h1>Estudio Geoespacial del estado de Morelos para la Gestión y Evaluación de Fenómenos Socio-naturales - EGEM</h1>
+      <h1>Estudio Geoespacial del Estado de Morelos para la Gestión y Evaluación de Fenómenos Socio-naturales - EGEM</h1>
       <p>Geoportal de consulta, visualización y análisis territorial</p>
     </div>
   </section>
@@ -36,36 +36,137 @@
   <!-- Layout principal -->
   <main class="layout">
     <aside class="sidebar">
-      <div class="sidebar__section">
-        <h2>Capas</h2>
-        <p class="hint">Activa o desactiva capas temáticas del atlas.</p>
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="tab-capas">Capas</button>
+        <button class="tab-btn" data-tab="tab-leyenda">Leyenda</button>
+        <button class="tab-btn" data-tab="tab-info">Información</button>
       </div>
 
-      <div class="sidebar__section">
-        <h3>Base</h3>
-        <label><input type="checkbox" checked disabled /> Estado</label><br />
-        <label><input type="checkbox" checked disabled /> Municipios</label>
+      <!-- Contenido tabs -->
+      <div class="tab-content active" id="tab-capas">
+        <div class="sidebar__section">
+          <h2>Capas</h2>
+          <p class="hint">Activa o desactiva capas temáticas del atlas.</p>
+        </div>
+
+        <div class="sidebar__section">
+          <h3>Mapa base</h3>
+          <label for="basemap-select" class="hint">Selecciona el fondo del visor</label><br />
+          <select id="basemap-select" class="basemap-select">
+            <option value="claro" selected>Claro</option>
+            <option value="oscuro">Oscuro</option>
+            <option value="satelite">Satélite</option>
+          </select>
+        </div>
+
+        <div class="sidebar__section">
+          <h3>Geológicos</h3>
+          <label>
+            <input type="checkbox" id="chkLaderas" />
+            Inestabilidad de laderas
+          </label>
+        </div>
+
+        <div class="sidebar__section">
+          <h3>Hidrometeorológicos</h3>
+          <label><input type="checkbox" disabled /> Próximamente</label>
+        </div>
+
+        <div class="sidebar__section">
+          <h3>Sísmicos</h3>
+          <label><input type="checkbox" disabled /> Próximamente</label>
+        </div>
+
+        <div class="sidebar__section">
+          <h3>Químico-Tecnológicos</h3>
+          <label><input type="checkbox" disabled /> Próximamente</label>
+        </div>
+
+        <div class="sidebar__section">
+          <h3>Sanitario-Ecológicos</h3>
+          <label><input type="checkbox" disabled /> Próximamente</label>
+        </div>
+
+        <div class="sidebar__section">
+          <h3>Socio-Organizativo</h3>
+          <label><input type="checkbox" disabled /> Próximamente</label>
+        </div>
       </div>
 
-      <div class="sidebar__section">
-        <h3>Geológicos</h3>
-        <label>
-          <input type="checkbox" id="chkLaderas" checked />
-          Inestabilidad de laderas
-        </label>
+      <div class="tab-content" id="tab-leyenda">
+        <div class="sidebar__section">
+          <h2>Leyenda</h2>
+          <p class="hint">Interpretación visual de las capas activas.</p>
+        </div>
+
+        <div class="sidebar__section">
+          <h3>Inestabilidad de laderas</h3>
+
+          <div class="legend-item">
+            <span class="legend-color" style="background:#4E9B50;"></span>
+            <span>Baja</span>
+          </div>
+
+          <div class="legend-item">
+            <span class="legend-color" style="background:#F2E85C;"></span>
+            <span>Media</span>
+          </div>
+
+          <div class="legend-item">
+            <span class="legend-color" style="background:#E24C3B;"></span>
+            <span>Alta</span>
+          </div>
+        </div>
+
+        <div class="sidebar__section">
+          <h3>Base cartográfica</h3>
+          <div class="legend-line-item">
+            <span class="legend-line legend-line-strong"></span>
+            <span>Límite estatal</span>
+          </div>
+          <div class="legend-line-item">
+            <span class="legend-line legend-line-light"></span>
+            <span>Municipios</span>
+          </div>
+        </div>
       </div>
 
-      <div class="sidebar__section">
-        <h3>Riesgos (demo)</h3>
-        <label><input type="checkbox" disabled /> Peligro sísmico</label><br />
-        <label><input type="checkbox" disabled /> Inundación</label>
-      </div>
+      <div class="tab-content" id="tab-info">
+        <div class="sidebar__section">
+          <h2>Información</h2>
+          <p class="hint">Resumen técnico de la capa seleccionada.</p>
+        </div>
 
-      <div class="sidebar__section sidebar__legend">
-        <h3>Referencia</h3>
-        <p class="hint">
-          Diseño base inspirado en estructura de geoportal institucional.
-        </p>
+        <div class="sidebar__section">
+          <h3>Capa activa</h3>
+          <p id="info-capa"><strong>Inestabilidad de laderas</strong></p>
+        </div>
+
+        <div class="sidebar__section">
+          <h3>Descripción</h3>
+          <p class="info-text">
+            Representación raster del fenómeno geológico asociado a inestabilidad de laderas
+            en el estado de Morelos.
+          </p>
+        </div>
+
+        <div class="sidebar__section">
+          <h3>Fuente</h3>
+          <p class="info-text">Información temática entregada por el equipo técnico del EGEM.</p>
+        </div>
+
+        <div class="sidebar__section">
+          <h3>Sistema de referencia</h3>
+          <p class="info-text">EPSG:4326 - WGS 84</p>
+        </div>
+
+        <div class="sidebar__section">
+          <h3>Observaciones</h3>
+          <p class="info-text">
+            Esta sección podrá actualizarse con metadatos, fechas, escalas y responsable técnico.
+          </p>
+        </div>
       </div>
     </aside>
 
@@ -74,8 +175,8 @@
       <div class="statusbar" id="statusbar">Coords: —</div>
     </section>
   </main>
-</body>
 
-<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
-<script src="js/map.js"></script>
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+  <script src="js/map.js"></script>
+</body>
 </html>
