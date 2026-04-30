@@ -3,8 +3,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>EGEM - Visor SIG Web</title>
+  <title>EGEM - Estudio Geoespacial del Estado de Morelos</title>
 
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+    rel="stylesheet"
+  />
   <link
     href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css"
     rel="stylesheet"
@@ -14,169 +20,391 @@
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
-  <!-- Encabezado institucional -->
-  <header class="gov-header">
-    <div class="gov-header__inner">
-      <img
-        src="assets/header-morelos-cepcm.png"
-        alt="Morelos Gobierno CEPCM"
-        class="gov-header__image"
-      />
-    </div>
-  </header>
-
-  <!-- Encabezado del proyecto -->
-  <section class="project-header">
-    <div class="project-header__text">
-      <h1>Estudio Geoespacial del Estado de Morelos para la Gestión y Evaluación de Fenómenos Socio-naturales - EGEM</h1>
-      <p>Geoportal de consulta, visualización y análisis territorial</p>
-    </div>
-  </section>
-
-  <!-- Layout principal -->
-  <main class="layout">
-    <aside class="sidebar">
-      <!-- Tabs -->
-      <div class="tabs">
-        <button class="tab-btn active" data-tab="tab-capas">Capas</button>
-        <button class="tab-btn" data-tab="tab-leyenda">Leyenda</button>
-        <button class="tab-btn" data-tab="tab-info">Información</button>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="topbar-brand">
+        <img
+          class="topbar-brand__image"
+          src="assets/Convivencia_page-0003.png"
+          alt="Encabezado institucional EGEM"
+        />
+        <div class="brand-block">
+          <p class="eyebrow">Atlas de riesgos para consulta operativa</p>
+          <h1>EGEM - Estudio Geoespacial del Estado de Morelos</h1>
+          <p class="subtitle">
+            Plataforma institucional de consulta clara para Proteccion Civil estatal y municipal.
+          </p>
+        </div>
       </div>
 
-      <!-- Contenido tabs -->
-      <div class="tab-content active" id="tab-capas">
-        <div class="sidebar__section">
-          <h2>Capas</h2>
-          <p class="hint">Activa o desactiva capas temáticas del atlas.</p>
+      <div class="topbar-actions">
+        <button class="ghost-button hidden" id="open-user-admin" type="button">Usuarios</button>
+        <button class="ghost-button" id="toggle-sidebar" type="button">Panel</button>
+        <button class="ghost-button" id="open-help" type="button">Guia rapida</button>
+        <button class="primary-button" id="open-login" type="button">Acceso</button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <aside class="control-panel">
+        <details class="panel-card panel-accordion panel-accordion--hero" open>
+          <summary class="panel-summary">
+            <div class="hero-title">
+              <span class="hero-badge">Visor activo</span>
+              <h2>Consulta rapida del territorio</h2>
+            </div>
+            <span class="panel-summary__chevron" aria-hidden="true"></span>
+          </summary>
+          <div class="panel-content">
+            <p>
+              El mapa queda al centro y las capas se entienden por fenomeno, municipio y estatus.
+            </p>
+            <div class="hero-grid">
+              <article>
+                <strong id="session-role-label">Visitante</strong>
+                <span>Rol actual</span>
+              </article>
+              <article>
+                <strong id="published-count">0</strong>
+                <span>Capas publicadas</span>
+              </article>
+              <article>
+                <strong id="pending-count">0</strong>
+                <span>Capas pendientes</span>
+              </article>
+            </div>
+          </div>
+        </details>
+
+        <details class="panel-card panel-accordion" open>
+          <summary class="panel-summary">
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">Mapa base</p>
+                <h3>Fondos cartograficos</h3>
+              </div>
+            </div>
+            <span class="panel-summary__chevron" aria-hidden="true"></span>
+          </summary>
+          <div class="panel-content">
+            <div class="basemap-list" id="basemap-list"></div>
+          </div>
+        </details>
+
+        <details class="panel-card panel-accordion" open>
+          <summary class="panel-summary">
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">Capas</p>
+                <h3>Fenomenos y limites</h3>
+              </div>
+            </div>
+            <span class="panel-summary__chevron" aria-hidden="true"></span>
+          </summary>
+          <div class="panel-content">
+            <label class="search-box">
+              <span>Buscar capa</span>
+              <input id="layer-search" type="search" placeholder="Ej. inundacion, Cuernavaca" />
+            </label>
+
+            <div class="layer-list" id="layer-list"></div>
+          </div>
+        </details>
+
+        <details class="panel-card panel-accordion" open>
+          <summary class="panel-summary">
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">Informacion</p>
+                <h3>Detalle de la seleccion</h3>
+              </div>
+            </div>
+            <span class="panel-summary__chevron" aria-hidden="true"></span>
+          </summary>
+          <div class="panel-content">
+            <div class="info-panel" id="info-panel">
+              <p class="info-title">Sin elemento seleccionado</p>
+              <p class="info-copy">
+                Selecciona una capa o haz clic sobre un elemento del mapa para ver su resumen.
+              </p>
+            </div>
+          </div>
+        </details>
+      </aside>
+
+      <section class="map-stage">
+        <div id="map"></div>
+
+        <button class="map-fab map-fab--left hidden" id="reopen-sidebar" type="button">
+          Mostrar panel
+        </button>
+
+        <div class="map-overlay map-overlay--top-left">
+          <div class="floating-card floating-card--compact">
+            <p class="overlay-label">Estado de operacion</p>
+            <strong id="session-summary">Modo visitante</strong>
+            <span id="session-summary-copy">Consulta publica de capas aprobadas.</span>
+          </div>
         </div>
 
-        <div class="sidebar__section">
-          <h3>Mapa base</h3>
-          <label for="basemap-select" class="hint">Selecciona el fondo del visor</label><br />
-          <select id="basemap-select" class="basemap-select">
-            <option value="claro" selected>Claro</option>
-            <option value="oscuro">Oscuro</option>
-            <option value="satelite">Satélite</option>
-          </select>
+        <div class="map-overlay map-overlay--top-right" id="tools-overlay">
+          <div class="map-toolbar" aria-label="Herramientas del visor">
+            <button class="toolbar-button" id="toolbar-toggle-panel" type="button" title="Mostrar u ocultar panel">
+              <span class="toolbar-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h7v14H4zM13 5h7v14h-7z"/></svg>
+              </span>
+            </button>
+            <button class="toolbar-button" id="toolbar-zoom-in" type="button" title="Acercar mapa">
+              <span class="toolbar-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 4a6 6 0 1 0 3.87 10.58l4.27 4.27 1.41-1.41-4.27-4.27A6 6 0 0 0 10 4zm1 3v2h2v2h-2v2H9v-2H7V9h2V7z"/></svg>
+              </span>
+            </button>
+            <button class="toolbar-button" id="toolbar-zoom-out" type="button" title="Alejar mapa">
+              <span class="toolbar-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 4a6 6 0 1 0 3.87 10.58l4.27 4.27 1.41-1.41-4.27-4.27A6 6 0 0 0 10 4zm-3 5h6v2H7z"/></svg>
+              </span>
+            </button>
+            <button class="toolbar-button" id="toolbar-reset-north" type="button" title="Reposicionar al norte">
+              <span class="toolbar-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l4.5 8h-3v7h-3v-7h-3L12 2zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16zm0-2a6 6 0 1 0 0-12 6 6 0 0 0 0 12z"/></svg>
+              </span>
+            </button>
+            <button class="toolbar-button" id="toolbar-measure" type="button" title="Medir distancia entre dos puntos">
+              <span class="toolbar-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm2.92 2.33H5v-.92l9.06-9.06.92.92L5.92 19.58zM20.71 7.04a1.003 1.003 0 0 0 0-1.42L18.37 3.29a1.003 1.003 0 0 0-1.42 0l-1.13 1.13 3.75 3.75 1.14-1.13z"/></svg>
+              </span>
+            </button>
+            <button class="toolbar-button" id="toolbar-add-point" type="button" title="Capturar punto como nueva capa">
+              <span class="toolbar-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm1 8h3v2h-3v3h-2v-3H8v-2h3V7h2v3zm-1-4.5A3.5 3.5 0 1 1 8.5 9 3.5 3.5 0 0 1 12 5.5z"/></svg>
+              </span>
+            </button>
+            <button class="toolbar-button" id="trigger-upload" type="button" title="Subir capa">
+              <span class="toolbar-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20h14v-2H5v2zm7-16-5.5 5.5 1.42 1.42L11 7.84V16h2V7.84l3.08 3.08 1.42-1.42L12 4z"/></svg>
+              </span>
+            </button>
+            <button class="toolbar-button" id="focus-morelos-menu" type="button" title="Volver a Morelos">
+              <span class="toolbar-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 4 6v6c0 5 3.41 9.69 8 10 4.59-.31 8-5 8-10V6l-8-4zm0 3.18L17 7.5v4.4c0 3.53-2.16 6.93-5 7.87-2.84-.94-5-4.34-5-7.87V7.5l5-2.32zM11 8h2v4h3v2h-3v3h-2v-3H8v-2h3z"/></svg>
+              </span>
+            </button>
+            <button class="toolbar-button" id="toolbar-clear-measure" type="button" title="Limpiar medicion">
+              <span class="toolbar-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+              </span>
+            </button>
+          </div>
+          <p class="toolbar-note" id="upload-permission-note">
+            Inicia sesion como administrador o director para cargar capas.
+          </p>
         </div>
 
-        <div class="sidebar__section">
-          <h3>Geológicos</h3>
-          <label>
-            <input type="checkbox" id="chkLaderas" />
-            Inestabilidad de laderas
+        <div class="map-overlay map-overlay--bottom-left">
+          <div class="floating-card">
+            <p class="overlay-label">Coordenadas</p>
+            <strong id="statusbar">Lon: -99.10000 | Lat: 18.75000</strong>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <input id="file-input" type="file" accept=".kml,.kmz,.tif,.tiff,.zip,.rar,.shp,.dbf,.prj,.cpg" multiple hidden />
+
+  <dialog class="modal" id="login-modal">
+    <form class="modal-card" id="login-form" method="dialog">
+      <div class="modal-header">
+        <div>
+          <p class="section-kicker">Acceso al visor</p>
+          <h2>Ingreso por roles</h2>
+        </div>
+        <button class="icon-button" id="close-login" type="button" aria-label="Cerrar">x</button>
+      </div>
+
+      <p class="modal-copy">
+        Este prototipo incluye tres accesos de demostracion para validar el flujo de publicacion.
+      </p>
+
+      <div class="demo-users">
+        <article>
+          <strong>Administrador</strong>
+          <span>`admin@egem.morelos`</span>
+          <span>`Admin123!`</span>
+        </article>
+        <article>
+          <strong>Director</strong>
+          <span>`director.cuernavaca@egem.morelos`</span>
+          <span>`Director123!`</span>
+        </article>
+        <article>
+          <strong>Visitante</strong>
+          <span>`visitante@egem.morelos`</span>
+          <span>`Visitante123!`</span>
+        </article>
+      </div>
+
+      <label class="form-field">
+        <span>Correo</span>
+        <input id="login-email" type="email" placeholder="usuario@egem.morelos" required />
+      </label>
+
+      <label class="form-field">
+        <span>Contrasena</span>
+        <input id="login-password" type="password" placeholder="********" required />
+      </label>
+
+      <p class="form-feedback" id="login-feedback"></p>
+
+      <div class="modal-actions">
+        <button class="ghost-button" id="continue-visitor" type="button">Entrar como visitante</button>
+        <button class="primary-button" type="submit">Iniciar sesion</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="modal" id="help-modal">
+    <div class="modal-card modal-card--wide">
+      <div class="modal-header">
+        <div>
+          <p class="section-kicker">Enfoque EGEM</p>
+          <h2>Que ya resuelve este rediseño</h2>
+        </div>
+        <button class="icon-button" id="close-help" type="button" aria-label="Cerrar">x</button>
+      </div>
+
+      <div class="help-grid">
+        <article>
+          <strong>Consulta mas simple</strong>
+          <p>
+            El mapa es protagonista y el panel lateral se reduce a base map, capas y detalle.
+          </p>
+        </article>
+        <article>
+          <strong>Capas operativas</strong>
+          <p>
+            Ya puedes cargar, revisar y visualizar distintos formatos para validar flujo operativo.
+          </p>
+        </article>
+        <article>
+          <strong>Roles institucionales</strong>
+          <p>
+            Visitante consulta, director propone capas y administrador aprueba o rechaza.
+          </p>
+        </article>
+        <article>
+          <strong>Siguiente etapa</strong>
+          <p>
+            Para produccion hace falta backend, base de datos y almacenamiento de archivos fuera del navegador.
+          </p>
+        </article>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog class="modal" id="user-admin-modal">
+    <form class="modal-card modal-card--wide" id="user-admin-form" method="dialog">
+      <div class="modal-header">
+        <div>
+          <p class="section-kicker">Administracion</p>
+          <h2>Gestion de usuarios</h2>
+        </div>
+        <button class="icon-button" id="close-user-admin" type="button" aria-label="Cerrar">x</button>
+      </div>
+
+      <p class="modal-copy">
+        Solo la cuenta administradora puede crear usuarios de tipo director o visitante.
+      </p>
+
+      <div class="user-admin-grid">
+        <section class="user-admin-block">
+          <h3>Crear cuenta</h3>
+
+          <label class="form-field">
+            <span>Nombre</span>
+            <input id="new-user-name" type="text" placeholder="Nombre del responsable" required />
           </label>
-        </div>
 
-        <div class="sidebar__section">
-          <h3>Hidrometeorológicos</h3>
-          <label><input type="checkbox" disabled /> Próximamente</label>
-        </div>
+          <label class="form-field">
+            <span>Correo</span>
+            <input id="new-user-email" type="email" placeholder="usuario@egem.morelos" required />
+          </label>
 
-        <div class="sidebar__section">
-          <h3>Sísmicos</h3>
-          <label><input type="checkbox" disabled /> Próximamente</label>
-        </div>
+          <label class="form-field">
+            <span>Contrasena temporal</span>
+            <input id="new-user-password" type="text" placeholder="Temporal123!" required />
+          </label>
 
-        <div class="sidebar__section">
-          <h3>Químico-Tecnológicos</h3>
-          <label><input type="checkbox" disabled /> Próximamente</label>
-        </div>
+          <label class="form-field">
+            <span>Rol</span>
+            <select id="new-user-role" required>
+              <option value="director">Director</option>
+              <option value="visitante">Visitante</option>
+            </select>
+          </label>
 
-        <div class="sidebar__section">
-          <h3>Sanitario-Ecológicos</h3>
-          <label><input type="checkbox" disabled /> Próximamente</label>
-        </div>
+          <label class="form-field" id="new-user-municipality-field">
+            <span>Municipio</span>
+            <select id="new-user-municipality" required>
+              <option value="">Selecciona un municipio</option>
+              <option value="Amacuzac">Amacuzac</option>
+              <option value="Atlatlahucan">Atlatlahucan</option>
+              <option value="Axochiapan">Axochiapan</option>
+              <option value="Ayala">Ayala</option>
+              <option value="Coatetelco">Coatetelco</option>
+              <option value="Coatlán del Río">Coatlán del Río</option>
+              <option value="Cuautla">Cuautla</option>
+              <option value="Cuernavaca">Cuernavaca</option>
+              <option value="Emiliano Zapata">Emiliano Zapata</option>
+              <option value="Hueyapan">Hueyapan</option>
+              <option value="Huitzilac">Huitzilac</option>
+              <option value="Jantetelco">Jantetelco</option>
+              <option value="Jiutepec">Jiutepec</option>
+              <option value="Jojutla">Jojutla</option>
+              <option value="Jonacatepec de Leandro Valle">Jonacatepec de Leandro Valle</option>
+              <option value="Mazatepec">Mazatepec</option>
+              <option value="Miacatlán">Miacatlán</option>
+              <option value="Ocuituco">Ocuituco</option>
+              <option value="Puente de Ixtla">Puente de Ixtla</option>
+              <option value="Temixco">Temixco</option>
+              <option value="Temoac">Temoac</option>
+              <option value="Tepalcingo">Tepalcingo</option>
+              <option value="Tepoztlán">Tepoztlán</option>
+              <option value="Tetecala">Tetecala</option>
+              <option value="Tetela del Volcán">Tetela del Volcán</option>
+              <option value="Tlalnepantla">Tlalnepantla</option>
+              <option value="Tlaltizapán de Zapata">Tlaltizapán de Zapata</option>
+              <option value="Tlaquiltenango">Tlaquiltenango</option>
+              <option value="Tlayacapan">Tlayacapan</option>
+              <option value="Totolapan">Totolapan</option>
+              <option value="Xochitepec">Xochitepec</option>
+              <option value="Xoxocotla">Xoxocotla</option>
+              <option value="Yautepec">Yautepec</option>
+              <option value="Yecapixtla">Yecapixtla</option>
+              <option value="Zacatepec">Zacatepec</option>
+              <option value="Zacualpan de Amilpas">Zacualpan de Amilpas</option>
+            </select>
+          </label>
 
-        <div class="sidebar__section">
-          <h3>Socio-Organizativo</h3>
-          <label><input type="checkbox" disabled /> Próximamente</label>
-        </div>
+          <p class="form-feedback" id="user-admin-feedback"></p>
+
+          <div class="modal-actions">
+            <button class="primary-button" type="submit">Crear usuario</button>
+          </div>
+        </section>
+
+        <section class="user-admin-block">
+          <h3>Usuarios registrados</h3>
+          <div class="user-admin-list" id="user-admin-list"></div>
+        </section>
       </div>
-
-      <div class="tab-content" id="tab-leyenda">
-        <div class="sidebar__section">
-          <h2>Leyenda</h2>
-          <p class="hint">Interpretación visual de las capas activas.</p>
-        </div>
-
-        <div class="sidebar__section">
-          <h3>Inestabilidad de laderas</h3>
-
-          <div class="legend-item">
-            <span class="legend-color" style="background:#4E9B50;"></span>
-            <span>Baja</span>
-          </div>
-
-          <div class="legend-item">
-            <span class="legend-color" style="background:#F2E85C;"></span>
-            <span>Media</span>
-          </div>
-
-          <div class="legend-item">
-            <span class="legend-color" style="background:#E24C3B;"></span>
-            <span>Alta</span>
-          </div>
-        </div>
-
-        <div class="sidebar__section">
-          <h3>Base cartográfica</h3>
-          <div class="legend-line-item">
-            <span class="legend-line legend-line-strong"></span>
-            <span>Límite estatal</span>
-          </div>
-          <div class="legend-line-item">
-            <span class="legend-line legend-line-light"></span>
-            <span>Municipios</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="tab-content" id="tab-info">
-        <div class="sidebar__section">
-          <h2>Información</h2>
-          <p class="hint">Resumen técnico de la capa seleccionada.</p>
-        </div>
-
-        <div class="sidebar__section">
-          <h3>Capa activa</h3>
-          <p id="info-capa"><strong>Inestabilidad de laderas</strong></p>
-        </div>
-
-        <div class="sidebar__section">
-          <h3>Descripción</h3>
-          <p class="info-text">
-            Representación raster del fenómeno geológico asociado a inestabilidad de laderas
-            en el estado de Morelos.
-          </p>
-        </div>
-
-        <div class="sidebar__section">
-          <h3>Fuente</h3>
-          <p class="info-text">Información temática entregada por el equipo técnico del EGEM.</p>
-        </div>
-
-        <div class="sidebar__section">
-          <h3>Sistema de referencia</h3>
-          <p class="info-text">EPSG:4326 - WGS 84</p>
-        </div>
-
-        <div class="sidebar__section">
-          <h3>Observaciones</h3>
-          <p class="info-text">
-            Esta sección podrá actualizarse con metadatos, fechas, escalas y responsable técnico.
-          </p>
-        </div>
-      </div>
-    </aside>
-
-    <section class="map-wrap">
-      <div id="map"></div>
-      <div class="statusbar" id="statusbar">Coords: —</div>
-    </section>
-  </main>
+    </form>
+  </dialog>
 
   <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/geotiff"></script>
+  <script src="https://unpkg.com/shpjs@latest/dist/shp.js"></script>
   <script src="js/map.js"></script>
 </body>
 </html>
