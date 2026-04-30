@@ -30,6 +30,7 @@ body {
   background:
     radial-gradient(circle at top left, rgba(191, 147, 86, 0.2), transparent 30%),
     linear-gradient(135deg, #f3ece3 0%, #ece2d5 48%, #efe6dc 100%);
+  overflow: hidden;
 }
 
 button,
@@ -39,11 +40,12 @@ select {
 }
 
 .app-shell {
-  min-height: 100%;
+  height: 100vh;
   display: flex;
   flex-direction: column;
   padding: 18px;
   gap: 16px;
+  overflow: hidden;
 }
 
 .topbar {
@@ -150,11 +152,13 @@ select {
 }
 
 .workspace {
-  min-height: calc(100vh - 150px);
+  flex: 1;
+  min-height: 0;
   display: grid;
   grid-template-columns: 360px minmax(0, 1fr);
   gap: 16px;
   transition: grid-template-columns 0.22s ease;
+  overflow: hidden;
 }
 
 .app-shell--sidebar-collapsed .workspace {
@@ -165,10 +169,15 @@ select {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  max-height: calc(100vh - 150px);
-  overflow: auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
   padding-right: 4px;
   transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.control-panel > * {
+  flex: 0 0 auto;
 }
 
 .app-shell--sidebar-collapsed .control-panel {
@@ -185,7 +194,7 @@ select {
   border-radius: 24px;
   padding: 18px;
   box-shadow: 0 16px 36px rgba(70, 36, 49, 0.08);
-  overflow: hidden;
+  overflow: visible;
 }
 
 .panel-card--hero,
@@ -212,6 +221,7 @@ select {
 
 .panel-accordion {
   padding: 0;
+  overflow: hidden;
 }
 
 .panel-summary {
@@ -222,6 +232,7 @@ select {
   gap: 12px;
   padding: 18px;
   cursor: pointer;
+  min-height: 88px;
 }
 
 .panel-summary::-webkit-details-marker {
@@ -230,6 +241,7 @@ select {
 
 .panel-content {
   padding: 0 18px 18px;
+  display: block;
 }
 
 .panel-summary__chevron {
@@ -315,6 +327,11 @@ select {
   flex: 1;
 }
 
+.panel-heading-block {
+  flex: 1;
+  min-width: 0;
+}
+
 .section-kicker {
   color: rgba(88, 51, 58, 0.58);
 }
@@ -325,9 +342,6 @@ select {
   flex-direction: column;
   gap: 10px;
   margin-top: 16px;
-  max-height: 46vh;
-  overflow: auto;
-  padding-right: 4px;
 }
 
 .basemap-option,
@@ -353,6 +367,7 @@ select {
 
 .layer-item {
   justify-content: space-between;
+  align-self: stretch;
 }
 
 .layer-actions {
@@ -514,7 +529,8 @@ select {
 
 .map-stage {
   position: relative;
-  min-height: calc(100vh - 150px);
+  min-height: 0;
+  height: 100%;
   border-radius: 30px;
   overflow: hidden;
   box-shadow: var(--shadow);
@@ -840,8 +856,18 @@ select {
 }
 
 @media (max-width: 1180px) {
+  body {
+    overflow: auto;
+  }
+
+  .app-shell {
+    height: auto;
+    overflow: visible;
+  }
+
   .workspace {
     grid-template-columns: 1fr;
+    overflow: visible;
   }
 
   .app-shell--sidebar-collapsed .workspace {
@@ -850,11 +876,14 @@ select {
 
   .control-panel {
     max-height: none;
+    min-height: auto;
     order: 2;
+    overflow: visible;
   }
 
   .map-stage {
     min-height: 68vh;
+    height: 68vh;
     order: 1;
   }
 
