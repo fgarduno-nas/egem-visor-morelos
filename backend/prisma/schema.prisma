@@ -1,0 +1,136 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum LayerStatus {
+  draft
+  pending_review
+  approved
+  rejected
+  published
+  unpublished
+}
+
+enum AuditAction {
+  LOGIN_SUCCESS
+  USER_CREATED
+  USER_UPDATED
+  USER_STATUS_CHANGED
+  USER_ROLE_CHANGED
+  LAYER_CREATED
+  LAYER_APPROVED
+  LAYER_REJECTED
+  LAYER_PUBLISHED
+  LAYER_UNPUBLISHED
+  LAYER_DELETED
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  users       User[]
+}
+
+model User {
+  id          String     @id @default(cuid())
+  name        String
+  email       String     @unique
+  passwordHash String
+  municipality String?
+  isActive    Boolean    @default(true)
+  lastLoginAt DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  deletedAt   DateTime?
+  roleId      String
+  role        Role       @relation(fields: [roleId], references: [id])
+  createdLayers Layer[]  @relation("LayerCreatedBy")
+  approvals   ApprovalHistory[] @relation("ApprovalActor")
+  auditLogs   AuditLog[] @relation("AuditActor")
+}
+
+model Layer {
+  id             String            @id @default(cuid())
+  title          String
+  slug           String            @unique
+  description    String?
+  municipality   String?
+  sourceType     String?
+  status         LayerStatus       @default(draft)
+  rejectedReason String?
+  publishedAt    DateTime?
+  approvedAt     DateTime?
+  isDeleted      Boolean           @default(false)
+  deletedAt      DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  createdById    String
+  createdBy      User              @relation("LayerCreatedBy", fields: [createdById], references: [id])
+  files          LayerFile[]
+  metadata       LayerMetadata?
+  approvals      ApprovalHistory[]
+}
+
+model LayerFile {
+  id           String   @id @default(cuid())
+  layerId      String
+  layer        Layer    @relation(fields: [layerId], references: [id], onDelete: Cascade)
+  originalName String
+  storedName   String
+  storagePath  String
+  mimeType     String
+  extension    String
+  sizeBytes    Int
+  checksum     String?
+  uploadedById String
+  createdAt    DateTime @default(now())
+}
+
+model LayerMetadata {
+  id           String   @id @default(cuid())
+  layerId      String   @unique
+  layer        Layer    @relation(fields: [layerId], references: [id], onDelete: Cascade)
+  featureCount Int?
+  geometryType String?
+  bbox         Json?
+  crs          String?
+  properties   Json?
+  preview      Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model ApprovalHistory {
+  id         String      @id @default(cuid())
+  layerId     String
+  layer       Layer       @relation(fields: [layerId], references: [id], onDelete: Cascade)
+  actorId     String
+  actor       User        @relation("ApprovalActor", fields: [actorId], references: [id])
+  fromStatus  LayerStatus
+  toStatus    LayerStatus
+  note        String?
+  createdAt   DateTime    @default(now())
+}
+
+model AuditLog {
+  id          String      @id @default(cuid())
+  actorId     String?
+  actor       User?       @relation("AuditActor", fields: [actorId], references: [id])
+  entityType  String
+  entityId    String
+  action      AuditAction
+  description String
+  metadata    Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime    @default(now())
+}

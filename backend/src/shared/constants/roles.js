@@ -1,0 +1,5 @@
+export const ROLE_CODES = {
+  PUBLIC_USER: "PUBLIC_USER",
+  DATA_PROVIDER: "DATA_PROVIDER",
+  ADMIN: "ADMIN",
+};

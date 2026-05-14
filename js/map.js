@@ -1,34 +1,22 @@
-(() => {
+import { runtimeConfig } from "./app/config/runtime-config.js";
+import { loginRequest } from "./app/services/auth-api.js";
+import { createUserRequest, listUsersRequest } from "./app/services/users-api.js";
+import {
+  approveLayerRequest,
+  deleteLayerRequest,
+  listMyLayersRequest,
+  listPendingLayersRequest,
+  listPublicLayersRequest,
+  rejectLayerRequest,
+  setPublishStateRequest,
+  uploadLayerRequest,
+} from "./app/services/layers-api.js";
+
   const MORELOS_CENTER = [-99.07, 18.84];
   const STORAGE_KEYS = {
     session: "egem-session",
-    layers: "egem-user-layers-v2",
-    users: "egem-users-v1",
+    layerPrefs: "egem-layer-prefs-v1",
   };
-
-  const demoUsers = [
-    {
-      email: "admin@egem.morelos",
-      password: "Admin123!",
-      role: "admin",
-      name: "Administrador EGEM",
-      municipality: "Estado de Morelos",
-    },
-    {
-      email: "director.cuernavaca@egem.morelos",
-      password: "Director123!",
-      role: "director",
-      name: "Direccion de Proteccion Civil de Cuernavaca",
-      municipality: "Cuernavaca",
-    },
-    {
-      email: "visitante@egem.morelos",
-      password: "Visitante123!",
-      role: "visitante",
-      name: "Consulta publica",
-      municipality: "General",
-    },
-  ];
 
   const roleLabels = {
     admin: "Administrador",
@@ -187,6 +175,7 @@
     session: loadSession(),
     sidebarCollapsed: false,
     isUploading: false,
+    remoteSyncInProgress: false,
     measurement: {
       points: [],
     },
@@ -199,10 +188,14 @@
       estado: null,
       municipios: null,
     },
-    users: loadUsers(),
+    users: [],
     userLayers: loadUserLayers(),
     renderedLayers: new Map(),
     previewLayerId: null,
+    backendStatus: {
+      reachable: false,
+      lastError: null,
+    },
   };
 
   const map = new maplibregl.Map({
@@ -275,6 +268,7 @@
   renderBaseMapOptions();
   renderLayerCatalog();
   captureVisibleSnapshot();
+  initializeRemoteState();
 
   map.on("load", async () => {
     await loadStaticData();
@@ -326,9 +320,9 @@
       elements.helpModal.close();
     });
 
-    elements.openUserAdmin.addEventListener("click", () => {
+    elements.openUserAdmin.addEventListener("click", async () => {
       if (state.session.role !== "admin") return;
-      renderUserAdminPanel();
+      await renderUserAdminPanel();
       elements.userAdminModal.showModal();
     });
 
@@ -338,25 +332,21 @@
 
     document.getElementById("continue-visitor").addEventListener("click", () => {
       clearPreviewStateOnRoleChange();
-      state.session = {
-        role: "visitante",
-        name: "Consulta publica",
-        municipality: "General",
-      };
+      state.session = createVisitorSession();
       saveSession();
       renderSession();
-      renderLayerCatalog(elements.layerSearch.value.trim().toLowerCase());
+      syncLayersFromBackend();
       elements.loginModal.close();
     });
 
-    elements.loginForm.addEventListener("submit", (event) => {
+    elements.loginForm.addEventListener("submit", async (event) => {
       event.preventDefault();
-      login();
+      await login();
     });
 
-    elements.userAdminForm.addEventListener("submit", (event) => {
+    elements.userAdminForm.addEventListener("submit", async (event) => {
       event.preventDefault();
-      createManagedUser();
+      await createManagedUser();
     });
 
     elements.newUserRole.addEventListener("change", syncUserRoleForm);
@@ -379,39 +369,7 @@
 
       try {
         state.isUploading = true;
-        const layers = await createLayersFromFiles(files);
-        state.userLayers.push(...layers);
-        saveUserLayers();
-        renderLayerCatalog(elements.layerSearch.value.trim().toLowerCase());
-        renderSession();
-
-        const firstLayer = layers[0];
-        if (firstLayer.status === "published") {
-          layers.forEach((layer) => {
-            if (layer.status === "published") {
-              addUserLayerToMap(layer);
-              state.renderedLayers.set(layer.id, true);
-            }
-          });
-          fitLayer(firstLayer);
-        } else {
-          previewLayer(firstLayer);
-        }
-
-        renderLayerCatalog(elements.layerSearch.value.trim().toLowerCase());
-
-        updateInfoPanel({
-          title: layers.length === 1 ? firstLayer.title : `${layers.length} capas procesadas`,
-          description:
-            firstLayer.status === "published"
-              ? "La carga quedo disponible para consulta y descarga."
-              : "La carga quedo en revision y puede visualizarse antes de ser aprobada.",
-          extra: [
-            `Formato principal: ${firstLayer.fileType.toUpperCase()}`,
-            `Municipio: ${firstLayer.municipality}`,
-            `Capas generadas: ${layers.length}`,
-          ],
-        });
+        await uploadFilesToBackend(files);
       } catch (error) {
         console.error(error);
         updateInfoPanel({
@@ -500,8 +458,8 @@
     elements.layerList.innerHTML = layers
       .map((layer) => {
         const checked = layer.visible ? "checked" : "";
-        const disableToggle = layer.status === "pending" && state.session.role !== "admin" ? "disabled" : "";
-        const reviewButton = state.session.role === "admin" && layer.status === "pending"
+        const disableToggle = isPendingStatus(layer.status) && state.session.role !== "admin" ? "disabled" : "";
+        const reviewButton = state.session.role === "admin" && canPreviewLayer(layer)
           ? `<button class="ghost-button" type="button" data-preview="${layer.id}">Visualizar</button>`
           : "";
         const downloadButton = canDownloadLayer(layer)
@@ -510,8 +468,14 @@
         const deleteButton = state.session.role === "admin" && layer.sourceKind !== "static"
           ? `<button class="ghost-button" type="button" data-delete="${layer.id}">Eliminar</button>`
           : "";
-        const approveButton = state.session.role === "admin" && layer.status === "pending"
+        const approveButton = state.session.role === "admin" && layer.status === "pending_review"
           ? `<button class="primary-button" type="button" data-approve="${layer.id}">Aprobar</button>`
+          : "";
+        const rejectButton = state.session.role === "admin" && layer.status === "pending_review"
+          ? `<button class="ghost-button" type="button" data-reject="${layer.id}">Rechazar</button>`
+          : "";
+        const publishButton = state.session.role === "admin" && canTogglePublish(layer)
+          ? `<button class="ghost-button" type="button" data-publish="${layer.id}">${layer.status === "published" ? "Despublicar" : "Publicar"}</button>`
           : "";
 
         return `
@@ -528,7 +492,9 @@
             <div class="layer-actions">
               ${reviewButton}
               ${downloadButton}
+              ${publishButton}
               ${deleteButton}
+              ${rejectButton}
               ${approveButton}
             </div>
           </div>
@@ -559,6 +525,14 @@
     elements.layerList.querySelectorAll("[data-delete]").forEach((button) => {
       button.addEventListener("click", () => deleteLayer(button.dataset.delete));
     });
+
+    elements.layerList.querySelectorAll("[data-reject]").forEach((button) => {
+      button.addEventListener("click", () => rejectLayer(button.dataset.reject));
+    });
+
+    elements.layerList.querySelectorAll("[data-publish]").forEach((button) => {
+      button.addEventListener("click", () => togglePublishLayer(button.dataset.publish));
+    });
   }
 
   function buildCatalog() {
@@ -584,7 +558,7 @@
       layer.description,
       layer.municipality,
       layer.fileType,
-      layer.status === "published" ? "publicado" : "pendiente",
+      getStatusLabel(layer.status),
     ]
       .join(" ")
       .toLowerCase();
@@ -592,9 +566,12 @@
   }
 
   function canSeeLayer(layer) {
-    if (layer.status !== "pending") return true;
+    if (isPublishedStatus(layer.status)) return true;
     if (state.session.role === "admin") return true;
-    return state.session.role === "director" && layer.createdBy === state.session.name;
+    return (
+      state.session.role === "director" &&
+      (layer.createdById === state.session.userId || layer.createdBy === state.session.name)
+    );
   }
 
   function canDownloadLayer(layer) {
@@ -608,12 +585,7 @@
 
   function renderBadges(layer) {
     const badges = [];
-    if (layer.status === "published") {
-      badges.push('<span class="badge badge--published">Publicado</span>');
-    }
-    if (layer.status === "pending") {
-      badges.push('<span class="badge badge--pending">Pendiente</span>');
-    }
+    badges.push(`<span class="badge ${getStatusBadgeClass(layer.status)}">${escapeHtml(getStatusLabel(layer.status))}</span>`);
     if (layer.fileType) {
       badges.push(`<span class="badge">${escapeHtml(layer.fileType.toUpperCase())}</span>`);
     }
@@ -1100,7 +1072,7 @@
     const preview = state.userLayers.find((layer) => layer.id === state.previewLayerId);
     removeLayerBundle(state.previewLayerId);
     state.renderedLayers.delete(state.previewLayerId);
-    if (preview && preview.status === "pending") {
+    if (preview && isPendingStatus(preview.status)) {
       preview.visible = false;
     }
     state.previewLayerId = null;
@@ -1127,7 +1099,7 @@
     if (userLayer) {
       userLayer.visible = visible;
       if (visible) {
-        if (userLayer.status === "published" || userLayer.id === state.previewLayerId) {
+        if (canSeeLayer(userLayer) || userLayer.id === state.previewLayerId) {
           addUserLayerToMap(userLayer);
           state.renderedLayers.set(userLayer.id, true);
         }
@@ -1147,54 +1119,92 @@
     });
   }
 
-  function approveLayer(layerId) {
+  async function approveLayer(layerId) {
     const layer = state.userLayers.find((item) => item.id === layerId);
-    if (!layer) return;
+    if (!layer?.backendLayerId || !state.session.token) return;
 
-    layer.status = "published";
-    layer.visible = true;
-    saveUserLayers();
-    addUserLayerToMap(layer);
-    state.renderedLayers.set(layer.id, true);
-    renderLayerCatalog(elements.layerSearch.value.trim().toLowerCase());
-    renderSession();
-
-    updateInfoPanel({
-      title: layer.title,
-      description: "La capa fue aprobada y ya es visible para todos los visitantes.",
-      extra: [`Municipio: ${layer.municipality}`, `Aprobo: ${state.session.name}`],
-    });
+    try {
+      await approveLayerRequest(state.session.token, layer.backendLayerId);
+      await syncLayersFromBackend();
+      updateInfoPanel({
+        title: layer.title,
+        description: "La capa fue aprobada y quedo lista para publicacion.",
+        extra: [`Municipio: ${layer.municipality}`, `Aprobo: ${state.session.name}`],
+      });
+    } catch (error) {
+      console.error(error);
+      updateInfoPanel({
+        title: "No se pudo aprobar la capa",
+        description: error?.payload?.message || error.message || "La aprobacion fallo.",
+      });
+    }
   }
 
-  function deleteLayer(layerId) {
+  async function deleteLayer(layerId) {
     const index = state.userLayers.findIndex((item) => item.id === layerId);
     if (index === -1) return;
 
     const [layer] = state.userLayers.splice(index, 1);
-    removeLayerBundle(layer.id);
-    state.renderedLayers.delete(layer.id);
-    if (state.previewLayerId === layer.id) {
-      state.previewLayerId = null;
-    }
-    saveUserLayers();
-    captureVisibleSnapshot();
-    renderLayerCatalog(elements.layerSearch.value.trim().toLowerCase());
-    renderSession();
 
-    updateInfoPanel({
-      title: layer.title,
-      description: "La capa fue eliminada del prototipo.",
-      extra: [`Formato: ${layer.fileType.toUpperCase()}`, `Estatus previo: ${layer.status}`],
-    });
+    try {
+      if (layer.backendLayerId && state.session.token) {
+        await deleteLayerRequest(state.session.token, layer.backendLayerId);
+      }
+
+      removeLayerBundle(layer.id);
+      state.renderedLayers.delete(layer.id);
+      if (state.previewLayerId === layer.id) {
+        state.previewLayerId = null;
+      }
+      saveUserLayers();
+      captureVisibleSnapshot();
+      renderLayerCatalog(elements.layerSearch.value.trim().toLowerCase());
+      renderSession();
+
+      updateInfoPanel({
+        title: layer.title,
+        description: "La capa fue eliminada del listado actual.",
+        extra: [`Formato: ${layer.fileType.toUpperCase()}`, `Estatus previo: ${layer.status}`],
+      });
+    } catch (error) {
+      console.error(error);
+      updateInfoPanel({
+        title: "No se pudo eliminar la capa",
+        description: error?.payload?.message || error.message || "La operacion fallo.",
+      });
+    }
   }
 
   function downloadLayer(layerId) {
     const layer = state.userLayers.find((item) => item.id === layerId);
     if (!layer || !canDownloadLayer(layer)) return;
 
+    if (layer.download.files.length === 1 && layer.download.files[0].url) {
+      const file = layer.download.files[0];
+      const link = document.createElement("a");
+      link.href = file.url;
+      link.download = file.name;
+      link.rel = "noopener";
+      link.target = "_blank";
+      link.click();
+      return;
+    }
+
     if (layer.download.files.length === 1) {
       const file = layer.download.files[0];
       downloadFileObject(file.name, file.mimeType, file.base64);
+      return;
+    }
+
+    if (layer.download.files.every((file) => file.url)) {
+      layer.download.files.forEach((file) => {
+        const link = document.createElement("a");
+        link.href = file.url;
+        link.download = file.name;
+        link.rel = "noopener";
+        link.target = "_blank";
+        link.click();
+      });
       return;
     }
 
@@ -1262,7 +1272,7 @@
         description: layerMeta.description,
         extra: [
           `Municipio: ${layerMeta.municipality || "Sin especificar"}`,
-          `Estatus: ${layerMeta.status === "published" ? "Publicado" : "Pendiente"}`,
+          `Estatus: ${getStatusLabel(layerMeta.status)}`,
           `Formato: ${layerMeta.fileType ? layerMeta.fileType.toUpperCase() : "GeoJSON"}`,
         ],
         attributes: props,
@@ -1273,7 +1283,7 @@
         .setHTML(`
           <strong>${escapeHtml(String(name))}</strong><br />
           ${escapeHtml(layerMeta.municipality || "Cobertura estatal")}<br />
-          ${layerMeta.status === "published" ? "Publicado" : "Pendiente de aprobacion"}
+          ${escapeHtml(getStatusLabel(layerMeta.status))}
         `)
         .addTo(map);
     });
@@ -1324,8 +1334,8 @@
 
   function renderSession() {
     const roleLabel = roleLabels[state.session.role] || "Visitante";
-    const pendingLayers = state.userLayers.filter((layer) => layer.status === "pending");
-    const publishedLayers = state.userLayers.filter((layer) => layer.status === "published");
+    const pendingLayers = state.userLayers.filter((layer) => isPendingStatus(layer.status));
+    const publishedLayers = state.userLayers.filter((layer) => isPublishedStatus(layer.status));
 
     if (!canUpload() && state.activeTool === "point") {
       state.activeTool = null;
@@ -1338,7 +1348,7 @@
     elements.pendingCount.textContent = String(pendingLayers.length);
     elements.openUserAdmin.classList.toggle("hidden", state.session.role !== "admin");
     elements.uploadPermissionNote.textContent = canUpload()
-      ? "Puedes subir KML, KMZ, GeoTIFF y Shapefile en ZIP desde este menu."
+      ? "Puedes subir KML, KMZ, GeoJSON, GeoTIFF y Shapefile en ZIP desde este menu."
       : "La medicion es publica. Para subir capas o crear puntos inicia sesion como administrador o director.";
     updateToolbarState();
   }
@@ -1350,58 +1360,75 @@
     map.resize();
   }
 
-  function login() {
+  async function login() {
     const email = elements.loginEmail.value.trim().toLowerCase();
     const password = elements.loginPassword.value.trim();
-    const user = getAllUsers().find((item) => item.email === email && item.password === password);
+    elements.loginFeedback.textContent = "Validando credenciales...";
 
-    if (!user) {
-      elements.loginFeedback.textContent = "Credenciales invalidas. Usa los accesos de demostracion.";
-      return;
+    try {
+      const response = await loginRequest(email, password);
+      if (!response?.accessToken || !response?.user) {
+        throw new Error("La API no devolvio una sesion valida.");
+      }
+
+      clearPreviewStateOnRoleChange();
+      state.session = mapBackendSession(response);
+      saveSession();
+      renderSession();
+      await syncLayersFromBackend();
+      elements.loginFeedback.textContent = "";
+      elements.loginEmail.value = "";
+      elements.loginPassword.value = "";
+      elements.loginModal.close();
+
+      updateInfoPanel({
+        title: `Sesion iniciada como ${roleLabels[state.session.role]}`,
+        description: roleCapabilities[state.session.role],
+        extra: [
+          `Responsable: ${state.session.name}`,
+          `Ambito: ${state.session.municipality}`,
+          "Backend institucional conectado.",
+        ],
+      });
+    } catch (error) {
+      console.error(error);
+      elements.loginFeedback.textContent =
+        error?.payload?.message || error.message || "No se pudo iniciar sesion contra el backend.";
     }
-
-    clearPreviewStateOnRoleChange();
-    state.session = {
-      role: user.role,
-      name: user.name,
-      municipality: user.municipality,
-    };
-
-    saveSession();
-    renderSession();
-    renderLayerCatalog(elements.layerSearch.value.trim().toLowerCase());
-    elements.loginFeedback.textContent = "";
-    elements.loginEmail.value = "";
-    elements.loginPassword.value = "";
-    elements.loginModal.close();
-
-    updateInfoPanel({
-      title: `Sesion iniciada como ${roleLabels[user.role]}`,
-      description: roleCapabilities[user.role],
-      extra: [`Responsable: ${user.name}`, `Ambito: ${user.municipality}`],
-    });
   }
 
   function canUpload() {
     return state.session.role === "admin" || state.session.role === "director";
   }
 
-  function renderUserAdminPanel() {
-    const managedUsers = state.users.filter((user) => user.role === "director" || user.role === "visitante");
+  async function renderUserAdminPanel() {
+    elements.userAdminFeedback.textContent = "";
+
+    if (state.session.token) {
+      try {
+        state.users = await listUsersRequest(state.session.token);
+        state.backendStatus.reachable = true;
+        state.backendStatus.lastError = null;
+      } catch (error) {
+        console.error(error);
+        state.backendStatus.lastError = error.message;
+        elements.userAdminFeedback.textContent = "No se pudo consultar la lista de usuarios.";
+      }
+    }
+
+    const managedUsers = state.users.filter((user) => user.role === "DATA_PROVIDER" || user.role === "PUBLIC_USER");
     elements.userAdminList.innerHTML = managedUsers.length
       ? managedUsers
           .map((user) => `
             <article class="user-card">
               <strong>${escapeHtml(user.name)}</strong>
               <span>${escapeHtml(user.email)}</span>
-              <span>Rol: ${escapeHtml(roleLabels[user.role] || user.role)}</span>
+              <span>Rol: ${escapeHtml(roleLabels[mapBackendRole(user.role)] || user.role)}</span>
               <span>Municipio: ${escapeHtml(user.municipality || "General")}</span>
             </article>
           `)
           .join("")
       : '<div class="empty-state">Aun no hay usuarios creados desde el panel de administracion.</div>';
-
-    elements.userAdminFeedback.textContent = "";
     syncUserRoleForm();
   }
 
@@ -1419,7 +1446,7 @@
     }
   }
 
-  function createManagedUser() {
+  async function createManagedUser() {
     if (state.session.role !== "admin") return;
 
     const role = elements.newUserRole.value;
@@ -1446,41 +1473,41 @@
       return;
     }
 
-    if (getAllUsers().some((user) => user.email === email)) {
-      elements.userAdminFeedback.textContent = "Ese correo ya esta registrado.";
-      return;
+    try {
+      await createUserRequest(state.session.token, {
+        name,
+        email,
+        password,
+        municipality: role === "director" ? municipality : "General",
+        roleCode: role === "director" ? "DATA_PROVIDER" : "PUBLIC_USER",
+      });
+
+      await renderUserAdminPanel();
+      elements.userAdminForm.reset();
+      elements.newUserRole.value = "director";
+      syncUserRoleForm();
+      elements.userAdminFeedback.textContent = "Usuario creado correctamente.";
+
+      updateInfoPanel({
+        title: "Usuario registrado",
+        description: "La cuenta ya puede iniciar sesion desde el boton Acceso.",
+        extra: [
+          `Correo: ${email}`,
+          `Rol: ${roleLabels[role]}`,
+          `Municipio: ${municipality}`,
+        ],
+      });
+    } catch (error) {
+      console.error(error);
+      elements.userAdminFeedback.textContent =
+        error?.payload?.message || error.message || "No se pudo crear el usuario.";
     }
-
-    state.users.push({
-      email,
-      password,
-      role,
-      name,
-      municipality,
-    });
-
-    saveUsers();
-    renderUserAdminPanel();
-    elements.userAdminForm.reset();
-    elements.newUserRole.value = "director";
-    syncUserRoleForm();
-    elements.userAdminFeedback.textContent = "Usuario creado correctamente.";
-
-    updateInfoPanel({
-      title: "Usuario registrado",
-      description: "La cuenta ya puede iniciar sesion desde el boton Acceso.",
-      extra: [
-        `Correo: ${email}`,
-        `Rol: ${roleLabels[role]}`,
-        `Municipio: ${municipality}`,
-      ],
-    });
   }
 
   function clearPreviewStateOnRoleChange() {
     if (!state.previewLayerId) return;
     const preview = state.userLayers.find((layer) => layer.id === state.previewLayerId);
-    if (preview && preview.status === "pending") {
+    if (preview && isPendingStatus(preview.status)) {
       removeLayerBundle(preview.id);
       state.renderedLayers.delete(preview.id);
       preview.visible = false;
@@ -1868,10 +1895,12 @@
       title: config.title,
       description: config.description,
       group: "Capas cargadas",
-      status: state.session.role === "admin" ? "published" : "pending",
+      status: config.status || (state.session.role === "admin" ? "published" : "pending_review"),
       visible: true,
-      municipality,
-      createdBy: state.session.name,
+      municipality: config.municipality || municipality,
+      createdBy: config.createdBy || state.session.name,
+      createdById: config.createdById || state.session.userId || null,
+      backendLayerId: config.backendLayerId || null,
       createdAt: new Date().toISOString(),
       fileType: config.fileType,
       sourceKind: config.sourceKind,
@@ -2206,46 +2235,404 @@
       console.warn("No se pudo leer la sesion almacenada.", error);
     }
 
-    return {
-      role: "visitante",
-      name: "Consulta publica",
-      municipality: "General",
-    };
+    return createVisitorSession();
   }
 
   function saveSession() {
     localStorage.setItem(STORAGE_KEYS.session, JSON.stringify(state.session));
   }
 
-  function loadUsers() {
-    try {
-      const users = JSON.parse(localStorage.getItem(STORAGE_KEYS.users));
-      return Array.isArray(users) ? users : [];
-    } catch (error) {
-      console.warn("No se pudieron leer los usuarios guardados.", error);
-      return [];
-    }
-  }
-
-  function saveUsers() {
-    localStorage.setItem(STORAGE_KEYS.users, JSON.stringify(state.users));
-  }
-
-  function getAllUsers() {
-    return [...demoUsers, ...state.users];
-  }
-
   function loadUserLayers() {
-    try {
-      const layers = JSON.parse(localStorage.getItem(STORAGE_KEYS.layers));
-      return Array.isArray(layers) ? layers : [];
-    } catch (error) {
-      console.warn("No se pudieron leer las capas guardadas.", error);
-      return [];
-    }
+    return [];
   }
 
   function saveUserLayers() {
-    localStorage.setItem(STORAGE_KEYS.layers, JSON.stringify(state.userLayers));
+    const layerPrefs = state.userLayers
+      .filter((layer) => layer.backendLayerId)
+      .map((layer) => ({
+        backendLayerId: layer.backendLayerId,
+        visible: state.renderedLayers.has(layer.id),
+      }));
+
+    localStorage.setItem(STORAGE_KEYS.layerPrefs, JSON.stringify(layerPrefs));
   }
-})();
+
+  function createVisitorSession() {
+    return {
+      role: "visitante",
+      name: "Consulta publica",
+      municipality: "General",
+      email: null,
+      userId: null,
+      backendRole: null,
+      token: null,
+      isAuthenticated: false,
+    };
+  }
+
+  function mapBackendRole(roleCode) {
+    if (roleCode === "ADMIN") return "admin";
+    if (roleCode === "DATA_PROVIDER") return "director";
+    return "visitante";
+  }
+
+  function mapBackendSession(response) {
+    return {
+      role: mapBackendRole(response.user.role),
+      name: response.user.name,
+      municipality: response.user.municipality || "General",
+      email: response.user.email,
+      userId: response.user.id,
+      backendRole: response.user.role,
+      token: response.accessToken,
+      isAuthenticated: true,
+    };
+  }
+
+  function getStatusLabel(status) {
+    const labels = {
+      published: "Publicado",
+      pending_review: "Pendiente",
+      approved: "Aprobado",
+      rejected: "Rechazado",
+      unpublished: "No publicado",
+      pending: "Pendiente",
+    };
+    return labels[status] || status;
+  }
+
+  function getStatusBadgeClass(status) {
+    if (status === "published") return "badge--published";
+    if (status === "pending_review" || status === "pending") return "badge--pending";
+    if (status === "approved") return "badge--published";
+    if (status === "rejected") return "badge--danger";
+    return "";
+  }
+
+  function isPublishedStatus(status) {
+    return status === "published";
+  }
+
+  function isPendingStatus(status) {
+    return status === "pending" || status === "pending_review";
+  }
+
+  function canPreviewLayer(layer) {
+    return !isPublishedStatus(layer.status) && layer.sourceKind !== "static";
+  }
+
+  function canTogglePublish(layer) {
+    return ["approved", "unpublished", "published"].includes(layer.status);
+  }
+
+  async function togglePublishLayer(layerId) {
+    const layer = state.userLayers.find((item) => item.id === layerId);
+    if (!layer?.backendLayerId || !state.session.token) return;
+
+    const nextStatus = layer.status === "published" ? "unpublished" : "published";
+
+    try {
+      await setPublishStateRequest(state.session.token, layer.backendLayerId, nextStatus);
+      await syncLayersFromBackend();
+      updateInfoPanel({
+        title: nextStatus === "published" ? "Capa publicada" : "Capa despublicada",
+        description: `${layer.title} actualizo su estado de publicacion.`,
+      });
+    } catch (error) {
+      console.error(error);
+      updateInfoPanel({
+        title: "No se pudo actualizar la publicacion",
+        description: error?.payload?.message || error.message || "La operacion fallo.",
+      });
+    }
+  }
+
+  async function rejectLayer(layerId) {
+    const layer = state.userLayers.find((item) => item.id === layerId);
+    if (!layer?.backendLayerId || !state.session.token) return;
+
+    const reason = window.prompt("Indica brevemente el motivo del rechazo:", "No cumple criterios de publicacion.");
+    if (!reason) return;
+
+    try {
+      await rejectLayerRequest(state.session.token, layer.backendLayerId, reason);
+      await syncLayersFromBackend();
+      updateInfoPanel({
+        title: "Capa rechazada",
+        description: `${layer.title} fue rechazada y se registro el motivo en backend.`,
+        extra: [`Motivo: ${reason}`],
+      });
+    } catch (error) {
+      console.error(error);
+      updateInfoPanel({
+        title: "No se pudo rechazar la capa",
+        description: error?.payload?.message || error.message || "La operacion fallo.",
+      });
+    }
+  }
+
+  async function initializeRemoteState() {
+    updateInfoPanel({
+      title: "Inicializando visor institucional",
+      description: "Se esta conectando el frontend con el backend y cargando capas reales.",
+      extra: [`API configurada: ${runtimeConfig.apiBaseUrl}`],
+    });
+
+    await syncLayersFromBackend();
+  }
+
+  async function syncLayersFromBackend() {
+    if (state.remoteSyncInProgress) return;
+
+    state.remoteSyncInProgress = true;
+    try {
+      const publicLayers = await listPublicLayersRequest();
+      const records = [...publicLayers];
+
+      if (state.session.role === "admin" && state.session.token) {
+        const [pendingLayers, ownLayers] = await Promise.all([
+          listPendingLayersRequest(state.session.token),
+          listMyLayersRequest(state.session.token),
+        ]);
+        mergeRecords(records, pendingLayers);
+        mergeRecords(records, ownLayers);
+      } else if (state.session.role === "director" && state.session.token) {
+        const ownLayers = await listMyLayersRequest(state.session.token);
+        mergeRecords(records, ownLayers);
+      }
+
+      const hydratedLayers = [];
+      for (const record of records) {
+        try {
+          hydratedLayers.push(await hydrateBackendLayer(record));
+        } catch (error) {
+          console.error("No se pudo hidratar la capa remota", record.title, error);
+        }
+      }
+
+      const persistedVisibility = loadPersistedLayerVisibility();
+      const previousVisibility = new Map(
+        state.userLayers.map((layer) => [layer.backendLayerId || layer.id, state.renderedLayers.has(layer.id)])
+      );
+
+      state.userLayers.forEach((layer) => {
+        removeLayerBundle(layer.id);
+        state.renderedLayers.delete(layer.id);
+      });
+
+      state.userLayers = hydratedLayers.map((layer) => {
+        const visible =
+          previousVisibility.get(layer.backendLayerId || layer.id) ??
+          persistedVisibility.get(layer.backendLayerId || layer.id) ??
+          isPublishedStatus(layer.status);
+        return { ...layer, visible };
+      });
+
+      state.backendStatus.reachable = true;
+      state.backendStatus.lastError = null;
+      renderVisibleLayers();
+      renderLayerCatalog(elements.layerSearch.value.trim().toLowerCase());
+      renderSession();
+      captureVisibleSnapshot();
+
+      if (!hydratedLayers.length) {
+        updateInfoPanel({
+          title: "Backend conectado",
+          description: "La API ya responde, pero aun no existen capas publicadas o visibles para esta sesion.",
+        });
+      }
+    } catch (error) {
+      console.error(error);
+      state.backendStatus.reachable = false;
+      state.backendStatus.lastError = error.message;
+      renderLayerCatalog(elements.layerSearch.value.trim().toLowerCase());
+      renderSession();
+      updateInfoPanel({
+        title: "Modo degradado activado",
+        description: "No se logro consultar el backend institucional. El visor sigue operativo, pero sin capas remotas actualizadas.",
+        extra: [error.message || "Error de conectividad con la API."],
+      });
+    } finally {
+      state.remoteSyncInProgress = false;
+    }
+  }
+
+  function mergeRecords(target, incoming) {
+    incoming.forEach((record) => {
+      if (!target.some((item) => item.id === record.id)) {
+        target.push(record);
+      }
+    });
+  }
+
+  function loadPersistedLayerVisibility() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(STORAGE_KEYS.layerPrefs));
+      if (!Array.isArray(raw)) return new Map();
+      return new Map(raw.map((item) => [item.backendLayerId, Boolean(item.visible)]));
+    } catch (_error) {
+      return new Map();
+    }
+  }
+
+  async function uploadFilesToBackend(files) {
+    if (!state.session.token) {
+      throw new Error("Debes iniciar sesion para subir capas al backend.");
+    }
+
+    const firstFile = files[0];
+    const title = firstFile.name.replace(/\.[^.]+$/u, "");
+    const municipality =
+      state.session.role === "director" ? state.session.municipality : "Estado de Morelos";
+
+    const createdLayer = await uploadLayerRequest(
+      state.session.token,
+      {
+        title,
+        description: "Capa cargada desde el visor institucional EGEM.",
+        municipality,
+        tags: [],
+      },
+      files
+    );
+
+    await syncLayersFromBackend();
+
+    const hydrated = state.userLayers.find((layer) => layer.backendLayerId === createdLayer.id);
+    if (hydrated) {
+      if (isPublishedStatus(hydrated.status)) {
+        fitLayer(hydrated);
+      } else {
+        previewLayer(hydrated);
+      }
+    }
+
+    updateInfoPanel({
+      title: createdLayer.title,
+      description:
+        state.session.role === "admin"
+          ? "La capa se registro en el backend y quedo aprobada. Aun puedes publicarla desde el panel."
+          : "La capa se registro en el backend y quedo pendiente de revision administrativa.",
+      extra: [
+        `Municipio: ${createdLayer.municipality || municipality}`,
+        `Formato principal: ${(createdLayer.sourceType || getExtension(firstFile.name)).toUpperCase()}`,
+      ],
+    });
+  }
+
+  async function hydrateBackendLayer(record) {
+    const remoteFiles = [...(record.files || [])];
+    if (!remoteFiles.length) {
+      throw new Error("La capa no tiene archivos asociados.");
+    }
+
+    const sourceType = (record.sourceType || remoteFiles[0].extension || "").toLowerCase();
+    let hydratedLayer = null;
+
+    if (sourceType === "geojson") {
+      hydratedLayer = await createGeoJsonLayerFromRemoteRecord(record, remoteFiles[0]);
+    } else if (sourceType === "kml" || sourceType === "kmz") {
+      hydratedLayer = await createKmlLayer(await fetchRemoteFile(remoteFiles[0]));
+    } else if (sourceType === "zip") {
+      hydratedLayer = await createShapefileLayerFromRemoteZip(record, remoteFiles[0]);
+    } else if (sourceType === "tif" || sourceType === "tiff") {
+      hydratedLayer = await createGeoTiffLayer(await fetchRemoteFile(remoteFiles[0]));
+    } else if (sourceType === "shp") {
+      hydratedLayer = await createShapefileLayerFromRemoteParts(record, remoteFiles);
+    } else {
+      throw new Error(`Formato remoto no soportado para visualizacion: ${sourceType}`);
+    }
+
+    return {
+      ...hydratedLayer,
+      id: `backend-${record.id}`,
+      backendLayerId: record.id,
+      title: record.title,
+      description: record.description || hydratedLayer.description,
+      municipality: record.municipality || "Cobertura estatal",
+      createdBy: record.createdBy?.name || "Sistema",
+      createdById: record.createdBy?.id || null,
+      status: record.status,
+      fileType: sourceType,
+      download: {
+        files: remoteFiles.map((file) => ({
+          name: file.originalName,
+          mimeType: file.mimeType,
+          url: file.publicUrl,
+        })),
+      },
+    };
+  }
+
+  async function createGeoJsonLayerFromRemoteRecord(record, remoteFile) {
+    const response = await fetch(remoteFile.publicUrl);
+    if (!response.ok) {
+      throw new Error("No se pudo descargar el GeoJSON remoto.");
+    }
+
+    const geojson = ensureFeatureCollection(await response.json());
+    return createUserLayer({
+      title: record.title,
+      fileType: "geojson",
+      sourceKind: "geojson",
+      data: geojson,
+      description: record.description || "Capa GeoJSON publicada desde el backend institucional.",
+      backendLayerId: record.id,
+      createdById: record.createdBy?.id || null,
+      municipality: record.municipality || "Cobertura estatal",
+      status: record.status,
+    });
+  }
+
+  async function createShapefileLayerFromRemoteZip(record, remoteFile) {
+    const file = await fetchRemoteFile(remoteFile);
+    const arrayBuffer = await file.arrayBuffer();
+    const result = await window.shp(arrayBuffer);
+    const collections = Array.isArray(result) ? result : [result];
+    const merged = collections.reduce(
+      (accumulator, collection) => {
+        const featureCollection = ensureFeatureCollection(collection);
+        accumulator.features.push(...featureCollection.features);
+        return accumulator;
+      },
+      { type: "FeatureCollection", features: [] }
+    );
+
+    return createUserLayer({
+      title: record.title,
+      fileType: "shp",
+      sourceKind: "geojson",
+      data: merged,
+      description: record.description || "Shapefile institucional publicado desde el backend.",
+      backendLayerId: record.id,
+      createdById: record.createdBy?.id || null,
+      municipality: record.municipality || "Cobertura estatal",
+      status: record.status,
+    });
+  }
+
+  async function createShapefileLayerFromRemoteParts(record, remoteFiles) {
+    const files = await Promise.all(remoteFiles.map((file) => fetchRemoteFile(file)));
+    const layers = await createShapefileLayersFromParts(files);
+    return {
+      ...layers[0],
+      title: record.title,
+      description: record.description || layers[0].description,
+      backendLayerId: record.id,
+      createdById: record.createdBy?.id || null,
+      municipality: record.municipality || "Cobertura estatal",
+      status: record.status,
+    };
+  }
+
+  async function fetchRemoteFile(remoteFile) {
+    const response = await fetch(remoteFile.publicUrl);
+    if (!response.ok) {
+      throw new Error(`No se pudo descargar ${remoteFile.originalName}.`);
+    }
+
+    const blob = await response.blob();
+    return new File([blob], remoteFile.originalName, {
+      type: remoteFile.mimeType || blob.type || guessMimeType(remoteFile.originalName),
+    });
+  }

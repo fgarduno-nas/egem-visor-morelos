@@ -213,7 +213,7 @@
     </main>
   </div>
 
-  <input id="file-input" type="file" accept=".kml,.kmz,.tif,.tiff,.zip,.rar,.shp,.dbf,.prj,.cpg" multiple hidden />
+  <input id="file-input" type="file" accept=".kml,.kmz,.geojson,.tif,.tiff,.zip,.shp,.dbf,.prj,.cpg" multiple hidden />
 
   <dialog class="modal" id="login-modal">
     <form class="modal-card" id="login-form" method="dialog">
@@ -226,24 +226,24 @@
       </div>
 
       <p class="modal-copy">
-        Este prototipo incluye tres accesos de demostracion para validar el flujo de publicacion.
+        El acceso ya esta preparado para consumir el backend institucional. La consulta publica sigue abierta sin inicio de sesion.
       </p>
 
       <div class="demo-users">
         <article>
           <strong>Administrador</strong>
-          <span>`admin@egem.morelos`</span>
-          <span>`Admin123!`</span>
+          <span>Cuenta inicial definida en el backend</span>
+          <span>Ejemplo seed: `admin@egem.morelos` / `Admin123!`</span>
         </article>
         <article>
           <strong>Director</strong>
-          <span>`director.cuernavaca@egem.morelos`</span>
-          <span>`Director123!`</span>
+          <span>Cuenta creada desde el panel de usuarios</span>
+          <span>Acceso a cargas y seguimiento de sus capas</span>
         </article>
         <article>
           <strong>Visitante</strong>
-          <span>`visitante@egem.morelos`</span>
-          <span>`Visitante123!`</span>
+          <span>Puede seguir navegando sin login</span>
+          <span>Si se crea cuenta institucional, tambien puede autenticarse</span>
         </article>
       </div>
 
@@ -298,7 +298,7 @@
         <article>
           <strong>Siguiente etapa</strong>
           <p>
-            Para produccion hace falta backend, base de datos y almacenamiento de archivos fuera del navegador.
+            El siguiente paso es conectar este frontend a la infraestructura definitiva de produccion y cerrar el menu tematico de capas.
           </p>
         </article>
       </div>
@@ -408,6 +408,18 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/geotiff"></script>
   <script src="https://unpkg.com/shpjs@latest/dist/shp.js"></script>
-  <script src="js/map.js"></script>
+  <script>
+    window.__EGEM_CONFIG__ = {
+      apiBaseUrl:
+        window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+          ? "http://localhost:4000/api/v1"
+          : "",
+      requestTimeoutMs: 12000,
+      publicLayerCacheTtlMs: 120000,
+      retryAttempts: 2,
+      retryDelayMs: 450
+    };
+  </script>
+  <script type="module" src="js/map.js"></script>
 </body>
 </html>

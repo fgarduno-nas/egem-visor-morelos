@@ -455,6 +455,7 @@ select {
   background: rgba(191, 147, 86, 0.2);
 }
 
+.badge--danger,
 .badge--locked {
   color: var(--danger);
   background: rgba(141, 49, 70, 0.14);

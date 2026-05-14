@@ -1,0 +1,48 @@
+openapi: 3.0.3
+info:
+  title: EGEM Backend API
+  version: 1.0.0
+  description: API institucional para gestión de usuarios y capas del visor EGEM.
+servers:
+  - url: http://localhost:4000/api/v1
+paths:
+  /auth/login:
+    post:
+      summary: Iniciar sesión
+  /users:
+    get:
+      summary: Listar usuarios
+    post:
+      summary: Crear usuario
+  /users/{id}:
+    patch:
+      summary: Editar usuario
+  /users/{id}/status:
+    patch:
+      summary: Activar o desactivar usuario
+  /users/{id}/role:
+    patch:
+      summary: Cambiar rol
+  /layers/public:
+    get:
+      summary: Listar capas públicas
+  /layers:
+    post:
+      summary: Subir capa
+  /layers/admin/pending:
+    get:
+      summary: Listar capas pendientes
+  /layers/{id}:
+    get:
+      summary: Ver detalle de capa
+    delete:
+      summary: Eliminar capa lógicamente
+  /layers/{id}/approve:
+    patch:
+      summary: Aprobar capa
+  /layers/{id}/reject:
+    patch:
+      summary: Rechazar capa
+  /layers/{id}/publish-state:
+    patch:
+      summary: Publicar o despublicar capa
