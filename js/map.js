@@ -16,6 +16,7 @@ import {
   const STORAGE_KEYS = {
     session: "egem-session",
     layerPrefs: "egem-layer-prefs-v1",
+    managedUsers: "egem-managed-users-v1",
   };
 
   const roleLabels = {
@@ -29,6 +30,42 @@ import {
     director: "Puede cargar y descargar capas, pero no publicarlas.",
     visitante: "Solo puede consultar capas ya publicadas.",
   };
+
+  const demoUsers = [
+    {
+      id: "demo-admin",
+      name: "Administrador EGEM",
+      email: "admin@egem.morelos",
+      password: "Admin123!",
+      role: "admin",
+      backendRole: "ADMIN",
+      municipality: "Estado de Morelos",
+      isActive: true,
+      source: "demo",
+    },
+    {
+      id: "demo-director-cuernavaca",
+      name: "Director Cuernavaca",
+      email: "director.cuernavaca@egem.morelos",
+      password: "Director123!",
+      role: "director",
+      backendRole: "DATA_PROVIDER",
+      municipality: "Cuernavaca",
+      isActive: true,
+      source: "demo",
+    },
+    {
+      id: "demo-visitante",
+      name: "Visitante EGEM",
+      email: "visitante@egem.morelos",
+      password: "Visitante123!",
+      role: "visitante",
+      backendRole: "PUBLIC_USER",
+      municipality: "General",
+      isActive: true,
+      source: "demo",
+    },
+  ];
 
   const morelosMunicipalities = [
     "Amacuzac",
@@ -153,6 +190,7 @@ import {
       id: "estado",
       title: "Limite estatal",
       group: "Limites",
+      category: "limites",
       status: "published",
       sourceKind: "static",
       visible: false,
@@ -162,11 +200,23 @@ import {
       id: "municipios",
       title: "Municipios",
       group: "Limites",
+      category: "limites",
       status: "published",
       sourceKind: "static",
       visible: false,
       description: "Division municipal para consulta operativa.",
     },
+  ];
+
+  const thematicLayerGroups = [
+    { id: "limites", title: "Límites" },
+    { id: "geologicos", title: "Geológicos" },
+    { id: "hidrometeorologicos", title: "Hidrometeorológicos" },
+    { id: "quimicos-tecnologicos", title: "Químicos - Tecnológicos" },
+    { id: "sanitario-ecologico", title: "Sanitario - Ecológico" },
+    { id: "socio-organizativo", title: "Socio - Organizativo" },
+    { id: "astronomicos", title: "Astronómicos" },
+    { id: "otras", title: "Otras capas" },
   ];
 
   const state = {
@@ -192,9 +242,17 @@ import {
     userLayers: loadUserLayers(),
     renderedLayers: new Map(),
     previewLayerId: null,
+    lastCapturedLayerId: null,
     backendStatus: {
       reachable: false,
       lastError: null,
+    },
+    uploadDraft: {
+      files: [],
+      category: "geologicos",
+      previewLayers: [],
+      previewVisible: false,
+      minimized: false,
     },
   };
 
@@ -224,6 +282,18 @@ import {
     uploadPermissionNote: document.getElementById("upload-permission-note"),
     toolsOverlay: document.getElementById("tools-overlay"),
     fileInput: document.getElementById("file-input"),
+    uploadDraftInput: document.getElementById("upload-draft-input"),
+    uploadLayerModal: document.getElementById("upload-layer-modal"),
+    uploadLayerForm: document.getElementById("upload-layer-form"),
+    minimizeUploadLayer: document.getElementById("minimize-upload-layer"),
+    closeUploadLayer: document.getElementById("close-upload-layer"),
+    cancelUploadLayer: document.getElementById("cancel-upload-layer"),
+    uploadSelectFiles: document.getElementById("upload-select-files"),
+    uploadSelectedFiles: document.getElementById("upload-selected-files"),
+    uploadLayerCategory: document.getElementById("upload-layer-category"),
+    uploadPreviewToggle: document.getElementById("upload-preview-toggle"),
+    uploadPreviewState: document.getElementById("upload-preview-state"),
+    uploadLayerFeedback: document.getElementById("upload-layer-feedback"),
     loginModal: document.getElementById("login-modal"),
     helpModal: document.getElementById("help-modal"),
     userAdminModal: document.getElementById("user-admin-modal"),
@@ -233,6 +303,7 @@ import {
     loginPassword: document.getElementById("login-password"),
     loginFeedback: document.getElementById("login-feedback"),
     openUserAdmin: document.getElementById("open-user-admin"),
+    logoutSession: document.getElementById("logout-session"),
     closeUserAdmin: document.getElementById("close-user-admin"),
     newUserName: document.getElementById("new-user-name"),
     newUserEmail: document.getElementById("new-user-email"),
@@ -290,7 +361,7 @@ import {
         });
         return;
       }
-      elements.fileInput.click();
+      openUploadModal();
     });
 
     elements.toolbarTogglePanel.addEventListener("click", toggleSidebar);
@@ -306,6 +377,52 @@ import {
 
     document.getElementById("open-login").addEventListener("click", () => {
       elements.loginModal.showModal();
+    });
+
+    elements.uploadSelectFiles.addEventListener("click", () => {
+      elements.uploadDraftInput.click();
+    });
+
+    elements.minimizeUploadLayer?.addEventListener("click", () => {
+      minimizeUploadModal();
+    });
+
+    elements.closeUploadLayer.addEventListener("click", () => {
+      closeUploadModal();
+    });
+
+    elements.cancelUploadLayer.addEventListener("click", () => {
+      closeUploadModal();
+    });
+
+    elements.uploadLayerModal.addEventListener("cancel", (event) => {
+      event.preventDefault();
+      minimizeUploadModal();
+    });
+
+    window.addEventListener("resize", () => {
+      if (elements.uploadLayerModal?.open) {
+        positionUploadModal();
+      }
+    });
+
+    elements.uploadLayerCategory.addEventListener("change", async (event) => {
+      state.uploadDraft.category = event.target.value;
+      applyCategoryToDraftLayers();
+      if (state.uploadDraft.previewVisible) {
+        await refreshUploadDraftPreview();
+      } else {
+        syncUploadDraftUi();
+      }
+    });
+
+    elements.uploadPreviewToggle.addEventListener("click", async () => {
+      await toggleUploadDraftPreview();
+    });
+
+    elements.logoutSession.addEventListener("click", async () => {
+      logout();
+      await syncLayersFromBackend();
     });
 
     document.getElementById("close-login").addEventListener("click", () => {
@@ -349,10 +466,22 @@ import {
       await createManagedUser();
     });
 
+    elements.uploadLayerForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      await submitUploadDraft();
+    });
+
     elements.newUserRole.addEventListener("change", syncUserRoleForm);
 
     elements.layerSearch.addEventListener("input", () => {
       renderLayerCatalog(elements.layerSearch.value.trim().toLowerCase());
+    });
+
+    elements.uploadDraftInput.addEventListener("change", async (event) => {
+      const files = [...(event.target.files || [])];
+      elements.uploadDraftInput.value = "";
+      if (!files.length) return;
+      await setUploadDraftFiles(files);
     });
 
     elements.fileInput.addEventListener("change", async (event) => {
@@ -441,7 +570,7 @@ import {
     });
   }
 
-  function renderLayerCatalog(searchTerm = "") {
+  function renderLayerCatalogLegacy(searchTerm = "") {
     const layers = buildCatalog()
       .filter((layer) => layerMatchesSearch(layer, searchTerm))
       .filter((layer) => canSeeLayer(layer));
@@ -550,6 +679,215 @@ import {
     return [...staticCatalog, ...userCatalog];
   }
 
+  function renderLayerCatalog(searchTerm = "") {
+    const layers = buildCatalog()
+      .filter((layer) => layerMatchesSearch(layer, searchTerm))
+      .filter((layer) => canSeeLayer(layer));
+
+    if (!layers.length && searchTerm) {
+      elements.layerList.innerHTML = `
+        <div class="empty-state">
+          No hay capas que coincidan con la busqueda o con tu nivel de acceso actual.
+        </div>
+      `;
+      return;
+    }
+
+    const groupedLayers = groupCatalogLayers(layers);
+
+    elements.layerList.innerHTML = thematicLayerGroups
+      .map((group) => renderLayerGroup(group, groupedLayers.get(group.id) || [], searchTerm))
+      .join("");
+
+    elements.layerList.querySelectorAll(".layer-item").forEach((item) => {
+      const layerId = item.dataset.layerId;
+      const checkbox = item.querySelector('input[type="checkbox"]');
+      checkbox.addEventListener("change", (event) => {
+        toggleLayerVisibility(layerId, event.target.checked);
+      });
+    });
+
+    elements.layerList.querySelectorAll("[data-approve]").forEach((button) => {
+      button.addEventListener("click", () => approveLayer(button.dataset.approve));
+    });
+
+    elements.layerList.querySelectorAll("[data-preview]").forEach((button) => {
+      button.addEventListener("click", () => previewLayerById(button.dataset.preview));
+    });
+
+    elements.layerList.querySelectorAll("[data-download]").forEach((button) => {
+      button.addEventListener("click", () => downloadLayer(button.dataset.download));
+    });
+
+    elements.layerList.querySelectorAll("[data-delete]").forEach((button) => {
+      button.addEventListener("click", () => deleteLayer(button.dataset.delete));
+    });
+
+    elements.layerList.querySelectorAll("[data-reject]").forEach((button) => {
+      button.addEventListener("click", () => rejectLayer(button.dataset.reject));
+    });
+
+    elements.layerList.querySelectorAll("[data-publish]").forEach((button) => {
+      button.addEventListener("click", () => togglePublishLayer(button.dataset.publish));
+    });
+  }
+
+  function groupCatalogLayers(layers) {
+    const grouped = new Map(thematicLayerGroups.map((group) => [group.id, []]));
+    layers.forEach((layer) => {
+      const category = resolveLayerCategory(layer);
+      if (!grouped.has(category)) grouped.set(category, []);
+      grouped.get(category).push(layer);
+    });
+    return grouped;
+  }
+
+  function renderLayerGroup(group, layers, searchTerm = "") {
+    const hasLayers = layers.length > 0;
+    const shouldOpen = hasLayers || !searchTerm;
+    const openAttribute = shouldOpen ? "open" : "";
+    const countLabel = hasLayers ? `${layers.length} capa${layers.length === 1 ? "" : "s"}` : "Sin capas";
+    const content = hasLayers
+      ? layers.map((layer) => renderLayerItem(layer)).join("")
+      : `<p class="layer-group__empty">No hay capas disponibles en esta subcapa por ahora.</p>`;
+
+    return `
+      <details class="layer-group" ${openAttribute}>
+        <summary class="layer-group__summary">
+          <div class="layer-group__heading">
+            <strong>${escapeHtml(group.title)}</strong>
+            <span>${escapeHtml(countLabel)}</span>
+          </div>
+          <span class="layer-group__chevron" aria-hidden="true"></span>
+        </summary>
+        <div class="layer-group__content">
+          ${content}
+        </div>
+      </details>
+    `;
+  }
+
+  function renderLayerItem(layer) {
+    const checked = layer.visible ? "checked" : "";
+    const disableToggle = isPendingStatus(layer.status) && state.session.role !== "admin" ? "disabled" : "";
+    const reviewButton = state.session.role === "admin" && canPreviewLayer(layer)
+      ? `<button class="ghost-button" type="button" data-preview="${layer.id}">Visualizar</button>`
+      : "";
+    const downloadButton = canDownloadLayer(layer)
+      ? `<button class="ghost-button" type="button" data-download="${layer.id}">Descargar</button>`
+      : "";
+    const deleteButton = canDeleteLayer(layer)
+      ? `<button class="ghost-button" type="button" data-delete="${layer.id}">Eliminar</button>`
+      : "";
+    const approveButton = state.session.role === "admin" && layer.status === "pending_review"
+      ? `<button class="primary-button" type="button" data-approve="${layer.id}">Aprobar</button>`
+      : "";
+    const rejectButton = state.session.role === "admin" && layer.status === "pending_review"
+      ? `<button class="ghost-button" type="button" data-reject="${layer.id}">Rechazar</button>`
+      : "";
+    const publishButton = state.session.role === "admin" && canTogglePublish(layer)
+      ? `<button class="ghost-button" type="button" data-publish="${layer.id}">${layer.status === "published" ? "Despublicar" : "Publicar"}</button>`
+      : "";
+
+    return `
+      <div class="layer-item" data-layer-id="${layer.id}">
+        <div class="layer-item__meta">
+          <input type="checkbox" ${checked} ${disableToggle} />
+          <div class="layer-item__copy">
+            <strong>${escapeHtml(layer.title)}</strong>
+            <span>${escapeHtml(layer.description)}</span>
+            <span>${escapeHtml(layer.group)} Â· ${escapeHtml(layer.municipality || "Cobertura estatal")}</span>
+            <div class="layer-badges">${renderBadges(layer)}</div>
+          </div>
+        </div>
+        <div class="layer-actions">
+          ${reviewButton}
+          ${downloadButton}
+          ${publishButton}
+          ${deleteButton}
+          ${rejectButton}
+          ${approveButton}
+        </div>
+      </div>
+    `;
+  }
+
+  function resolveLayerCategory(layer) {
+    const directCategory = normalizeLayerCategoryKey(layer.category || layer.theme || layer.topic);
+    if (directCategory) return directCategory;
+
+    const haystack = normalizeLayerCategoryText(
+      [
+        layer.group,
+        layer.title,
+        layer.description,
+        layer.fileType,
+        layer.municipality,
+      ].join(" ")
+    );
+
+    if (matchesCategory(haystack, ["limite", "limites", "municipio", "municipios", "estado", "cobertura estatal"])) {
+      return "limites";
+    }
+    if (matchesCategory(haystack, ["geologic", "ladera", "falla", "volcan", "erosion", "desliz", "sismo"])) {
+      return "geologicos";
+    }
+    if (matchesCategory(haystack, ["hidrometeorologic", "inund", "lluv", "huracan", "torment", "sequia", "rio", "agua"])) {
+      return "hidrometeorologicos";
+    }
+    if (matchesCategory(haystack, ["quimic", "tecnolog", "gas", "explos", "incend", "combust", "ducto"])) {
+      return "quimicos-tecnologicos";
+    }
+    if (matchesCategory(haystack, ["sanitari", "ecologic", "salud", "contamin", "residuo", "basur", "cementerio"])) {
+      return "sanitario-ecologico";
+    }
+    if (matchesCategory(haystack, ["socio", "organiz", "poblacion", "refugio", "vulnerabilidad", "evacuacion"])) {
+      return "socio-organizativo";
+    }
+    if (matchesCategory(haystack, ["astronomic", "meteorito", "solar", "lunar", "espacial"])) {
+      return "astronomicos";
+    }
+    return "otras";
+  }
+
+  function normalizeLayerCategoryKey(value) {
+    if (!value) return null;
+    const normalized = normalizeLayerCategoryText(value)
+      .replace(/[\s_/]+/g, "-")
+      .replace(/-+/g, "-");
+
+    const aliases = {
+      limites: "limites",
+      limite: "limites",
+      geologicos: "geologicos",
+      geologico: "geologicos",
+      hidrometeorologicos: "hidrometeorologicos",
+      hidrometeorologico: "hidrometeorologicos",
+      "quimicos-tecnologicos": "quimicos-tecnologicos",
+      "quimico-tecnologico": "quimicos-tecnologicos",
+      "sanitario-ecologico": "sanitario-ecologico",
+      "sanitario-ecologicos": "sanitario-ecologico",
+      "socio-organizativo": "socio-organizativo",
+      "socio-organizativos": "socio-organizativo",
+      astronomicos: "astronomicos",
+      astronomico: "astronomicos",
+      otras: "otras",
+    };
+
+    return aliases[normalized] || null;
+  }
+
+  function normalizeLayerCategoryText(value) {
+    return String(value || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+  }
+
+  function matchesCategory(value, keywords) {
+    return keywords.some((keyword) => value.includes(keyword));
+  }
+
   function layerMatchesSearch(layer, searchTerm) {
     if (!searchTerm) return true;
     const candidate = [
@@ -580,6 +918,15 @@ import {
       layer.download &&
       Array.isArray(layer.download.files) &&
       layer.download.files.length > 0
+    );
+  }
+
+  function canDeleteLayer(layer) {
+    if (layer.sourceKind === "static") return false;
+    if (state.session.role === "admin") return true;
+    return (
+      state.session.role === "director" &&
+      (layer.createdById === state.session.userId || layer.createdBy === state.session.name)
     );
   }
 
@@ -899,6 +1246,7 @@ import {
     });
 
     state.userLayers.push(layer);
+    state.lastCapturedLayerId = layer.id;
     saveUserLayers();
     renderSession();
     state.activeTool = null;
@@ -919,7 +1267,7 @@ import {
       description:
         layer.status === "published"
           ? "El punto se agrego como nueva capa publicada."
-          : "El punto se agrego como nueva capa pendiente de aprobacion.",
+          : "El punto se agrego como nueva capa pendiente de aprobacion. Si te equivocaste, puedes eliminarlo desde el listado de capas.",
       extra: [
         `Longitud: ${lngLat.lng.toFixed(6)}`,
         `Latitud: ${lngLat.lat.toFixed(6)}`,
@@ -1156,6 +1504,9 @@ import {
       if (state.previewLayerId === layer.id) {
         state.previewLayerId = null;
       }
+      if (state.lastCapturedLayerId === layer.id) {
+        state.lastCapturedLayerId = null;
+      }
       saveUserLayers();
       captureVisibleSnapshot();
       renderLayerCatalog(elements.layerSearch.value.trim().toLowerCase());
@@ -1347,6 +1698,7 @@ import {
     elements.publishedCount.textContent = String(publishedLayers.length);
     elements.pendingCount.textContent = String(pendingLayers.length);
     elements.openUserAdmin.classList.toggle("hidden", state.session.role !== "admin");
+    elements.logoutSession.classList.toggle("hidden", !state.session.isAuthenticated);
     elements.uploadPermissionNote.textContent = canUpload()
       ? "Puedes subir KML, KMZ, GeoJSON, GeoTIFF y Shapefile en ZIP desde este menu."
       : "La medicion es publica. Para subir capas o crear puntos inicia sesion como administrador o director.";
@@ -1366,13 +1718,25 @@ import {
     elements.loginFeedback.textContent = "Validando credenciales...";
 
     try {
-      const response = await loginRequest(email, password);
-      if (!response?.accessToken || !response?.user) {
-        throw new Error("La API no devolvio una sesion valida.");
+      let mode = "backend";
+
+      try {
+        const response = await loginRequest(email, password);
+        if (!response?.accessToken || !response?.user) {
+          throw new Error("La API no devolvio una sesion valida.");
+        }
+        clearPreviewStateOnRoleChange();
+        state.session = mapBackendSession(response);
+      } catch (backendError) {
+        const demoUser = findDemoUser(email, password);
+        if (!demoUser) {
+          throw backendError;
+        }
+        clearPreviewStateOnRoleChange();
+        state.session = createDemoSession(demoUser);
+        mode = "demo";
       }
 
-      clearPreviewStateOnRoleChange();
-      state.session = mapBackendSession(response);
       saveSession();
       renderSession();
       await syncLayersFromBackend();
@@ -1387,18 +1751,329 @@ import {
         extra: [
           `Responsable: ${state.session.name}`,
           `Ambito: ${state.session.municipality}`,
-          "Backend institucional conectado.",
+          mode === "backend" ? "Backend institucional conectado." : "Sesion iniciada en modo demo local.",
         ],
       });
     } catch (error) {
       console.error(error);
       elements.loginFeedback.textContent =
-        error?.payload?.message || error.message || "No se pudo iniciar sesion contra el backend.";
+        error?.payload?.message || error.message || "No se pudo iniciar sesion contra el backend o las credenciales demo.";
     }
   }
 
   function canUpload() {
     return state.session.role === "admin" || state.session.role === "director";
+  }
+
+  function openUploadModal() {
+    if (!state.uploadDraft.files.length && !state.uploadDraft.previewLayers.length) {
+      resetUploadDraft();
+      state.uploadDraft.category = elements.uploadLayerCategory.value || "geologicos";
+    } else {
+      elements.uploadLayerCategory.value = state.uploadDraft.category || "geologicos";
+      syncUploadDraftUi();
+    }
+    state.uploadDraft.minimized = false;
+    syncUploadDraftUi();
+    elements.triggerUpload?.classList.add("is-active");
+    positionUploadModal();
+    elements.uploadLayerModal.showModal();
+  }
+
+  function closeUploadModal() {
+    clearUploadDraftPreview();
+    resetUploadDraft();
+    state.uploadDraft.minimized = false;
+    elements.triggerUpload?.classList.remove("is-active");
+    elements.uploadLayerModal.close();
+  }
+
+  function minimizeUploadModal() {
+    state.uploadDraft.minimized = true;
+    elements.triggerUpload?.classList.remove("is-active");
+    elements.uploadLayerModal.close();
+  }
+
+  function positionUploadModal() {
+    if (!elements.uploadLayerModal || !elements.triggerUpload) return;
+
+    if (window.innerWidth <= 1180) {
+      elements.uploadLayerModal.style.top = "130px";
+      elements.uploadLayerModal.style.left = "10px";
+      elements.uploadLayerModal.style.setProperty("--upload-arrow-left", "82%");
+      elements.uploadLayerModal.style.maxHeight = "";
+      elements.uploadLayerForm.style.maxHeight = "calc(100vh - 150px)";
+      return;
+    }
+
+    const rect = elements.triggerUpload.getBoundingClientRect();
+    const panelWidth = Math.min(340, window.innerWidth - 20);
+    const left = Math.max(10, Math.min(rect.left + rect.width / 2 - panelWidth / 2, window.innerWidth - panelWidth - 10));
+    const preferredTop = rect.bottom + 14;
+    const top = Math.max(90, Math.min(preferredTop, window.innerHeight - 220));
+    const arrowLeft = Math.max(48, Math.min(rect.left + rect.width / 2 - left, panelWidth - 48));
+    const availableHeight = Math.max(280, window.innerHeight - top - 18);
+
+    elements.uploadLayerModal.style.left = `${left}px`;
+    elements.uploadLayerModal.style.top = `${top}px`;
+    elements.uploadLayerModal.style.maxHeight = "";
+    elements.uploadLayerForm.style.maxHeight = `${availableHeight}px`;
+    elements.uploadLayerModal.style.setProperty("--upload-arrow-left", `${arrowLeft}px`);
+  }
+
+  function resetUploadDraft() {
+    state.uploadDraft.files = [];
+    state.uploadDraft.previewLayers = [];
+    state.uploadDraft.previewVisible = false;
+    state.uploadDraft.category = elements.uploadLayerCategory?.value || "geologicos";
+    state.uploadDraft.minimized = false;
+    if (elements.uploadLayerFeedback) elements.uploadLayerFeedback.textContent = "";
+    syncUploadDraftUi();
+  }
+
+  async function setUploadDraftFiles(files) {
+    clearUploadDraftPreview();
+    const [firstFile] = files;
+    state.uploadDraft.files = firstFile ? [firstFile] : [];
+    state.uploadDraft.previewLayers = [];
+    state.uploadDraft.previewVisible = false;
+    elements.uploadLayerFeedback.textContent = "";
+    if (files.length > 1) {
+      elements.uploadLayerFeedback.textContent =
+        "Solo se permite una capa por carga. Se tomara unicamente el primer archivo seleccionado.";
+    }
+    syncUploadDraftUi();
+    if (state.uploadDraft.files.length) {
+      await refreshUploadDraftPreview();
+    }
+  }
+
+  function syncUploadDraftUi() {
+    if (!elements.uploadSelectedFiles) return;
+
+    if (!state.uploadDraft.files.length) {
+      elements.uploadSelectedFiles.innerHTML = '<p class="empty-state">Aun no has seleccionado archivos.</p>';
+    } else if (state.uploadDraft.previewLayers.length) {
+      elements.uploadSelectedFiles.innerHTML = state.uploadDraft.previewLayers
+        .map(
+          (layer) => `
+            <article class="upload-layer-entry">
+              <div class="upload-layer-entry__meta">
+                <strong class="upload-layer-entry__title">${escapeHtml(layer.title)}</strong>
+                <div class="upload-layer-entry__details">
+                  <span>${escapeHtml(getUploadDraftLayerSummary(layer))}</span>
+                  <span>${escapeHtml(getThematicGroupTitle(state.uploadDraft.category))}</span>
+                </div>
+              </div>
+              <div class="upload-layer-entry__actions">
+                <button
+                  class="ghost-button ${state.uploadDraft.previewVisible ? "is-active" : ""}"
+                  type="button"
+                  data-upload-preview-eye
+                >
+                  ${state.uploadDraft.previewVisible ? "Ocultar" : "Visualizar"}
+                </button>
+                <button
+                  class="icon-button upload-remove-button"
+                  type="button"
+                  data-upload-remove
+                  aria-label="Quitar capa seleccionada"
+                  title="Quitar capa seleccionada"
+                >
+                  ×
+                </button>
+              </div>
+            </article>
+          `,
+        )
+        .join("");
+    } else {
+      elements.uploadSelectedFiles.innerHTML = state.uploadDraft.files
+        .map(
+          (file) => `
+            <article class="upload-selected-file">
+              <strong>${escapeHtml(file.name)}</strong>
+              <span>${escapeHtml(getExtension(file.name).toUpperCase())} · ${(file.size / 1024).toFixed(1)} KB</span>
+            </article>
+          `,
+        )
+        .join("");
+    }
+
+    elements.uploadSelectedFiles.querySelectorAll("[data-upload-preview-eye]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        await toggleUploadDraftPreview();
+      });
+    });
+
+    elements.uploadSelectedFiles.querySelectorAll("[data-upload-remove]").forEach((button) => {
+      button.addEventListener("click", () => {
+        removeUploadDraftSelection();
+      });
+    });
+
+    if (elements.uploadPreviewToggle) {
+      elements.uploadPreviewToggle.classList.toggle("is-active", state.uploadDraft.previewVisible);
+      elements.uploadPreviewToggle.textContent = state.uploadDraft.previewVisible
+        ? "Ocultar vista previa"
+        : "Mostrar vista previa";
+    }
+
+    if (elements.uploadPreviewState) {
+      elements.uploadPreviewState.textContent = state.uploadDraft.previewVisible
+        ? "La capa se esta visualizando en el mapa."
+        : "La capa se visualizara automaticamente al seleccionarla.";
+    }
+
+    elements.triggerUpload?.classList.toggle("has-draft", state.uploadDraft.files.length > 0);
+
+    return;
+
+    elements.uploadSelectedFiles.innerHTML = state.uploadDraft.files.length
+      ? state.uploadDraft.files
+          .map((file) => `
+            <article class="upload-selected-file">
+              <strong>${escapeHtml(file.name)}</strong>
+              <span>${escapeHtml(getExtension(file.name).toUpperCase())} · ${(file.size / 1024).toFixed(1)} KB</span>
+            </article>
+          `)
+          .join("")
+      : '<p class="empty-state">Aun no has seleccionado archivos.</p>';
+
+    elements.uploadPreviewToggle.classList.toggle("is-active", state.uploadDraft.previewVisible);
+    elements.uploadPreviewToggle.textContent = state.uploadDraft.previewVisible
+      ? "Ocultar visualizacion"
+      : "Ojo de visualizacion";
+    elements.uploadPreviewState.textContent = state.uploadDraft.previewVisible
+      ? "Vista previa activa en el mapa"
+      : "Vista previa inactiva";
+  }
+
+  async function toggleUploadDraftPreview() {
+    if (!state.uploadDraft.files.length) {
+      elements.uploadLayerFeedback.textContent = "Primero selecciona al menos un archivo.";
+      return;
+    }
+
+    if (state.uploadDraft.previewVisible) {
+      clearUploadDraftPreview();
+      syncUploadDraftUi();
+      return;
+    }
+
+    await refreshUploadDraftPreview();
+  }
+
+  async function refreshUploadDraftPreview() {
+    clearUploadDraftPreview();
+    try {
+      const draftLayers = await createLayersFromFiles(state.uploadDraft.files);
+      state.uploadDraft.previewLayers = draftLayers.map((layer) => {
+        applyCategoryToLayer(layer, state.uploadDraft.category);
+        layer.status = state.session.role === "admin" ? "approved" : "pending_review";
+        return layer;
+      });
+
+      state.uploadDraft.previewLayers.forEach((layer) => addUserLayerToMap(layer));
+      state.uploadDraft.previewVisible = true;
+      elements.uploadLayerFeedback.textContent = "";
+      syncUploadDraftUi();
+    } catch (error) {
+      console.error(error);
+      state.uploadDraft.previewLayers = [];
+      state.uploadDraft.previewVisible = false;
+      elements.uploadLayerFeedback.textContent =
+        error.message || "No se pudo generar la vista previa del archivo.";
+      syncUploadDraftUi();
+    }
+  }
+
+  function clearUploadDraftPreview() {
+    state.uploadDraft.previewLayers.forEach((layer) => {
+      removeLayerBundle(layer.id);
+    });
+    state.uploadDraft.previewLayers = [];
+    state.uploadDraft.previewVisible = false;
+  }
+
+  function removeUploadDraftSelection() {
+    clearUploadDraftPreview();
+    state.uploadDraft.files = [];
+    if (elements.uploadLayerFeedback) {
+      elements.uploadLayerFeedback.textContent = "La capa seleccionada se retiro del borrador de carga.";
+    }
+    syncUploadDraftUi();
+  }
+
+  async function submitUploadDraft() {
+    if (!state.uploadDraft.files.length) {
+      elements.uploadLayerFeedback.textContent = "Selecciona al menos un archivo antes de subir la capa.";
+      return;
+    }
+
+    if (!state.uploadDraft.category) {
+      elements.uploadLayerFeedback.textContent = "Selecciona el fenomeno donde se clasificara la capa.";
+      return;
+    }
+
+    if (state.isUploading) {
+      elements.uploadLayerFeedback.textContent = "Ya hay una carga en proceso. Espera un momento.";
+      return;
+    }
+
+    try {
+      state.isUploading = true;
+      elements.uploadLayerFeedback.textContent = "Guardando capa para revision...";
+
+      const uploadResult = await uploadFilesToBackend(state.uploadDraft.files, {
+        category: state.uploadDraft.category,
+      });
+
+      clearUploadDraftPreview();
+      closeUploadModal();
+
+      if (uploadResult) {
+        updateInfoPanel(uploadResult);
+      }
+    } catch (error) {
+      console.error(error);
+      elements.uploadLayerFeedback.textContent =
+        error.message || "No se pudo subir la capa para revision.";
+    } finally {
+      state.isUploading = false;
+      syncUploadDraftUi();
+    }
+  }
+
+  function applyCategoryToLayer(layer, category) {
+    layer.category = category;
+    layer.group = getThematicGroupTitle(category);
+  }
+
+  function applyCategoryToDraftLayers() {
+    state.uploadDraft.previewLayers.forEach((layer) => {
+      applyCategoryToLayer(layer, state.uploadDraft.category);
+    });
+  }
+
+  function getUploadDraftLayerSummary(layer) {
+    if (layer.type === "raster" || layer.fileType === "tif" || layer.fileType === "tiff") {
+      return "Raster GeoTIFF";
+    }
+
+    if (layer.data?.features && Array.isArray(layer.data.features)) {
+      return `${layer.data.features.length} objeto(s)`;
+    }
+
+    if (layer.fileType) {
+      return layer.fileType.toUpperCase();
+    }
+
+    return "Capa cargada";
+  }
+
+  function getThematicGroupTitle(category) {
+    return thematicLayerGroups.find((group) => group.id === category)?.title || "Otras capas";
   }
 
   async function renderUserAdminPanel() {
@@ -1414,16 +2089,23 @@ import {
         state.backendStatus.lastError = error.message;
         elements.userAdminFeedback.textContent = "No se pudo consultar la lista de usuarios.";
       }
+    } else {
+      state.users = loadManagedUsers();
+      state.backendStatus.reachable = false;
+      state.backendStatus.lastError = null;
     }
 
-    const managedUsers = state.users.filter((user) => user.role === "DATA_PROVIDER" || user.role === "PUBLIC_USER");
+    const managedUsers = state.users.filter((user) => {
+      const mappedRole = mapBackendRole(user.role || user.backendRole);
+      return mappedRole === "director" || mappedRole === "visitante";
+    });
     elements.userAdminList.innerHTML = managedUsers.length
       ? managedUsers
           .map((user) => `
             <article class="user-card">
               <strong>${escapeHtml(user.name)}</strong>
               <span>${escapeHtml(user.email)}</span>
-              <span>Rol: ${escapeHtml(roleLabels[mapBackendRole(user.role)] || user.role)}</span>
+              <span>Rol: ${escapeHtml(roleLabels[mapBackendRole(user.role || user.backendRole)] || user.role || user.backendRole)}</span>
               <span>Municipio: ${escapeHtml(user.municipality || "General")}</span>
             </article>
           `)
@@ -1474,13 +2156,32 @@ import {
     }
 
     try {
-      await createUserRequest(state.session.token, {
-        name,
-        email,
-        password,
-        municipality: role === "director" ? municipality : "General",
-        roleCode: role === "director" ? "DATA_PROVIDER" : "PUBLIC_USER",
-      });
+      if (state.session.token) {
+        await createUserRequest(state.session.token, {
+          name,
+          email,
+          password,
+          municipality: role === "director" ? municipality : "General",
+          roleCode: role === "director" ? "DATA_PROVIDER" : "PUBLIC_USER",
+        });
+      } else {
+        const managedUsers = loadManagedUsers();
+        if (managedUsers.some((user) => user.email.toLowerCase() === email)) {
+          throw new Error("Ya existe una cuenta con ese correo.");
+        }
+        managedUsers.push({
+          id: `demo-user-${Date.now()}`,
+          name,
+          email,
+          password,
+          municipality: role === "director" ? municipality : "General",
+          role: role === "director" ? "DATA_PROVIDER" : "PUBLIC_USER",
+          backendRole: role === "director" ? "DATA_PROVIDER" : "PUBLIC_USER",
+          isActive: true,
+          source: "local-demo",
+        });
+        saveManagedUsers(managedUsers);
+      }
 
       await renderUserAdminPanel();
       elements.userAdminForm.reset();
@@ -1490,7 +2191,9 @@ import {
 
       updateInfoPanel({
         title: "Usuario registrado",
-        description: "La cuenta ya puede iniciar sesion desde el boton Acceso.",
+        description: state.session.token
+          ? "La cuenta ya puede iniciar sesion desde el boton Acceso."
+          : "La cuenta demo ya puede iniciar sesion localmente desde el boton Acceso.",
         extra: [
           `Correo: ${email}`,
           `Rol: ${roleLabels[role]}`,
@@ -1889,12 +2592,14 @@ import {
     const id = `layer-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
     const municipality =
       state.session.role === "director" ? state.session.municipality : "Cobertura estatal";
+    const category = config.category || null;
 
     return {
       id,
       title: config.title,
       description: config.description,
-      group: "Capas cargadas",
+      group: category ? getThematicGroupTitle(category) : "Capas cargadas",
+      category,
       status: config.status || (state.session.role === "admin" ? "published" : "pending_review"),
       visible: true,
       municipality: config.municipality || municipality,
@@ -2242,6 +2947,23 @@ import {
     localStorage.setItem(STORAGE_KEYS.session, JSON.stringify(state.session));
   }
 
+  function loadManagedUsers() {
+    try {
+      const stored = JSON.parse(localStorage.getItem(STORAGE_KEYS.managedUsers));
+      if (Array.isArray(stored) && stored.length) {
+        return [...demoUsers, ...stored];
+      }
+    } catch (error) {
+      console.warn("No se pudieron leer los usuarios demo almacenados.", error);
+    }
+    return [...demoUsers];
+  }
+
+  function saveManagedUsers(users) {
+    const customUsers = users.filter((user) => user.source !== "demo");
+    localStorage.setItem(STORAGE_KEYS.managedUsers, JSON.stringify(customUsers));
+  }
+
   function loadUserLayers() {
     return [];
   }
@@ -2268,6 +2990,40 @@ import {
       token: null,
       isAuthenticated: false,
     };
+  }
+
+  function createDemoSession(user) {
+    return {
+      role: user.role,
+      name: user.name,
+      municipality: user.municipality || "General",
+      email: user.email,
+      userId: user.id,
+      backendRole: user.backendRole || user.role,
+      token: null,
+      isAuthenticated: true,
+      source: user.source || "demo",
+    };
+  }
+
+  function findDemoUser(email, password) {
+    return loadManagedUsers().find(
+      (user) =>
+        user.isActive !== false &&
+        user.email.toLowerCase() === email &&
+        user.password === password
+    ) || null;
+  }
+
+  function logout() {
+    clearPreviewStateOnRoleChange();
+    state.session = createVisitorSession();
+    saveSession();
+    renderSession();
+    updateInfoPanel({
+      title: "Sesion cerrada",
+      description: "Regresaste al modo de consulta publica del visor.",
+    });
   }
 
   function mapBackendRole(roleCode) {
@@ -2475,49 +3231,86 @@ import {
     }
   }
 
-  async function uploadFilesToBackend(files) {
-    if (!state.session.token) {
-      throw new Error("Debes iniciar sesion para subir capas al backend.");
-    }
-
+  async function uploadFilesToBackend(files, options = {}) {
     const firstFile = files[0];
     const title = firstFile.name.replace(/\.[^.]+$/u, "");
     const municipality =
       state.session.role === "director" ? state.session.municipality : "Estado de Morelos";
+    const category = options.category || "geologicos";
 
-    const createdLayer = await uploadLayerRequest(
-      state.session.token,
-      {
-        title,
-        description: "Capa cargada desde el visor institucional EGEM.",
-        municipality,
-        tags: [],
-      },
-      files
-    );
+    if (state.session.token) {
+      const createdLayer = await uploadLayerRequest(
+        state.session.token,
+        {
+          title,
+          description: "Capa cargada desde el visor institucional EGEM.",
+          municipality,
+          tags: [`category:${category}`],
+        },
+        files
+      );
 
-    await syncLayersFromBackend();
+      await syncLayersFromBackend();
 
-    const hydrated = state.userLayers.find((layer) => layer.backendLayerId === createdLayer.id);
-    if (hydrated) {
-      if (isPublishedStatus(hydrated.status)) {
-        fitLayer(hydrated);
+      const hydrated = state.userLayers.find((layer) => layer.backendLayerId === createdLayer.id);
+      if (hydrated) {
+        if (isPublishedStatus(hydrated.status)) {
+          fitLayer(hydrated);
+        } else {
+          previewLayer(hydrated);
+        }
+      }
+
+      return {
+        title: createdLayer.title,
+        description:
+          state.session.role === "admin"
+            ? "La capa se registro en el backend y quedo aprobada. Aun puedes publicarla desde el panel."
+            : "La capa se registro en el backend y quedo pendiente de revision administrativa.",
+        extra: [
+          `Municipio: ${createdLayer.municipality || municipality}`,
+          `Fenomeno: ${getThematicGroupTitle(category)}`,
+          `Formato principal: ${(createdLayer.sourceType || getExtension(firstFile.name)).toUpperCase()}`,
+        ],
+      };
+    }
+
+    const localLayers = state.uploadDraft.previewLayers.length
+      ? state.uploadDraft.previewLayers.map((layer) => ({ ...layer }))
+      : (await createLayersFromFiles(files)).map((layer) => ({ ...layer }));
+
+    localLayers.forEach((layer) => {
+      applyCategoryToLayer(layer, category);
+      layer.status = state.session.role === "admin" ? "approved" : "pending_review";
+      state.userLayers.push(layer);
+    });
+
+    renderSession();
+    renderLayerCatalog(elements.layerSearch.value.trim().toLowerCase());
+    captureVisibleSnapshot();
+
+    if (localLayers[0]) {
+      if (isPublishedStatus(localLayers[0].status)) {
+        addUserLayerToMap(localLayers[0]);
+        state.renderedLayers.set(localLayers[0].id, true);
+        fitLayer(localLayers[0]);
       } else {
-        previewLayer(hydrated);
+        previewLayer(localLayers[0]);
       }
     }
 
-    updateInfoPanel({
-      title: createdLayer.title,
+    return {
+      title,
       description:
         state.session.role === "admin"
-          ? "La capa se registro en el backend y quedo aprobada. Aun puedes publicarla desde el panel."
-          : "La capa se registro en el backend y quedo pendiente de revision administrativa.",
+          ? "La capa demo se guardo localmente y quedo aprobada para pruebas."
+          : "La capa demo se guardo localmente y quedo en revision administrativa.",
       extra: [
-        `Municipio: ${createdLayer.municipality || municipality}`,
-        `Formato principal: ${(createdLayer.sourceType || getExtension(firstFile.name)).toUpperCase()}`,
+        `Municipio: ${municipality}`,
+        `Fenomeno: ${getThematicGroupTitle(category)}`,
+        `Formato principal: ${getExtension(firstFile.name).toUpperCase()}`,
       ],
-    });
+    };
   }
 
   async function hydrateBackendLayer(record) {
@@ -2527,6 +3320,7 @@ import {
     }
 
     const sourceType = (record.sourceType || remoteFiles[0].extension || "").toLowerCase();
+    const category = extractCategoryFromRecord(record);
     let hydratedLayer = null;
 
     if (sourceType === "geojson") {
@@ -2549,6 +3343,8 @@ import {
       backendLayerId: record.id,
       title: record.title,
       description: record.description || hydratedLayer.description,
+      category,
+      group: getThematicGroupTitle(category),
       municipality: record.municipality || "Cobertura estatal",
       createdBy: record.createdBy?.name || "Sistema",
       createdById: record.createdBy?.id || null,
@@ -2573,6 +3369,7 @@ import {
     const geojson = ensureFeatureCollection(await response.json());
     return createUserLayer({
       title: record.title,
+      category: extractCategoryFromRecord(record),
       fileType: "geojson",
       sourceKind: "geojson",
       data: geojson,
@@ -2600,6 +3397,7 @@ import {
 
     return createUserLayer({
       title: record.title,
+      category: extractCategoryFromRecord(record),
       fileType: "shp",
       sourceKind: "geojson",
       data: merged,
@@ -2616,6 +3414,8 @@ import {
     const layers = await createShapefileLayersFromParts(files);
     return {
       ...layers[0],
+      category: extractCategoryFromRecord(record),
+      group: getThematicGroupTitle(extractCategoryFromRecord(record)),
       title: record.title,
       description: record.description || layers[0].description,
       backendLayerId: record.id,
@@ -2635,4 +3435,12 @@ import {
     return new File([blob], remoteFile.originalName, {
       type: remoteFile.mimeType || blob.type || guessMimeType(remoteFile.originalName),
     });
+  }
+
+  function extractCategoryFromRecord(record) {
+    const tags = record?.metadata?.properties?.tags;
+    if (!Array.isArray(tags)) return "otras";
+    const tag = tags.find((value) => String(value).toLowerCase().startsWith("category:"));
+    if (!tag) return "otras";
+    return normalizeLayerCategoryKey(String(tag).split(":").slice(1).join(":").trim()) || "otras";
   }

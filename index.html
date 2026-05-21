@@ -39,6 +39,7 @@
 
       <div class="topbar-actions">
         <button class="ghost-button hidden" id="open-user-admin" type="button">Usuarios</button>
+        <button class="ghost-button hidden" id="logout-session" type="button">Cerrar sesion</button>
         <button class="ghost-button" id="toggle-sidebar" type="button">Panel</button>
         <button class="ghost-button" id="open-help" type="button">Guia rapida</button>
         <button class="primary-button" id="open-login" type="button">Acceso</button>
@@ -214,6 +215,69 @@
   </div>
 
   <input id="file-input" type="file" accept=".kml,.kmz,.geojson,.tif,.tiff,.zip,.shp,.dbf,.prj,.cpg" multiple hidden />
+  <input id="upload-draft-input" type="file" accept=".kml,.kmz,.geojson,.tif,.tiff,.zip,.shp,.dbf,.prj,.cpg" hidden />
+
+  <dialog class="modal modal--upload-panel" id="upload-layer-modal">
+    <form class="modal-card modal-card--upload-panel" id="upload-layer-form" method="dialog">
+      <div class="modal-header">
+        <div>
+          <p class="section-kicker">Carga de capas</p>
+          <h2>Subir capa para revision</h2>
+        </div>
+        <div class="modal-header-actions">
+          <button class="icon-button" id="minimize-upload-layer" type="button" aria-label="Minimizar">-</button>
+          <button class="icon-button" id="close-upload-layer" type="button" aria-label="Cerrar">x</button>
+        </div>
+      </div>
+
+      <p class="modal-copy">
+        Selecciona una sola capa, indica el fenomeno tematico, revisa su vista previa y despues enviala para revision administrativa.
+      </p>
+
+      <div class="upload-draft-grid">
+        <section class="user-admin-block">
+          <h3>Archivo</h3>
+          <button class="ghost-button upload-file-button upload-action-button" id="upload-select-files" type="button">
+            Seleccionar archivo
+          </button>
+          <div class="upload-selected-files" id="upload-selected-files">
+            <p class="empty-state">Aun no has seleccionado archivos.</p>
+          </div>
+        </section>
+
+        <section class="user-admin-block">
+          <h3>Clasificacion</h3>
+          <label class="form-field">
+            <span>Fenomeno</span>
+            <select id="upload-layer-category" required>
+              <option value="geologicos">Geologicos</option>
+              <option value="hidrometeorologicos">Hidrometeorologicos</option>
+              <option value="quimicos-tecnologicos">Quimicos - Tecnologicos</option>
+              <option value="sanitario-ecologico">Sanitario - Ecologico</option>
+              <option value="socio-organizativo">Socio - Organizativo</option>
+              <option value="astronomicos">Astronomicos</option>
+            </select>
+          </label>
+
+          <div class="upload-preview-actions">
+            <button class="ghost-button upload-action-button upload-action-button--secondary" id="upload-preview-toggle" type="button">
+              Vista previa
+            </button>
+            <span class="upload-preview-state" id="upload-preview-state">
+              La capa se visualiza automaticamente al seleccionar el archivo.
+            </span>
+          </div>
+        </section>
+      </div>
+
+      <p class="form-feedback" id="upload-layer-feedback"></p>
+
+      <div class="modal-actions">
+        <button class="ghost-button" id="cancel-upload-layer" type="button">Cancelar</button>
+        <button class="primary-button" id="submit-upload-layer" type="submit">Subir capa</button>
+      </div>
+    </form>
+  </dialog>
 
   <dialog class="modal" id="login-modal">
     <form class="modal-card" id="login-form" method="dialog">
@@ -232,20 +296,24 @@
       <div class="demo-users">
         <article>
           <strong>Administrador</strong>
-          <span>Cuenta inicial definida en el backend</span>
-          <span>Ejemplo seed: `admin@egem.morelos` / `Admin123!`</span>
+          <span>Credencial de prueba actual</span>
+          <span>`admin@egem.morelos` / `Admin123!`</span>
         </article>
         <article>
           <strong>Director</strong>
-          <span>Cuenta creada desde el panel de usuarios</span>
-          <span>Acceso a cargas y seguimiento de sus capas</span>
+          <span>Credencial de prueba actual</span>
+          <span>`director.cuernavaca@egem.morelos` / `Director123!`</span>
         </article>
         <article>
           <strong>Visitante</strong>
-          <span>Puede seguir navegando sin login</span>
-          <span>Si se crea cuenta institucional, tambien puede autenticarse</span>
+          <span>Credencial de prueba actual</span>
+          <span>`visitante@egem.morelos` / `Visitante123!`</span>
         </article>
       </div>
+
+      <p class="modal-copy">
+        Estas credenciales solo aplican para la etapa de prueba del visor. Al conectar backend institucional definitivo, cada usuario utilizara su propia cuenta.
+      </p>
 
       <label class="form-field">
         <span>Correo</span>
