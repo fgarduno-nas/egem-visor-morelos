@@ -433,22 +433,27 @@ select {
 }
 
 .layer-item {
-  justify-content: space-between;
+  flex-direction: column;
+  align-items: stretch;
   align-self: stretch;
 }
 
 .layer-actions {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  flex-wrap: wrap;
   gap: 8px;
   align-items: stretch;
-  min-width: 116px;
+  width: 100%;
+  margin-top: 6px;
 }
 
 .layer-actions .ghost-button,
 .layer-actions .primary-button {
   padding: 10px 12px;
   font-size: 0.86rem;
+  flex: 1 1 calc(50% - 4px);
+  min-width: 112px;
 }
 
 .layer-actions .ghost-button {
@@ -476,6 +481,7 @@ select {
   display: flex;
   gap: 10px;
   align-items: flex-start;
+  width: 100%;
 }
 
 .layer-item__copy {
