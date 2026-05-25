@@ -115,6 +115,26 @@ export async function listPendingLayers() {
   return layers.map(mapLayer);
 }
 
+export async function listAdminLayers() {
+  const layers = await prisma.layer.findMany({
+    where: {
+      isDeleted: false,
+    },
+    include: {
+      files: true,
+      metadata: true,
+      createdBy: { include: { role: true } },
+      approvals: {
+        include: { actor: true },
+        orderBy: { createdAt: "desc" },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return layers.map(mapLayer);
+}
+
 export async function listOwnLayers(actor) {
   const layers = await prisma.layer.findMany({
     where: {

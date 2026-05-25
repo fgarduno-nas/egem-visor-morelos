@@ -10,6 +10,7 @@ import {
   approveLayerController,
   deleteLayerController,
   getLayerDetailController,
+  listAdminLayersController,
   listOwnLayersController,
   listPendingLayersController,
   listPublicLayersController,
@@ -38,6 +39,11 @@ layersRouter.get(
   "/admin/pending",
   authorizeRoles(ROLE_CODES.ADMIN),
   asyncHandler(listPendingLayersController)
+);
+layersRouter.get(
+  "/admin/manageable",
+  authorizeRoles(ROLE_CODES.ADMIN),
+  asyncHandler(listAdminLayersController)
 );
 layersRouter.post(
   "/",

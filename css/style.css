@@ -490,6 +490,22 @@ select {
   gap: 5px;
 }
 
+.layer-opacity-control {
+  display: grid;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.layer-opacity-control span {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.layer-opacity-control input[type="range"] {
+  width: 100%;
+  accent-color: #8d2947;
+}
+
 .layer-item__copy strong {
   font-size: 0.98rem;
 }
@@ -1148,6 +1164,16 @@ select {
   margin-top: 4px;
   color: var(--muted);
   font-size: 0.9rem;
+}
+
+.user-card__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.user-card__actions .ghost-button {
+  width: 100%;
 }
 
 .empty-state {

@@ -20,6 +20,16 @@ export async function listPendingLayersRequest(token) {
   return payload?.data ?? [];
 }
 
+export async function listAdminLayersRequest(token) {
+  const payload = await request("/layers/admin/manageable", {
+    token,
+    cacheTtlMs: 10000,
+    cacheKey: "GET:/layers/admin/manageable",
+  });
+
+  return payload?.data ?? [];
+}
+
 export async function listMyLayersRequest(token) {
   const payload = await request("/layers/mine", {
     token,
@@ -36,7 +46,7 @@ export async function uploadLayerRequest(token, metadata, files) {
   formData.append("description", metadata.description || "");
   formData.append("municipality", metadata.municipality || "");
 
-  (metadata.tags || []).forEach((tag) => formData.append("tags[]", tag));
+  (metadata.tags || []).forEach((tag) => formData.append("tags", tag));
   files.forEach((file) => formData.append("files", file));
 
   const payload = await request("/layers", {

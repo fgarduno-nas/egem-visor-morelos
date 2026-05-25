@@ -3,6 +3,7 @@ import {
   approveLayer,
   deleteLayer,
   getLayerDetail,
+  listAdminLayers,
   listOwnLayers,
   listPendingLayers,
   listPublicLayers,
@@ -40,6 +41,15 @@ export async function listPendingLayersController(_req, res) {
   return sendSuccess(res, {
     statusCode: 200,
     message: "Capas pendientes listadas correctamente.",
+    data: layers,
+  });
+}
+
+export async function listAdminLayersController(_req, res) {
+  const layers = await listAdminLayers();
+  return sendSuccess(res, {
+    statusCode: 200,
+    message: "Capas administrables listadas correctamente.",
     data: layers,
   });
 }

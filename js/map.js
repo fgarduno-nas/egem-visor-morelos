@@ -1,9 +1,14 @@
 import { runtimeConfig } from "./app/config/runtime-config.js";
 import { loginRequest } from "./app/services/auth-api.js";
-import { createUserRequest, listUsersRequest } from "./app/services/users-api.js";
+import {
+  createUserRequest,
+  listUsersRequest,
+  resetPasswordRequest,
+} from "./app/services/users-api.js";
 import {
   approveLayerRequest,
   deleteLayerRequest,
+  listAdminLayersRequest,
   listMyLayersRequest,
   listPendingLayersRequest,
   listPublicLayersRequest,
@@ -194,6 +199,7 @@ import {
       status: "published",
       sourceKind: "static",
       visible: false,
+      opacity: 1,
       description: "Contorno general del estado de Morelos.",
     },
     {
@@ -204,6 +210,7 @@ import {
       status: "published",
       sourceKind: "static",
       visible: false,
+      opacity: 1,
       description: "Division municipal para consulta operativa.",
     },
   ];
@@ -662,6 +669,16 @@ import {
     elements.layerList.querySelectorAll("[data-publish]").forEach((button) => {
       button.addEventListener("click", () => togglePublishLayer(button.dataset.publish));
     });
+
+    elements.layerList.querySelectorAll("[data-opacity]").forEach((input) => {
+      input.addEventListener("input", (event) => {
+        updateLayerOpacity(event.target.dataset.opacity, Number(event.target.value));
+        const label = event.target.closest(".layer-opacity-control")?.querySelector("strong");
+        if (label) {
+          label.textContent = `${Math.round(Number(event.target.value))}%`;
+        }
+      });
+    });
   }
 
   function buildCatalog() {
@@ -730,6 +747,16 @@ import {
     elements.layerList.querySelectorAll("[data-publish]").forEach((button) => {
       button.addEventListener("click", () => togglePublishLayer(button.dataset.publish));
     });
+
+    elements.layerList.querySelectorAll("[data-opacity]").forEach((input) => {
+      input.addEventListener("input", (event) => {
+        updateLayerOpacity(event.target.dataset.opacity, Number(event.target.value));
+        const label = event.target.closest(".layer-opacity-control")?.querySelector("strong");
+        if (label) {
+          label.textContent = `${Math.round(Number(event.target.value))}%`;
+        }
+      });
+    });
   }
 
   function groupCatalogLayers(layers) {
@@ -788,6 +815,7 @@ import {
     const publishButton = state.session.role === "admin" && canTogglePublish(layer)
       ? `<button class="ghost-button" type="button" data-publish="${layer.id}">${layer.status === "published" ? "Despublicar" : "Publicar"}</button>`
       : "";
+    const opacityValue = getLayerOpacityPercent(layer);
 
     return `
       <div class="layer-item" data-layer-id="${layer.id}">
@@ -798,6 +826,10 @@ import {
             <span>${escapeHtml(layer.description)}</span>
             <span>${escapeHtml(layer.group)} Â· ${escapeHtml(layer.municipality || "Cobertura estatal")}</span>
             <div class="layer-badges">${renderBadges(layer)}</div>
+            <label class="layer-opacity-control">
+              <span>Visibilidad <strong>${opacityValue}%</strong></span>
+              <input type="range" min="10" max="100" step="5" value="${opacityValue}" data-opacity="${layer.id}" />
+            </label>
           </div>
         </div>
         <div class="layer-actions">
@@ -838,7 +870,7 @@ import {
     if (matchesCategory(haystack, ["quimic", "tecnolog", "gas", "explos", "incend", "combust", "ducto"])) {
       return "quimicos-tecnologicos";
     }
-    if (matchesCategory(haystack, ["sanitari", "ecologic", "salud", "contamin", "residuo", "basur", "cementerio"])) {
+    if (matchesCategory(haystack, ["sanitari", "ecologic", "salud", "contamin", "residuo", "basur", "cementerio", "covid", "contagio", "epidem", "pandem", "biologic"])) {
       return "sanitario-ecologico";
     }
     if (matchesCategory(haystack, ["socio", "organiz", "poblacion", "refugio", "vulnerabilidad", "evacuacion"])) {
@@ -886,6 +918,20 @@ import {
 
   function matchesCategory(value, keywords) {
     return keywords.some((keyword) => value.includes(keyword));
+  }
+
+  function clampLayerOpacity(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return 1;
+    return Math.min(1, Math.max(0.1, numeric));
+  }
+
+  function getLayerOpacity(layer) {
+    return clampLayerOpacity(layer?.opacity ?? 1);
+  }
+
+  function getLayerOpacityPercent(layer) {
+    return Math.round(getLayerOpacity(layer) * 100);
   }
 
   function layerMatchesSearch(layer, searchTerm) {
@@ -951,7 +997,7 @@ import {
       source: "estado-source",
       paint: {
         "fill-color": "#ffffff",
-        "fill-opacity": 0.03,
+        "fill-opacity": 0.03 * getLayerOpacity(staticLayers.find((layer) => layer.id === "estado")),
       },
     });
 
@@ -962,7 +1008,7 @@ import {
       paint: {
         "line-color": "#f5f0e5",
         "line-width": 3,
-        "line-opacity": 0.95,
+        "line-opacity": 0.95 * getLayerOpacity(staticLayers.find((layer) => layer.id === "estado")),
       },
     });
 
@@ -972,7 +1018,7 @@ import {
       source: "municipios-source",
       paint: {
         "fill-color": "#ffffff",
-        "fill-opacity": 0.01,
+        "fill-opacity": 0.01 * getLayerOpacity(staticLayers.find((layer) => layer.id === "municipios")),
       },
     });
 
@@ -983,7 +1029,7 @@ import {
       paint: {
         "line-color": "#efe4c6",
         "line-width": 1,
-        "line-opacity": 0.84,
+        "line-opacity": 0.84 * getLayerOpacity(staticLayers.find((layer) => layer.id === "municipios")),
       },
     });
 
@@ -1285,6 +1331,7 @@ import {
       } else {
         setStaticVisibility(layer.id, false);
       }
+      applyStaticLayerOpacity(layer.id);
     });
 
     state.userLayers.forEach((layer) => {
@@ -1329,7 +1376,7 @@ import {
       filter: ["==", "$type", "Polygon"],
       paint: {
         "fill-color": ["coalesce", ["get", "__styleFill"], defaultFillColor],
-        "fill-opacity": 0.45,
+        "fill-opacity": 0.45 * getLayerOpacity(layer),
       },
     });
 
@@ -1341,6 +1388,7 @@ import {
       paint: {
         "line-color": ["coalesce", ["get", "__styleLine"], defaultLineColor],
         "line-width": ["coalesce", ["to-number", ["get", "__styleWidth"]], 2.4],
+        "line-opacity": getLayerOpacity(layer),
       },
     });
 
@@ -1354,12 +1402,15 @@ import {
         "circle-radius": 6,
         "circle-stroke-color": "#ffffff",
         "circle-stroke-width": 1.8,
+        "circle-opacity": getLayerOpacity(layer),
+        "circle-stroke-opacity": getLayerOpacity(layer),
       },
     });
 
     bindVectorPopup(pointId, layer);
     bindVectorPopup(lineId, layer);
     bindVectorPopup(fillId, layer);
+    applyUserLayerOpacityToMap(layer);
   }
 
   function addImageLayerToMap(layer) {
@@ -1379,10 +1430,51 @@ import {
       type: "raster",
       source: sourceId,
       paint: {
-        "raster-opacity": 0.8,
+        "raster-opacity": 0.8 * getLayerOpacity(layer),
         "raster-fade-duration": 0,
       },
     });
+
+    applyUserLayerOpacityToMap(layer);
+  }
+
+  function applyUserLayerOpacityToMap(layer) {
+    const opacity = getLayerOpacity(layer);
+    const fillId = `${layer.id}-fill`;
+    const lineId = `${layer.id}-line`;
+    const pointId = `${layer.id}-point`;
+    const rasterId = `${layer.id}-raster`;
+
+    if (map.getLayer(fillId)) {
+      map.setPaintProperty(fillId, "fill-opacity", 0.45 * opacity);
+    }
+    if (map.getLayer(lineId)) {
+      map.setPaintProperty(lineId, "line-opacity", opacity);
+    }
+    if (map.getLayer(pointId)) {
+      map.setPaintProperty(pointId, "circle-opacity", opacity);
+      map.setPaintProperty(pointId, "circle-stroke-opacity", opacity);
+    }
+    if (map.getLayer(rasterId)) {
+      map.setPaintProperty(rasterId, "raster-opacity", 0.8 * opacity);
+    }
+  }
+
+  function applyStaticLayerOpacity(layerId) {
+    const layer = staticLayers.find((item) => item.id === layerId);
+    if (!layer) return;
+    const opacity = getLayerOpacity(layer);
+
+    if (layerId === "estado") {
+      if (map.getLayer("estado-fill")) map.setPaintProperty("estado-fill", "fill-opacity", 0.03 * opacity);
+      if (map.getLayer("estado-line")) map.setPaintProperty("estado-line", "line-opacity", 0.95 * opacity);
+      return;
+    }
+
+    if (layerId === "municipios") {
+      if (map.getLayer("municipios-fill")) map.setPaintProperty("municipios-fill", "fill-opacity", 0.01 * opacity);
+      if (map.getLayer("municipios-line")) map.setPaintProperty("municipios-line", "line-opacity", 0.84 * opacity);
+    }
   }
 
   function previewLayer(layer) {
@@ -1465,6 +1557,24 @@ import {
       title: current.title,
       description: visible ? "La capa esta visible en el mapa." : "La capa fue ocultada del mapa.",
     });
+  }
+
+  function updateLayerOpacity(layerId, percentage) {
+    const opacity = clampLayerOpacity(Number(percentage) / 100);
+    const staticLayer = staticLayers.find((layer) => layer.id === layerId);
+    const userLayer = state.userLayers.find((layer) => layer.id === layerId);
+
+    if (staticLayer) {
+      staticLayer.opacity = opacity;
+      applyStaticLayerOpacity(layerId);
+    }
+
+    if (userLayer) {
+      userLayer.opacity = opacity;
+      applyUserLayerOpacityToMap(userLayer);
+    }
+
+    saveUserLayers();
   }
 
   async function approveLayer(layerId) {
@@ -2107,10 +2217,18 @@ import {
               <span>${escapeHtml(user.email)}</span>
               <span>Rol: ${escapeHtml(roleLabels[mapBackendRole(user.role || user.backendRole)] || user.role || user.backendRole)}</span>
               <span>Municipio: ${escapeHtml(user.municipality || "General")}</span>
+              <div class="user-card__actions">
+                <button class="ghost-button" type="button" data-reset-user-password="${user.id}">Restablecer contrasena</button>
+              </div>
             </article>
           `)
           .join("")
       : '<div class="empty-state">Aun no hay usuarios creados desde el panel de administracion.</div>';
+
+    elements.userAdminList.querySelectorAll("[data-reset-user-password]").forEach((button) => {
+      button.addEventListener("click", () => resetManagedUserPassword(button.dataset.resetUserPassword));
+    });
+
     syncUserRoleForm();
   }
 
@@ -2204,6 +2322,49 @@ import {
       console.error(error);
       elements.userAdminFeedback.textContent =
         error?.payload?.message || error.message || "No se pudo crear el usuario.";
+    }
+  }
+
+  async function resetManagedUserPassword(userId) {
+    if (state.session.role !== "admin") return;
+
+    const user =
+      state.users.find((item) => item.id === userId) ||
+      loadManagedUsers().find((item) => item.id === userId);
+    if (!user) return;
+
+    const nextPassword = window.prompt(
+      `Define una nueva contrasena temporal para ${user.email}:`,
+      "Temporal123!"
+    );
+    if (!nextPassword) return;
+
+    if (nextPassword.trim().length < 8) {
+      elements.userAdminFeedback.textContent =
+        "La nueva contrasena temporal debe tener al menos 8 caracteres.";
+      return;
+    }
+
+    try {
+      if (state.session.token) {
+        await resetPasswordRequest(state.session.token, userId, nextPassword.trim());
+      } else {
+        const managedUsers = loadManagedUsers();
+        const targetUser = managedUsers.find((item) => item.id === userId);
+        if (!targetUser) {
+          throw new Error("Usuario no encontrado.");
+        }
+        targetUser.password = nextPassword.trim();
+        saveManagedUsers(managedUsers);
+      }
+
+      await renderUserAdminPanel();
+      elements.userAdminFeedback.textContent =
+        `Contrasena restablecida para ${user.email}. Comparte la nueva contrasena temporal de forma segura.`;
+    } catch (error) {
+      console.error(error);
+      elements.userAdminFeedback.textContent =
+        error?.payload?.message || error.message || "No se pudo restablecer la contrasena del usuario.";
     }
   }
 
@@ -2609,6 +2770,7 @@ import {
       createdAt: new Date().toISOString(),
       fileType: config.fileType,
       sourceKind: config.sourceKind,
+      opacity: clampLayerOpacity(config.opacity ?? 1),
       color: pickLayerColor(state.userLayers.length),
       lineColor: config.lineColor || null,
       fillColor: config.fillColor || null,
@@ -2969,11 +3131,12 @@ import {
   }
 
   function saveUserLayers() {
-    const layerPrefs = state.userLayers
-      .filter((layer) => layer.backendLayerId)
+    const layerPrefs = [...staticLayers, ...state.userLayers]
       .map((layer) => ({
-        backendLayerId: layer.backendLayerId,
+        layerKey: layer.backendLayerId || layer.id,
+        backendLayerId: layer.backendLayerId || null,
         visible: state.renderedLayers.has(layer.id),
+        opacity: clampLayerOpacity(layer.opacity ?? 1),
       }));
 
     localStorage.setItem(STORAGE_KEYS.layerPrefs, JSON.stringify(layerPrefs));
@@ -3146,12 +3309,8 @@ import {
       const records = [...publicLayers];
 
       if (state.session.role === "admin" && state.session.token) {
-        const [pendingLayers, ownLayers] = await Promise.all([
-          listPendingLayersRequest(state.session.token),
-          listMyLayersRequest(state.session.token),
-        ]);
-        mergeRecords(records, pendingLayers);
-        mergeRecords(records, ownLayers);
+        const manageableLayers = await listAdminLayersRequest(state.session.token);
+        mergeRecords(records, manageableLayers);
       } else if (state.session.role === "director" && state.session.token) {
         const ownLayers = await listMyLayersRequest(state.session.token);
         mergeRecords(records, ownLayers);
@@ -3166,7 +3325,7 @@ import {
         }
       }
 
-      const persistedVisibility = loadPersistedLayerVisibility();
+      const persistedPreferences = loadPersistedLayerPreferences();
       const previousVisibility = new Map(
         state.userLayers.map((layer) => [layer.backendLayerId || layer.id, state.renderedLayers.has(layer.id)])
       );
@@ -3177,11 +3336,24 @@ import {
       });
 
       state.userLayers = hydratedLayers.map((layer) => {
+        const preference = persistedPreferences.get(layer.backendLayerId || layer.id);
         const visible =
           previousVisibility.get(layer.backendLayerId || layer.id) ??
-          persistedVisibility.get(layer.backendLayerId || layer.id) ??
+          preference?.visible ??
           isPublishedStatus(layer.status);
-        return { ...layer, visible };
+        return {
+          ...layer,
+          visible,
+          opacity: clampLayerOpacity(preference?.opacity ?? layer.opacity ?? 1),
+        };
+      });
+
+      staticLayers.forEach((layer) => {
+        const preference = persistedPreferences.get(layer.id);
+        if (preference) {
+          layer.visible = preference.visible;
+          layer.opacity = clampLayerOpacity(preference.opacity ?? layer.opacity ?? 1);
+        }
       });
 
       state.backendStatus.reachable = true;
@@ -3221,11 +3393,19 @@ import {
     });
   }
 
-  function loadPersistedLayerVisibility() {
+  function loadPersistedLayerPreferences() {
     try {
       const raw = JSON.parse(localStorage.getItem(STORAGE_KEYS.layerPrefs));
       if (!Array.isArray(raw)) return new Map();
-      return new Map(raw.map((item) => [item.backendLayerId, Boolean(item.visible)]));
+      return new Map(
+        raw.map((item) => [
+          item.layerKey || item.backendLayerId,
+          {
+            visible: Boolean(item.visible),
+            opacity: clampLayerOpacity(item.opacity ?? 1),
+          },
+        ])
+      );
     } catch (_error) {
       return new Map();
     }
@@ -3439,8 +3619,33 @@ import {
 
   function extractCategoryFromRecord(record) {
     const tags = record?.metadata?.properties?.tags;
-    if (!Array.isArray(tags)) return "otras";
-    const tag = tags.find((value) => String(value).toLowerCase().startsWith("category:"));
-    if (!tag) return "otras";
-    return normalizeLayerCategoryKey(String(tag).split(":").slice(1).join(":").trim()) || "otras";
+    if (Array.isArray(tags)) {
+      const tag = tags.find((value) => String(value).toLowerCase().startsWith("category:"));
+      if (tag) {
+        return normalizeLayerCategoryKey(String(tag).split(":").slice(1).join(":").trim()) || "otras";
+      }
+    }
+
+    return (
+      normalizeLayerCategoryKey(
+        [
+          record?.category,
+          record?.theme,
+          record?.topic,
+          record?.title,
+          record?.description,
+        ]
+          .filter(Boolean)
+          .join(" ")
+      ) ||
+      resolveLayerCategory({
+        category: record?.category,
+        theme: record?.theme,
+        topic: record?.topic,
+        title: record?.title,
+        description: record?.description,
+        municipality: record?.municipality,
+        fileType: record?.sourceType,
+      })
+    );
   }

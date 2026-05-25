@@ -137,6 +137,32 @@ export async function changeUserRole(id, roleCode, actor, req) {
   return sanitizeUser(updated);
 }
 
+export async function resetUserPassword(id, password, actor, req) {
+  const user = await prisma.user.findUnique({ where: { id }, include: { role: true } });
+  if (!user) throw new AppError("Usuario no encontrado.", 404);
+
+  const passwordHash = await hashPassword(password);
+  const updated = await prisma.user.update({
+    where: { id },
+    data: { passwordHash },
+    include: { role: true },
+  });
+
+  const metadata = getRequestMetadata(req);
+  await createAuditLog({
+    actorId: actor.sub,
+    entityType: "User",
+    entityId: updated.id,
+    action: "USER_UPDATED",
+    description: `Contrasena de usuario ${updated.email} restablecida por administrador.`,
+    metadata: { passwordResetByAdmin: true },
+    ipAddress: metadata.ipAddress,
+    userAgent: metadata.userAgent,
+  });
+
+  return sanitizeUser(updated);
+}
+
 function sanitizeUser(user) {
   return {
     id: user.id,

@@ -3,6 +3,7 @@ import {
   changeUserRole,
   createUser,
   listUsers,
+  resetUserPassword,
   toggleUser,
   updateUser,
 } from "./users.service.js";
@@ -60,6 +61,21 @@ export async function changeRoleController(req, res) {
   return sendSuccess(res, {
     statusCode: 200,
     message: "Rol del usuario actualizado correctamente.",
+    data: user,
+  });
+}
+
+export async function resetPasswordController(req, res) {
+  const user = await resetUserPassword(
+    req.validated.params.id,
+    req.validated.body.password,
+    req.user,
+    req
+  );
+
+  return sendSuccess(res, {
+    statusCode: 200,
+    message: "Contrasena restablecida correctamente.",
     data: user,
   });
 }

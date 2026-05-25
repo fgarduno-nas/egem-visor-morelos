@@ -20,3 +20,14 @@ export async function createUserRequest(token, userPayload) {
 
   return payload?.data ?? null;
 }
+
+export async function resetPasswordRequest(token, userId, password) {
+  const payload = await request(`/users/${userId}/password`, {
+    method: "PATCH",
+    token,
+    body: { password },
+    retries: 0,
+  });
+
+  return payload?.data ?? null;
+}

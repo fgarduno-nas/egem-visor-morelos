@@ -9,12 +9,14 @@ import {
   changeRoleController,
   createUserController,
   listUsersController,
+  resetPasswordController,
   toggleUserController,
   updateUserController,
 } from "./users.controller.js";
 import {
   changeRoleSchema,
   createUserSchema,
+  resetPasswordSchema,
   toggleUserSchema,
   updateUserSchema,
 } from "./users.schemas.js";
@@ -27,3 +29,4 @@ usersRouter.get("/", asyncHandler(listUsersController));
 usersRouter.patch("/:id", validate(updateUserSchema), asyncHandler(updateUserController));
 usersRouter.patch("/:id/status", validate(toggleUserSchema), asyncHandler(toggleUserController));
 usersRouter.patch("/:id/role", validate(changeRoleSchema), asyncHandler(changeRoleController));
+usersRouter.patch("/:id/password", validate(resetPasswordSchema), asyncHandler(resetPasswordController));

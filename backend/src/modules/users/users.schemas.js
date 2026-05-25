@@ -46,3 +46,13 @@ export const changeRoleSchema = z.object({
   }),
   query: z.object({}).default({}),
 });
+
+export const resetPasswordSchema = z.object({
+  body: z.object({
+    password: z.string().min(8).max(128),
+  }),
+  params: z.object({
+    id: z.string().min(1),
+  }),
+  query: z.object({}).default({}),
+});
