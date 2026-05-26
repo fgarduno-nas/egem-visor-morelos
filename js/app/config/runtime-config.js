@@ -1,13 +1,14 @@
 const globalConfig = window.__EGEM_CONFIG__ ?? {};
 
-const derivedSameOriginApi = `${window.location.origin}/api/v1`;
+const localApiBaseUrl = "http://localhost:4000/api/v1";
+const productionApiBaseUrl = "https://egem-backend.onrender.com/api/v1";
 
 export const runtimeConfig = {
   apiBaseUrl: String(
     globalConfig.apiBaseUrl ||
       (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
-        ? "http://localhost:4000/api/v1"
-        : derivedSameOriginApi)
+        ? localApiBaseUrl
+        : productionApiBaseUrl)
   ).replace(/\/+$/, ""),
   requestTimeoutMs: Number(globalConfig.requestTimeoutMs || 12000),
   publicLayerCacheTtlMs: Number(globalConfig.publicLayerCacheTtlMs || 120000),
