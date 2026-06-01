@@ -1306,17 +1306,21 @@ select {
 
 @media (max-width: 1180px) {
   body {
-    overflow: auto;
+    overflow: hidden;
   }
 
   .app-shell {
-    height: auto;
-    overflow: visible;
+    height: 100vh;
+    padding: 8px;
+    gap: 8px;
+    overflow: hidden;
   }
 
   .workspace {
     grid-template-columns: 1fr;
-    overflow: visible;
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: 8px;
+    overflow: hidden;
   }
 
   .app-shell--sidebar-collapsed .workspace {
@@ -1324,24 +1328,68 @@ select {
   }
 
   .control-panel {
-    max-height: none;
+    max-height: 34vh;
     min-height: auto;
     order: 2;
-    overflow: visible;
+    gap: 8px;
+    padding-right: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
   }
 
   .map-stage {
-    min-height: 68vh;
-    height: 68vh;
+    min-height: 58vh;
+    height: auto;
     order: 1;
+  }
+
+  .panel-card {
+    padding: 12px;
+    border-radius: 18px;
+  }
+
+  .panel-summary {
+    min-height: auto;
+    padding: 14px;
+  }
+
+  .panel-content {
+    padding: 0 14px 14px;
+  }
+
+  .hero-grid {
+    margin-top: 14px;
+    gap: 8px;
+  }
+
+  .basemap-list,
+  .layer-list {
+    margin-top: 12px;
+    gap: 8px;
+  }
+
+  .search-box,
+  .form-field {
+    margin-top: 12px;
   }
 
   .user-admin-grid {
     grid-template-columns: 1fr;
+    gap: 12px;
   }
 
   .upload-draft-grid {
     grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .modal {
+    width: min(760px, calc(100% - 16px));
+  }
+
+  .modal-card {
+    padding: 18px;
+    border-radius: 24px;
   }
 
   .modal--upload-panel {
@@ -1361,13 +1409,16 @@ select {
 
 @media (max-width: 760px) {
   .app-shell {
-    padding: 12px;
+    padding: 8px;
+    gap: 8px;
   }
 
   .topbar {
     flex-direction: column;
-    padding: 18px;
+    padding: 12px;
+    gap: 10px;
     align-items: stretch;
+    border-radius: 18px;
   }
 
   .app-shell--topbar-collapsed .topbar {
@@ -1388,7 +1439,7 @@ select {
 
   .topbar-brand__image {
     width: 100%;
-    max-height: 72px;
+    max-height: 64px;
   }
 
   .app-shell--topbar-collapsed .topbar-brand__image {
@@ -1397,38 +1448,106 @@ select {
     max-height: 50px;
   }
 
+  .brand-block h1 {
+    font-size: 1.08rem;
+  }
+
+  .subtitle {
+    font-size: 0.82rem;
+    max-width: none;
+  }
+
   .topbar-actions,
   .modal-actions,
   .hero-grid,
   .demo-users,
   .help-grid {
-    grid-template-columns: 1fr;
     flex-direction: column;
+  }
+
+  .topbar-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
+  }
+
+  .topbar-actions .ghost-button,
+  .topbar-actions .primary-button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  #toggle-topbar {
+    grid-column: 1 / -1;
   }
 
   .hero-grid {
     display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .demo-users,
+  .help-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .modal-card {
+    padding: 16px;
+    border-radius: 22px;
+  }
+
+  .modal-card--wide {
+    max-width: none;
+  }
+
+  .modal-header {
+    gap: 10px;
+  }
+
+  .modal-copy {
+    font-size: 0.88rem;
+  }
+
+  .modal-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .modal-actions .ghost-button,
+  .modal-actions .primary-button {
+    width: 100%;
+  }
+
+  .user-admin-grid,
+  .upload-draft-grid {
+    margin-top: 14px;
+  }
+
+  .user-card__actions {
+    flex-direction: column;
   }
 
   .map-overlay--top-left,
   .map-overlay--top-right,
   .map-overlay--bottom-left {
-    left: 12px;
-    right: 12px;
+    left: 8px;
+    right: 8px;
     transform: none;
   }
 
   .map-overlay--top-left {
-    top: 12px;
+    top: 8px;
   }
 
   .map-overlay--top-right {
-    top: 12px;
+    top: 8px;
     bottom: auto;
   }
 
   .map-overlay--bottom-left {
-    bottom: 86px;
+    bottom: 72px;
   }
 
   .floating-card,
@@ -1441,13 +1560,45 @@ select {
   .map-toolbar {
     width: 100%;
     justify-content: space-between;
-    gap: 6px;
-    padding: 8px 10px;
+    gap: 4px;
+    padding: 8px;
     overflow-x: auto;
+    border-radius: 18px;
   }
 
   .toolbar-button {
     flex: 0 0 auto;
+    width: 34px;
+    height: 34px;
+  }
+
+  .toolbar-note {
+    margin-top: 6px;
+    font-size: 0.74rem;
+  }
+
+  .floating-card {
+    min-width: 0;
+    max-width: 220px;
+    padding: 8px 10px;
+  }
+
+  .floating-card strong {
+    font-size: 0.92rem;
+  }
+
+  .floating-card span {
+    font-size: 0.8rem;
+  }
+
+  .map-fab {
+    padding: 10px 14px;
+    font-size: 0.86rem;
+  }
+
+  .map-fab--left {
+    top: 8px;
+    left: 8px;
   }
 
   .password-input-wrap {
@@ -1458,5 +1609,266 @@ select {
   .password-toggle {
     width: 36px;
     height: 36px;
+  }
+
+  .modal--upload-panel {
+    top: auto !important;
+    left: 8px !important;
+    right: 8px !important;
+    bottom: 8px;
+    width: auto;
+    max-width: none;
+  }
+
+  .modal-card--upload-panel {
+    max-height: min(62vh, 520px);
+  }
+
+  .modal-card--upload-panel::before {
+    display: none;
+  }
+}
+
+@media (max-width: 540px) {
+  .app-shell {
+    padding: 6px;
+    gap: 6px;
+  }
+
+  .topbar {
+    padding: 10px;
+    border-radius: 16px;
+  }
+
+  .eyebrow,
+  .section-kicker,
+  .overlay-label {
+    margin-bottom: 4px;
+    font-size: 10px;
+  }
+
+  .brand-block h1 {
+    font-size: 0.98rem;
+  }
+
+  .subtitle {
+    display: none;
+  }
+
+  .topbar-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .topbar-actions .ghost-button,
+  .topbar-actions .primary-button {
+    padding: 9px 12px;
+    font-size: 0.84rem;
+  }
+
+  .workspace {
+    gap: 6px;
+  }
+
+  .map-stage {
+    min-height: 64vh;
+  }
+
+  .control-panel {
+    max-height: 26vh;
+    gap: 6px;
+  }
+
+  .panel-card {
+    padding: 10px;
+    border-radius: 16px;
+  }
+
+  .panel-summary {
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .panel-content {
+    padding: 0 12px 12px;
+  }
+
+  .panel-card h2 {
+    font-size: 1.28rem;
+  }
+
+  .panel-card h3 {
+    font-size: 1.02rem;
+  }
+
+  .panel-card p,
+  .layer-group__heading span,
+  .layer-group__empty,
+  .layer-item__copy span,
+  .layer-badges,
+  .menu-note,
+  .info-copy {
+    font-size: 0.82rem;
+  }
+
+  .layer-group__summary {
+    padding: 12px 14px;
+  }
+
+  .layer-group__content {
+    padding: 0 10px 10px;
+    gap: 8px;
+  }
+
+  .layer-item {
+    padding: 10px 12px;
+  }
+
+  .layer-actions {
+    gap: 6px;
+  }
+
+  .layer-actions .ghost-button,
+  .layer-actions .primary-button {
+    min-width: 0;
+    flex-basis: 100%;
+    font-size: 0.82rem;
+    padding: 9px 10px;
+  }
+
+  .search-box span,
+  .form-field span {
+    font-size: 0.84rem;
+  }
+
+  .search-box input,
+  .form-field input,
+  .form-field select {
+    padding: 11px 12px;
+    font-size: 16px;
+  }
+
+  .password-toggle {
+    width: 34px;
+    height: 34px;
+  }
+
+  .map-overlay--bottom-left {
+    bottom: 64px;
+  }
+
+  .floating-card {
+    max-width: 180px;
+    padding: 7px 9px;
+    border-radius: 14px;
+  }
+
+  .map-toolbar {
+    padding: 7px;
+    gap: 3px;
+  }
+
+  .toolbar-button,
+  .maplibregl-ctrl-group button {
+    width: 32px;
+    height: 32px;
+  }
+
+  .toolbar-icon,
+  .toolbar-icon svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .modal {
+    width: calc(100% - 12px);
+  }
+
+  .modal-card {
+    padding: 14px;
+    border-radius: 18px;
+  }
+
+  .modal-copy,
+  .form-feedback,
+  .user-card span,
+  .upload-preview-state,
+  .upload-selected-file span,
+  .upload-layer-entry__details {
+    font-size: 0.82rem;
+  }
+
+  .icon-button {
+    width: 34px;
+    height: 34px;
+    font-size: 1.2rem;
+  }
+
+  .user-admin-block,
+  .demo-users article,
+  .help-grid article {
+    padding: 10px;
+    border-radius: 16px;
+  }
+
+  .upload-file-button,
+  .upload-action-button {
+    min-height: 44px;
+    font-size: 0.92rem;
+  }
+
+  .upload-layer-entry {
+    padding: 10px 12px;
+    gap: 10px;
+  }
+
+  .upload-layer-entry__actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .upload-layer-entry__actions .ghost-button,
+  .upload-remove-button {
+    width: 100%;
+  }
+
+  .empty-state,
+  .info-panel {
+    padding: 12px;
+    border-radius: 16px;
+  }
+}
+
+@media (max-width: 400px) {
+  .app-shell {
+    padding: 4px;
+  }
+
+  .topbar {
+    padding: 8px;
+  }
+
+  .map-stage {
+    min-height: 66vh;
+  }
+
+  .control-panel {
+    max-height: 24vh;
+  }
+
+  .map-overlay--top-left,
+  .map-overlay--top-right,
+  .map-overlay--bottom-left {
+    left: 6px;
+    right: 6px;
+  }
+
+  .floating-card {
+    max-width: 160px;
+  }
+
+  .modal--upload-panel {
+    left: 6px !important;
+    right: 6px !important;
+    bottom: 6px;
   }
 }
