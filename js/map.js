@@ -234,6 +234,7 @@ import {
     activeTool: null,
     session: loadSession(),
     sidebarCollapsed: false,
+    viewportMode: null,
     isUploading: false,
     remoteSyncInProgress: false,
     measurement: {
@@ -279,11 +280,16 @@ import {
   });
 
   map.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-right");
+  map.addControl(new maplibregl.NavigationControl({ showZoom: false, visualizePitch: true }), "bottom-right");
+  if (typeof maplibregl.FullscreenControl === "function") {
+    map.addControl(new maplibregl.FullscreenControl(), "bottom-right");
+  }
   enableAdvancedMapInteraction();
 
   const elements = {
     appShell: document.querySelector(".app-shell"),
     topbar: document.querySelector(".topbar"),
+    controlPanel: document.querySelector(".control-panel"),
     basemapList: document.getElementById("basemap-list"),
     layerList: document.getElementById("layer-list"),
     layerSearch: document.getElementById("layer-search"),
@@ -331,12 +337,15 @@ import {
     userAdminFeedback: document.getElementById("user-admin-feedback"),
     userAdminList: document.getElementById("user-admin-list"),
     reopenSidebar: document.getElementById("reopen-sidebar"),
+    collapseMobilePanel: document.getElementById("collapse-mobile-panel"),
+    panelQuicknav: document.getElementById("panel-quicknav"),
     toggleTopbar: document.getElementById("toggle-topbar"),
     triggerUpload: document.getElementById("trigger-upload"),
     toolbarTogglePanel: document.getElementById("toolbar-toggle-panel"),
     toolbarZoomIn: document.getElementById("toolbar-zoom-in"),
     toolbarZoomOut: document.getElementById("toolbar-zoom-out"),
     toolbarResetNorth: document.getElementById("toolbar-reset-north"),
+    toolbarFullscreen: document.getElementById("toolbar-fullscreen"),
     toolbarRotateLeft: document.getElementById("toolbar-rotate-left"),
     toolbarRotateRight: document.getElementById("toolbar-rotate-right"),
     toolbarPitchUp: document.getElementById("toolbar-pitch-up"),
@@ -345,6 +354,8 @@ import {
     toolbarAddPoint: document.getElementById("toolbar-add-point"),
     toolbarFocusMorelos: document.getElementById("focus-morelos-menu"),
     toolbarClearMeasure: document.getElementById("toolbar-clear-measure"),
+    systemStatusTitle: document.getElementById("system-status-title"),
+    systemStatusCopy: document.getElementById("system-status-copy"),
   };
 
   map.on("mousemove", (event) => {
@@ -390,6 +401,7 @@ import {
     elements.toolbarZoomIn.addEventListener("click", () => map.zoomIn());
     elements.toolbarZoomOut.addEventListener("click", () => map.zoomOut());
     elements.toolbarResetNorth.addEventListener("click", resetMapNorth);
+    elements.toolbarFullscreen?.addEventListener("click", toggleFullscreen);
     elements.toolbarRotateLeft.addEventListener("click", () => rotateMapBy(-MAP_ROTATION_STEP));
     elements.toolbarRotateRight.addEventListener("click", () => rotateMapBy(MAP_ROTATION_STEP));
     elements.toolbarPitchUp.addEventListener("click", () => adjustMapPitch(MAP_PITCH_STEP));
@@ -400,11 +412,14 @@ import {
     elements.toolbarClearMeasure.addEventListener("click", clearMeasurement);
     document.getElementById("toggle-sidebar").addEventListener("click", toggleSidebar);
     elements.reopenSidebar.addEventListener("click", toggleSidebar);
+    elements.collapseMobilePanel?.addEventListener("click", toggleSidebar);
     elements.toggleTopbar.addEventListener("click", toggleTopbar);
     elements.toggleLoginPassword.addEventListener("click", () => togglePasswordFieldVisibility(elements.loginPassword, elements.toggleLoginPassword));
     elements.toggleNewUserPassword.addEventListener("click", () => togglePasswordFieldVisibility(elements.newUserPassword, elements.toggleNewUserPassword));
     syncPasswordToggleButton(elements.loginPassword, elements.toggleLoginPassword);
     syncPasswordToggleButton(elements.newUserPassword, elements.toggleNewUserPassword);
+    syncResponsiveLayout();
+    syncSidebarState();
     syncTopbarState();
 
     document.getElementById("open-login").addEventListener("click", () => {
@@ -433,9 +448,14 @@ import {
     });
 
     window.addEventListener("resize", () => {
+      syncResponsiveLayout();
       if (elements.uploadLayerModal?.open) {
         positionUploadModal();
       }
+    });
+
+    elements.panelQuicknav?.querySelectorAll("[data-panel-target]").forEach((button) => {
+      button.addEventListener("click", () => scrollPanelToSection(button.dataset.panelTarget));
     });
 
     elements.uploadLayerCategory.addEventListener("change", async (event) => {
@@ -847,9 +867,10 @@ import {
       ? `<button class="ghost-button" type="button" data-publish="${layer.id}">${layer.status === "published" ? "Despublicar" : "Publicar"}</button>`
       : "";
     const opacityValue = getLayerOpacityPercent(layer);
+    const itemClassName = `layer-item ${layer.visible ? "is-visible" : "is-hidden-layer"}`;
 
     return `
-      <div class="layer-item" data-layer-id="${layer.id}">
+      <div class="${itemClassName}" data-layer-id="${layer.id}">
         <div class="layer-item__meta">
           <input type="checkbox" ${checked} ${disableToggle} />
           <div class="layer-item__copy">
@@ -1613,8 +1634,10 @@ import {
     if (!layer?.backendLayerId || !state.session.token) return;
 
     try {
+      setSystemStatus("Aprobando capa", `Se esta validando ${layer.title} en backend.`);
       await approveLayerRequest(state.session.token, layer.backendLayerId);
       await syncLayersFromBackend();
+      setSystemStatus("Capa aprobada", `${layer.title} quedo lista para publicacion.`);
       updateInfoPanel({
         title: layer.title,
         description: "La capa fue aprobada y quedo lista para publicacion.",
@@ -1622,6 +1645,7 @@ import {
       });
     } catch (error) {
       console.error(error);
+      setSystemStatus("Error de aprobacion", error?.payload?.message || error.message || "La aprobacion fallo.");
       updateInfoPanel({
         title: "No se pudo aprobar la capa",
         description: error?.payload?.message || error.message || "La aprobacion fallo.",
@@ -1844,12 +1868,13 @@ import {
       ? "Puedes subir KML, KMZ, GeoJSON, GeoTIFF y Shapefile en ZIP desde este menu."
       : "La medicion es publica. Para subir capas o crear puntos inicia sesion como administrador o director.";
     updateToolbarState();
+    syncSidebarState();
   }
 
   function toggleSidebar() {
     state.sidebarCollapsed = !state.sidebarCollapsed;
     elements.appShell.classList.toggle("app-shell--sidebar-collapsed", state.sidebarCollapsed);
-    elements.reopenSidebar.classList.toggle("hidden", !state.sidebarCollapsed);
+    syncSidebarState();
     queueMapResize();
   }
 
@@ -1871,10 +1896,58 @@ import {
     }
   }
 
+  function syncSidebarState() {
+    const isMobile = window.innerWidth <= 760;
+    const isCollapsed = elements.appShell.classList.contains("app-shell--sidebar-collapsed");
+    elements.reopenSidebar.classList.toggle("hidden", isMobile || !isCollapsed);
+    if (elements.collapseMobilePanel) {
+      elements.collapseMobilePanel.textContent = isCollapsed ? "Expandir panel" : "Minimizar panel";
+      elements.collapseMobilePanel.setAttribute("aria-expanded", String(!isCollapsed));
+    }
+  }
+
+  function syncResponsiveLayout() {
+    const nextMode = window.innerWidth <= 760 ? "mobile" : window.innerWidth <= 1180 ? "tablet" : "desktop";
+    if (state.viewportMode === nextMode) return;
+
+    state.viewportMode = nextMode;
+    if (nextMode === "mobile") {
+      elements.appShell.classList.add("app-shell--topbar-collapsed");
+      state.sidebarCollapsed = false;
+      elements.appShell.classList.remove("app-shell--sidebar-collapsed");
+    } else {
+      elements.appShell.classList.remove("app-shell--topbar-collapsed");
+      state.sidebarCollapsed = false;
+      elements.appShell.classList.remove("app-shell--sidebar-collapsed");
+    }
+
+    syncTopbarState();
+    syncSidebarState();
+    queueMapResize();
+  }
+
+  function scrollPanelToSection(sectionId) {
+    if (!sectionId) return;
+    const target = document.getElementById(sectionId);
+    if (!target) return;
+    if (target.tagName === "DETAILS") {
+      target.open = true;
+    }
+    elements.controlPanel?.scrollTo({
+      top: Math.max(0, target.offsetTop - 84),
+      behavior: "smooth",
+    });
+  }
+
   function togglePasswordFieldVisibility(input, button) {
     const showPassword = input.type === "password";
     input.type = showPassword ? "text" : "password";
     syncPasswordToggleButton(input, button);
+  }
+
+  function setSystemStatus(title, description) {
+    elements.systemStatusTitle.textContent = title;
+    elements.systemStatusCopy.textContent = description;
   }
 
   function syncPasswordToggleButton(input, button) {
@@ -1888,6 +1961,18 @@ import {
     window.requestAnimationFrame(() => {
       map.resize();
     });
+  }
+
+  function toggleFullscreen() {
+    const container = document.querySelector(".map-stage");
+    if (!container) return;
+    if (!document.fullscreenElement) {
+      container.requestFullscreen?.().catch(() => {});
+      setSystemStatus("Pantalla completa", "El visor intento abrirse a pantalla completa.");
+      return;
+    }
+    document.exitFullscreen?.().catch(() => {});
+    setSystemStatus("Vista normal", "El visor regreso a la vista integrada del tablero.");
   }
 
   function rotateMapBy(delta) {
@@ -3345,14 +3430,23 @@ import {
     const nextStatus = layer.status === "published" ? "unpublished" : "published";
 
     try {
+      setSystemStatus(
+        nextStatus === "published" ? "Publicando capa" : "Retirando publicacion",
+        `${layer.title} esta cambiando su estado de visibilidad.`
+      );
       await setPublishStateRequest(state.session.token, layer.backendLayerId, nextStatus);
       await syncLayersFromBackend();
+      setSystemStatus(
+        nextStatus === "published" ? "Capa publicada" : "Capa despublicada",
+        `${layer.title} actualizo su estado correctamente.`
+      );
       updateInfoPanel({
         title: nextStatus === "published" ? "Capa publicada" : "Capa despublicada",
         description: `${layer.title} actualizo su estado de publicacion.`,
       });
     } catch (error) {
       console.error(error);
+      setSystemStatus("Error de publicacion", error?.payload?.message || error.message || "La operacion fallo.");
       updateInfoPanel({
         title: "No se pudo actualizar la publicacion",
         description: error?.payload?.message || error.message || "La operacion fallo.",
@@ -3368,8 +3462,10 @@ import {
     if (!reason) return;
 
     try {
+      setSystemStatus("Rechazando capa", `${layer.title} sera devuelta con observaciones.`);
       await rejectLayerRequest(state.session.token, layer.backendLayerId, reason);
       await syncLayersFromBackend();
+      setSystemStatus("Capa rechazada", `${layer.title} se actualizo con el motivo de rechazo.`);
       updateInfoPanel({
         title: "Capa rechazada",
         description: `${layer.title} fue rechazada y se registro el motivo en backend.`,
@@ -3377,6 +3473,7 @@ import {
       });
     } catch (error) {
       console.error(error);
+      setSystemStatus("Error de rechazo", error?.payload?.message || error.message || "La operacion fallo.");
       updateInfoPanel({
         title: "No se pudo rechazar la capa",
         description: error?.payload?.message || error.message || "La operacion fallo.",
@@ -3385,6 +3482,7 @@ import {
   }
 
   async function initializeRemoteState() {
+    setSystemStatus("Sincronizando visor", "Se esta conectando el visualizador con el backend institucional.");
     updateInfoPanel({
       title: "Inicializando visor institucional",
       description: "Se esta conectando el frontend con el backend y cargando capas reales.",
@@ -3399,6 +3497,7 @@ import {
 
     state.remoteSyncInProgress = true;
     try {
+      setSystemStatus("Actualizando capas", "Se esta consultando el catalogo remoto y el estado de publicacion.");
       const publicLayers = await listPublicLayersRequest();
       const records = [...publicLayers];
 
@@ -3456,6 +3555,7 @@ import {
       renderLayerCatalog(elements.layerSearch.value.trim().toLowerCase());
       renderSession();
       captureVisibleSnapshot();
+      setSystemStatus("Visor actualizado", `${hydratedLayers.length} capas sincronizadas desde el backend.`);
 
       if (!hydratedLayers.length) {
         updateInfoPanel({
@@ -3469,6 +3569,7 @@ import {
       state.backendStatus.lastError = error.message;
       renderLayerCatalog(elements.layerSearch.value.trim().toLowerCase());
       renderSession();
+      setSystemStatus("Conexion inestable", error.message || "No se pudieron sincronizar capas remotas.");
       updateInfoPanel({
         title: "Modo degradado activado",
         description: "No se logro consultar el backend institucional. El visor sigue operativo, pero sin capas remotas actualizadas.",

@@ -17,7 +17,7 @@
   />
 
   <link rel="icon" href="data:," />
-  <link rel="stylesheet" href="css/style.css?v=ui0601" />
+  <link rel="stylesheet" href="css/style.css?v=ui0602" />
 </head>
 <body>
   <div class="app-shell">
@@ -30,6 +30,7 @@
         />
         <div class="brand-block">
           <p class="eyebrow">Atlas de riesgos para consulta operativa</p>
+          <p class="brand-short">EGEM Morelos</p>
           <h1>EGEM - Estudio Geoespacial del Estado de Morelos</h1>
           <p class="subtitle">
             Plataforma institucional de consulta clara para Proteccion Civil estatal y municipal.
@@ -54,7 +55,22 @@
 
     <main class="workspace">
       <aside class="control-panel">
-        <details class="panel-card panel-accordion panel-accordion--hero" open>
+        <div class="control-panel-mobile-bar">
+          <div class="control-panel-mobile-copy">
+            <p class="section-kicker">Panel operativo</p>
+            <strong>Capas, leyenda e informacion</strong>
+          </div>
+          <button class="ghost-button" id="collapse-mobile-panel" type="button">Minimizar panel</button>
+        </div>
+
+        <div class="panel-quicknav" id="panel-quicknav">
+          <button class="panel-quicknav__button" type="button" data-panel-target="summary-panel">Resumen</button>
+          <button class="panel-quicknav__button" type="button" data-panel-target="layers-panel">Capas</button>
+          <button class="panel-quicknav__button" type="button" data-panel-target="legend-panel">Leyenda</button>
+          <button class="panel-quicknav__button" type="button" data-panel-target="info-panel-section">Info</button>
+        </div>
+
+        <details class="panel-card panel-accordion panel-accordion--hero" id="summary-panel" open>
           <summary class="panel-summary">
             <div class="panel-heading-block">
               <p class="section-kicker">Resumen</p>
@@ -86,7 +102,7 @@
           </div>
         </details>
 
-        <details class="panel-card panel-accordion" open>
+        <details class="panel-card panel-accordion" id="basemap-panel" open>
           <summary class="panel-summary">
             <div class="section-heading">
               <div>
@@ -101,7 +117,7 @@
           </div>
         </details>
 
-        <details class="panel-card panel-accordion" open>
+        <details class="panel-card panel-accordion" id="layers-panel" open>
           <summary class="panel-summary">
             <div class="section-heading">
               <div>
@@ -121,7 +137,51 @@
           </div>
         </details>
 
-        <details class="panel-card panel-accordion" open>
+        <details class="panel-card panel-accordion" id="legend-panel" open>
+          <summary class="panel-summary">
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">Referencia</p>
+                <h3>Leyenda del visor</h3>
+              </div>
+            </div>
+            <span class="panel-summary__chevron" aria-hidden="true"></span>
+          </summary>
+          <div class="panel-content">
+            <div class="legend-list">
+              <article class="legend-item">
+                <span class="legend-swatch legend-swatch--base"></span>
+                <div>
+                  <strong>Capas base y limites</strong>
+                  <p>Elementos de referencia estatal y municipal para orientacion territorial.</p>
+                </div>
+              </article>
+              <article class="legend-item">
+                <span class="legend-swatch legend-swatch--published"></span>
+                <div>
+                  <strong>Capa publicada</strong>
+                  <p>Informacion validada y disponible para consulta publica.</p>
+                </div>
+              </article>
+              <article class="legend-item">
+                <span class="legend-swatch legend-swatch--pending"></span>
+                <div>
+                  <strong>Capa en revision</strong>
+                  <p>Contenido cargado pendiente de aprobacion administrativa.</p>
+                </div>
+              </article>
+              <article class="legend-item">
+                <span class="legend-swatch legend-swatch--restricted"></span>
+                <div>
+                  <strong>Capa restringida o rechazada</strong>
+                  <p>Informacion no publicada o bloqueada para consulta abierta.</p>
+                </div>
+              </article>
+            </div>
+          </div>
+        </details>
+
+        <details class="panel-card panel-accordion" id="info-panel-section" open>
           <summary class="panel-summary">
             <div class="section-heading">
               <div>
@@ -137,6 +197,30 @@
               <p class="info-copy">
                 Selecciona una capa o haz clic sobre un elemento del mapa para ver su resumen.
               </p>
+            </div>
+          </div>
+        </details>
+
+        <details class="panel-card panel-accordion" id="credits-panel">
+          <summary class="panel-summary">
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">Fuentes</p>
+                <h3>Creditos institucionales</h3>
+              </div>
+            </div>
+            <span class="panel-summary__chevron" aria-hidden="true"></span>
+          </summary>
+          <div class="panel-content">
+            <div class="credits-card">
+              <p class="info-copy">
+                Plataforma orientada a la consulta operativa del Atlas de Riesgos del Estado de Morelos.
+              </p>
+              <ul class="credits-list">
+                <li>Fuente base: limites estatales y municipales de referencia institucional.</li>
+                <li>Capas tematicas: informacion cargada y validada por perfiles autorizados.</li>
+                <li>Visualizador: EGEM / MapLibre GL JS.</li>
+              </ul>
             </div>
           </div>
         </details>
@@ -177,6 +261,11 @@
             <button class="toolbar-button" id="toolbar-reset-north" type="button" title="Reposicionar al norte">
               <span class="toolbar-icon">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l4.5 8h-3v7h-3v-7h-3L12 2zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16zm0-2a6 6 0 1 0 0-12 6 6 0 0 0 0 12z"/></svg>
+              </span>
+            </button>
+            <button class="toolbar-button" id="toolbar-fullscreen" type="button" title="Pantalla completa">
+              <span class="toolbar-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 14H5v5h5v-2H7v-3zm0-4h2V7h3V5H5v5h2V7h3v3zm10 7h-3v2h5v-5h-2v3zm0-12v3h2V5h-5v2h3z"/></svg>
               </span>
             </button>
             <button class="toolbar-button" id="toolbar-rotate-left" type="button" title="Rotar a la izquierda">
@@ -234,6 +323,14 @@
           <div class="floating-card">
             <p class="overlay-label">Coordenadas</p>
             <strong id="statusbar">Lon: -99.10000 | Lat: 18.75000</strong>
+          </div>
+        </div>
+
+        <div class="map-overlay map-overlay--bottom-right">
+          <div class="floating-card floating-card--status" id="system-status-card">
+            <p class="overlay-label">Estado del sistema</p>
+            <strong id="system-status-title">Visor listo</strong>
+            <span id="system-status-copy">Capas, base de datos y herramientas listas para consulta.</span>
           </div>
         </div>
       </section>
@@ -534,6 +631,6 @@
       retryDelayMs: 450
     };
   </script>
-  <script type="module" src="js/map.js?v=ui0601"></script>
+  <script type="module" src="js/map.js?v=ui0602"></script>
 </body>
 </html>
