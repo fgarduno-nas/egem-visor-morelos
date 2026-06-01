@@ -23,6 +23,9 @@ import {
     layerPrefs: "egem-layer-prefs-v1",
     managedUsers: "egem-managed-users-v1",
   };
+  const MAP_ROTATION_STEP = 20;
+  const MAP_PITCH_STEP = 12;
+  const MAX_MAP_PITCH = 70;
 
   const roleLabels = {
     admin: "Administrador",
@@ -270,12 +273,17 @@ import {
     zoom: 8.2,
     minZoom: 6,
     maxZoom: 18,
+    dragRotate: true,
+    pitchWithRotate: true,
+    touchPitch: true,
   });
 
   map.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-right");
+  enableAdvancedMapInteraction();
 
   const elements = {
     appShell: document.querySelector(".app-shell"),
+    topbar: document.querySelector(".topbar"),
     basemapList: document.getElementById("basemap-list"),
     layerList: document.getElementById("layer-list"),
     layerSearch: document.getElementById("layer-search"),
@@ -308,6 +316,7 @@ import {
     userAdminForm: document.getElementById("user-admin-form"),
     loginEmail: document.getElementById("login-email"),
     loginPassword: document.getElementById("login-password"),
+    toggleLoginPassword: document.getElementById("toggle-login-password"),
     loginFeedback: document.getElementById("login-feedback"),
     openUserAdmin: document.getElementById("open-user-admin"),
     logoutSession: document.getElementById("logout-session"),
@@ -315,17 +324,23 @@ import {
     newUserName: document.getElementById("new-user-name"),
     newUserEmail: document.getElementById("new-user-email"),
     newUserPassword: document.getElementById("new-user-password"),
+    toggleNewUserPassword: document.getElementById("toggle-new-user-password"),
     newUserRole: document.getElementById("new-user-role"),
     newUserMunicipalityField: document.getElementById("new-user-municipality-field"),
     newUserMunicipality: document.getElementById("new-user-municipality"),
     userAdminFeedback: document.getElementById("user-admin-feedback"),
     userAdminList: document.getElementById("user-admin-list"),
     reopenSidebar: document.getElementById("reopen-sidebar"),
+    toggleTopbar: document.getElementById("toggle-topbar"),
     triggerUpload: document.getElementById("trigger-upload"),
     toolbarTogglePanel: document.getElementById("toolbar-toggle-panel"),
     toolbarZoomIn: document.getElementById("toolbar-zoom-in"),
     toolbarZoomOut: document.getElementById("toolbar-zoom-out"),
     toolbarResetNorth: document.getElementById("toolbar-reset-north"),
+    toolbarRotateLeft: document.getElementById("toolbar-rotate-left"),
+    toolbarRotateRight: document.getElementById("toolbar-rotate-right"),
+    toolbarPitchUp: document.getElementById("toolbar-pitch-up"),
+    toolbarPitchDown: document.getElementById("toolbar-pitch-down"),
     toolbarMeasure: document.getElementById("toolbar-measure"),
     toolbarAddPoint: document.getElementById("toolbar-add-point"),
     toolbarFocusMorelos: document.getElementById("focus-morelos-menu"),
@@ -375,12 +390,22 @@ import {
     elements.toolbarZoomIn.addEventListener("click", () => map.zoomIn());
     elements.toolbarZoomOut.addEventListener("click", () => map.zoomOut());
     elements.toolbarResetNorth.addEventListener("click", resetMapNorth);
+    elements.toolbarRotateLeft.addEventListener("click", () => rotateMapBy(-MAP_ROTATION_STEP));
+    elements.toolbarRotateRight.addEventListener("click", () => rotateMapBy(MAP_ROTATION_STEP));
+    elements.toolbarPitchUp.addEventListener("click", () => adjustMapPitch(MAP_PITCH_STEP));
+    elements.toolbarPitchDown.addEventListener("click", () => adjustMapPitch(-MAP_PITCH_STEP));
     elements.toolbarMeasure.addEventListener("click", toggleMeasureTool);
     elements.toolbarAddPoint.addEventListener("click", togglePointTool);
     elements.toolbarFocusMorelos.addEventListener("click", focusMorelos);
     elements.toolbarClearMeasure.addEventListener("click", clearMeasurement);
     document.getElementById("toggle-sidebar").addEventListener("click", toggleSidebar);
     elements.reopenSidebar.addEventListener("click", toggleSidebar);
+    elements.toggleTopbar.addEventListener("click", toggleTopbar);
+    elements.toggleLoginPassword.addEventListener("click", () => togglePasswordFieldVisibility(elements.loginPassword, elements.toggleLoginPassword));
+    elements.toggleNewUserPassword.addEventListener("click", () => togglePasswordFieldVisibility(elements.newUserPassword, elements.toggleNewUserPassword));
+    syncPasswordToggleButton(elements.loginPassword, elements.toggleLoginPassword);
+    syncPasswordToggleButton(elements.newUserPassword, elements.toggleNewUserPassword);
+    syncTopbarState();
 
     document.getElementById("open-login").addEventListener("click", () => {
       elements.loginModal.showModal();
@@ -433,6 +458,8 @@ import {
     });
 
     document.getElementById("close-login").addEventListener("click", () => {
+      elements.loginPassword.type = "password";
+      syncPasswordToggleButton(elements.loginPassword, elements.toggleLoginPassword);
       elements.loginModal.close();
     });
 
@@ -451,6 +478,8 @@ import {
     });
 
     elements.closeUserAdmin.addEventListener("click", () => {
+      elements.newUserPassword.type = "password";
+      syncPasswordToggleButton(elements.newUserPassword, elements.toggleNewUserPassword);
       elements.userAdminModal.close();
     });
 
@@ -460,6 +489,8 @@ import {
       saveSession();
       renderSession();
       syncLayersFromBackend();
+      elements.loginPassword.type = "password";
+      syncPasswordToggleButton(elements.loginPassword, elements.toggleLoginPassword);
       elements.loginModal.close();
     });
 
@@ -997,7 +1028,7 @@ import {
       source: "estado-source",
       paint: {
         "fill-color": "#ffffff",
-        "fill-opacity": 0.03 * getLayerOpacity(staticLayers.find((layer) => layer.id === "estado")),
+        "fill-opacity": 0.16 * getLayerOpacity(staticLayers.find((layer) => layer.id === "estado")),
       },
     });
 
@@ -1008,7 +1039,7 @@ import {
       paint: {
         "line-color": "#f5f0e5",
         "line-width": 3,
-        "line-opacity": 0.95 * getLayerOpacity(staticLayers.find((layer) => layer.id === "estado")),
+        "line-opacity": getLayerOpacity(staticLayers.find((layer) => layer.id === "estado")),
       },
     });
 
@@ -1029,7 +1060,7 @@ import {
       paint: {
         "line-color": "#efe4c6",
         "line-width": 1,
-        "line-opacity": 0.84 * getLayerOpacity(staticLayers.find((layer) => layer.id === "municipios")),
+        "line-opacity": getLayerOpacity(staticLayers.find((layer) => layer.id === "municipios")),
       },
     });
 
@@ -1376,7 +1407,7 @@ import {
       filter: ["==", "$type", "Polygon"],
       paint: {
         "fill-color": ["coalesce", ["get", "__styleFill"], defaultFillColor],
-        "fill-opacity": 0.45 * getLayerOpacity(layer),
+        "fill-opacity": 0.78 * getLayerOpacity(layer),
       },
     });
 
@@ -1430,7 +1461,7 @@ import {
       type: "raster",
       source: sourceId,
       paint: {
-        "raster-opacity": 0.8 * getLayerOpacity(layer),
+        "raster-opacity": getLayerOpacity(layer),
         "raster-fade-duration": 0,
       },
     });
@@ -1446,7 +1477,7 @@ import {
     const rasterId = `${layer.id}-raster`;
 
     if (map.getLayer(fillId)) {
-      map.setPaintProperty(fillId, "fill-opacity", 0.45 * opacity);
+      map.setPaintProperty(fillId, "fill-opacity", 0.78 * opacity);
     }
     if (map.getLayer(lineId)) {
       map.setPaintProperty(lineId, "line-opacity", opacity);
@@ -1456,7 +1487,7 @@ import {
       map.setPaintProperty(pointId, "circle-stroke-opacity", opacity);
     }
     if (map.getLayer(rasterId)) {
-      map.setPaintProperty(rasterId, "raster-opacity", 0.8 * opacity);
+      map.setPaintProperty(rasterId, "raster-opacity", opacity);
     }
   }
 
@@ -1466,14 +1497,14 @@ import {
     const opacity = getLayerOpacity(layer);
 
     if (layerId === "estado") {
-      if (map.getLayer("estado-fill")) map.setPaintProperty("estado-fill", "fill-opacity", 0.03 * opacity);
-      if (map.getLayer("estado-line")) map.setPaintProperty("estado-line", "line-opacity", 0.95 * opacity);
+      if (map.getLayer("estado-fill")) map.setPaintProperty("estado-fill", "fill-opacity", 0.16 * opacity);
+      if (map.getLayer("estado")) map.setPaintProperty("estado", "line-opacity", opacity);
       return;
     }
 
     if (layerId === "municipios") {
-      if (map.getLayer("municipios-fill")) map.setPaintProperty("municipios-fill", "fill-opacity", 0.01 * opacity);
-      if (map.getLayer("municipios-line")) map.setPaintProperty("municipios-line", "line-opacity", 0.84 * opacity);
+      if (map.getLayer("municipios-hit")) map.setPaintProperty("municipios-hit", "fill-opacity", 0.01 * opacity);
+      if (map.getLayer("municipios")) map.setPaintProperty("municipios", "line-opacity", opacity);
     }
   }
 
@@ -1819,7 +1850,59 @@ import {
     state.sidebarCollapsed = !state.sidebarCollapsed;
     elements.appShell.classList.toggle("app-shell--sidebar-collapsed", state.sidebarCollapsed);
     elements.reopenSidebar.classList.toggle("hidden", !state.sidebarCollapsed);
-    map.resize();
+    queueMapResize();
+  }
+
+  function toggleTopbar() {
+    const shouldCollapse = !elements.appShell.classList.contains("app-shell--topbar-collapsed");
+    elements.appShell.classList.toggle("app-shell--topbar-collapsed", shouldCollapse);
+    syncTopbarState();
+    queueMapResize();
+  }
+
+  function syncTopbarState() {
+    const collapsed = elements.appShell.classList.contains("app-shell--topbar-collapsed");
+    elements.toggleTopbar.setAttribute("aria-expanded", String(!collapsed));
+    elements.toggleTopbar.setAttribute("title", collapsed ? "Expandir encabezado" : "Comprimir encabezado");
+    elements.toggleTopbar.querySelector(".topbar-collapse-toggle__label").textContent = collapsed ? "Expandir" : "Comprimir";
+    const icon = elements.toggleTopbar.querySelector("svg path");
+    if (icon) {
+      icon.setAttribute("d", collapsed ? "M7 14l5-5 5 5z" : "M7 10l5 5 5-5z");
+    }
+  }
+
+  function togglePasswordFieldVisibility(input, button) {
+    const showPassword = input.type === "password";
+    input.type = showPassword ? "text" : "password";
+    syncPasswordToggleButton(input, button);
+  }
+
+  function syncPasswordToggleButton(input, button) {
+    const isVisible = input.type === "text";
+    button.setAttribute("aria-pressed", String(isVisible));
+    button.setAttribute("aria-label", isVisible ? "Ocultar contrasena" : "Mostrar contrasena");
+    button.setAttribute("title", isVisible ? "Ocultar contrasena" : "Mostrar contrasena");
+  }
+
+  function queueMapResize() {
+    window.requestAnimationFrame(() => {
+      map.resize();
+    });
+  }
+
+  function rotateMapBy(delta) {
+    map.easeTo({
+      bearing: map.getBearing() + delta,
+      duration: 320,
+    });
+  }
+
+  function adjustMapPitch(delta) {
+    const targetPitch = Math.max(0, Math.min(MAX_MAP_PITCH, map.getPitch() + delta));
+    map.easeTo({
+      pitch: targetPitch,
+      duration: 320,
+    });
   }
 
   async function login() {
@@ -1853,6 +1936,8 @@ import {
       elements.loginFeedback.textContent = "";
       elements.loginEmail.value = "";
       elements.loginPassword.value = "";
+      elements.loginPassword.type = "password";
+      syncPasswordToggleButton(elements.loginPassword, elements.toggleLoginPassword);
       elements.loginModal.close();
 
       updateInfoPanel({
@@ -2304,6 +2389,8 @@ import {
       await renderUserAdminPanel();
       elements.userAdminForm.reset();
       elements.newUserRole.value = "director";
+      elements.newUserPassword.type = "password";
+      syncPasswordToggleButton(elements.newUserPassword, elements.toggleNewUserPassword);
       syncUserRoleForm();
       elements.userAdminFeedback.textContent = "Usuario creado correctamente.";
 
@@ -2500,6 +2587,13 @@ import {
       sources,
       layers,
     };
+  }
+
+  function enableAdvancedMapInteraction() {
+    map.dragRotate?.enable?.();
+    map.touchZoomRotate?.enableRotation?.();
+    map.touchPitch?.enable?.();
+    map.keyboard?.enable?.();
   }
 
   function applyBaseMapVisibility(activeBaseMap) {

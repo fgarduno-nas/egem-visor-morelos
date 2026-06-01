@@ -61,6 +61,7 @@ select {
   border-radius: 22px;
   box-shadow: var(--shadow);
   color: #fbf4eb;
+  transition: padding 0.22s ease, border-radius 0.22s ease, gap 0.22s ease, min-height 0.22s ease;
 }
 
 .topbar-brand {
@@ -121,6 +122,55 @@ select {
   gap: 8px;
   flex-wrap: nowrap;
   align-items: center;
+}
+
+.ghost-button--icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ghost-button__icon {
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ghost-button__icon svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+.topbar-collapse-toggle__label {
+  white-space: nowrap;
+}
+
+.app-shell--topbar-collapsed .topbar {
+  padding: 8px 12px;
+  gap: 10px;
+  min-height: 74px;
+}
+
+.app-shell--topbar-collapsed .brand-block,
+.app-shell--topbar-collapsed .topbar-actions > :not(#toggle-topbar) {
+  display: none;
+}
+
+.app-shell--topbar-collapsed .topbar-brand {
+  flex: 1;
+}
+
+.app-shell--topbar-collapsed .topbar-brand__image {
+  width: clamp(180px, 18vw, 260px);
+  max-height: 56px;
+  padding: 6px 12px;
+}
+
+.app-shell--topbar-collapsed .topbar-actions {
+  margin-left: auto;
 }
 
 .primary-button,
@@ -580,6 +630,76 @@ select {
   outline: none;
   border-color: rgba(122, 32, 58, 0.46);
   box-shadow: 0 0 0 4px rgba(122, 32, 58, 0.08);
+}
+
+.password-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.92);
+  padding-right: 8px;
+}
+
+.password-input-wrap:focus-within {
+  border-color: rgba(122, 32, 58, 0.46);
+  box-shadow: 0 0 0 4px rgba(122, 32, 58, 0.08);
+}
+
+.password-input-wrap input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  min-width: 0;
+}
+
+.password-input-wrap input:focus {
+  box-shadow: none;
+  border-color: transparent;
+}
+
+.password-toggle {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  border: none;
+  border-radius: 12px;
+  background: rgba(122, 32, 58, 0.08);
+  color: var(--accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.18s ease, background-color 0.18s ease, color 0.18s ease;
+}
+
+.password-toggle:hover {
+  transform: translateY(-1px);
+  background: rgba(122, 32, 58, 0.14);
+}
+
+.password-toggle[aria-pressed="true"] {
+  background: rgba(122, 32, 58, 0.18);
+  color: #6e1935;
+}
+
+.password-toggle__icon {
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+}
+
+.password-toggle__icon svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
+.password-toggle[aria-pressed="true"] .password-toggle__icon--hidden,
+.password-toggle[aria-pressed="false"] .password-toggle__icon--visible {
+  display: none;
 }
 
 .info-panel {
@@ -1250,14 +1370,31 @@ select {
     align-items: stretch;
   }
 
+  .app-shell--topbar-collapsed .topbar {
+    flex-direction: row;
+    align-items: center;
+    padding: 10px 12px;
+  }
+
   .topbar-brand {
     flex-direction: column;
     align-items: flex-start;
   }
 
+  .app-shell--topbar-collapsed .topbar-brand {
+    flex-direction: row;
+    align-items: center;
+  }
+
   .topbar-brand__image {
     width: 100%;
     max-height: 72px;
+  }
+
+  .app-shell--topbar-collapsed .topbar-brand__image {
+    width: auto;
+    max-width: 200px;
+    max-height: 50px;
   }
 
   .topbar-actions,
@@ -1311,5 +1448,15 @@ select {
 
   .toolbar-button {
     flex: 0 0 auto;
+  }
+
+  .password-input-wrap {
+    gap: 6px;
+    padding-right: 6px;
+  }
+
+  .password-toggle {
+    width: 36px;
+    height: 36px;
   }
 }
