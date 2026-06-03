@@ -49,6 +49,7 @@ select {
 }
 
 .topbar {
+  position: relative;
   display: flex;
   justify-content: space-between;
   gap: 14px;
@@ -69,6 +70,29 @@ select {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.topbar-brand-toggle {
+  border: none;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 22px;
+  transition: transform 0.18s ease, filter 0.18s ease;
+}
+
+.topbar-brand-toggle:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.03);
+}
+
+.topbar-brand-toggle:active,
+.topbar-brand-toggle.is-pressed {
+  transform: scale(0.985);
 }
 
 .topbar-brand__image {
@@ -135,6 +159,57 @@ select {
   align-items: center;
 }
 
+.topbar-compact-actions,
+.topbar-compact-menu {
+  display: none;
+}
+
+.topbar-compact-actions {
+  margin-left: auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.topbar-session-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(255, 247, 237, 0.14);
+  border: 1px solid rgba(255, 243, 228, 0.18);
+  color: #fbf4eb;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.topbar-menu-toggle {
+  min-width: 110px;
+  justify-content: center;
+}
+
+.topbar-compact-menu {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 14px;
+  z-index: 12;
+  width: min(280px, calc(100vw - 28px));
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 20px;
+  border: 1px solid rgba(191, 147, 86, 0.24);
+  background: rgba(82, 24, 43, 0.98);
+  box-shadow: 0 22px 42px rgba(36, 12, 20, 0.3);
+  backdrop-filter: blur(18px);
+}
+
+.topbar-compact-menu.is-open {
+  display: flex;
+}
+
 .ghost-button--icon {
   display: inline-flex;
   align-items: center;
@@ -159,29 +234,39 @@ select {
   white-space: nowrap;
 }
 
-.app-shell--topbar-collapsed .topbar {
-  padding: 8px 12px;
-  gap: 10px;
-  min-height: 74px;
-}
-
-.app-shell--topbar-collapsed .brand-block,
-.app-shell--topbar-collapsed .topbar-actions > :not(#toggle-topbar) {
-  display: none;
-}
-
 .app-shell--topbar-collapsed .topbar-brand {
   flex: 1;
 }
 
+.app-shell--topbar-collapsed .topbar {
+  padding: 8px 12px;
+  gap: 12px;
+  min-height: 68px;
+  border-radius: 18px;
+}
+
+.app-shell--topbar-collapsed .brand-block .eyebrow,
+.app-shell--topbar-collapsed .brand-block h1,
+.app-shell--topbar-collapsed .brand-block .subtitle,
+.app-shell--topbar-collapsed .topbar-actions {
+  display: none;
+}
+
 .app-shell--topbar-collapsed .topbar-brand__image {
-  width: clamp(180px, 18vw, 260px);
+  width: clamp(150px, 16vw, 220px);
   max-height: 56px;
   padding: 6px 12px;
 }
 
-.app-shell--topbar-collapsed .topbar-actions {
-  margin-left: auto;
+.app-shell--topbar-collapsed .brand-short {
+  display: block;
+  margin: 0;
+  font-size: 1rem;
+  letter-spacing: 0.14em;
+}
+
+.app-shell--topbar-collapsed .topbar-compact-actions {
+  display: inline-flex;
 }
 
 .primary-button,
@@ -1580,7 +1665,7 @@ select {
   }
 
   .app-shell--topbar-collapsed .topbar {
-    min-height: 0;
+    min-height: 62px;
   }
 
   .topbar-brand {
@@ -1599,8 +1684,8 @@ select {
   }
 
   .app-shell--topbar-collapsed .topbar-brand__image {
-    width: clamp(132px, 28vw, 172px);
-    max-height: 50px;
+    width: clamp(110px, 24vw, 148px);
+    max-height: 46px;
   }
 
   .brand-block h1 {
@@ -1622,6 +1707,13 @@ select {
     gap: 8px;
     flex: 1;
     max-width: 420px;
+  }
+
+  .topbar-compact-menu {
+    top: calc(100% + 8px);
+    right: 12px;
+    left: 12px;
+    width: auto;
   }
 
   .topbar-actions .ghost-button,
@@ -1858,6 +1950,10 @@ select {
     border-radius: 16px;
   }
 
+  .app-shell--topbar-collapsed .topbar {
+    padding: 8px 10px;
+  }
+
   .eyebrow,
   .section-kicker,
   .overlay-label {
@@ -1882,6 +1978,25 @@ select {
   .topbar-actions .primary-button {
     padding: 8px 10px;
     font-size: 0.8rem;
+  }
+
+  .topbar-compact-actions {
+    gap: 6px;
+  }
+
+  .topbar-session-chip {
+    min-height: 32px;
+    padding: 6px 10px;
+    font-size: 0.74rem;
+  }
+
+  .topbar-menu-toggle {
+    min-width: auto;
+    padding: 8px 10px;
+  }
+
+  .topbar-menu-toggle__label {
+    font-size: 0.78rem;
   }
 
   .workspace {
@@ -2086,6 +2201,16 @@ select {
 }
 
 @media (max-width: 400px) {
+  .app-shell--topbar-collapsed .brand-short {
+    font-size: 0.76rem;
+  }
+
+  .topbar-compact-menu {
+    left: 8px;
+    right: 8px;
+    padding: 10px;
+  }
+
   .app-shell {
     padding: 4px;
   }

@@ -22,6 +22,7 @@ import {
     session: "egem-session",
     layerPrefs: "egem-layer-prefs-v1",
     managedUsers: "egem-managed-users-v1",
+    topbarMode: "egem-topbar-mode-v1",
   };
   const MAP_ROTATION_STEP = 20;
   const MAP_PITCH_STEP = 12;
@@ -234,6 +235,8 @@ import {
     activeTool: null,
     session: loadSession(),
     sidebarCollapsed: false,
+    topbarCollapsed: loadTopbarModePreference(),
+    compactMenuOpen: false,
     viewportMode: null,
     isUploading: false,
     remoteSyncInProgress: false,
@@ -289,6 +292,9 @@ import {
   const elements = {
     appShell: document.querySelector(".app-shell"),
     topbar: document.querySelector(".topbar"),
+    topbarBrandToggle: document.getElementById("toggle-topbar-brand"),
+    topbarCompactMenu: document.getElementById("topbar-compact-menu"),
+    topbarSessionChip: document.getElementById("topbar-session-chip"),
     controlPanel: document.querySelector(".control-panel"),
     basemapList: document.getElementById("basemap-list"),
     layerList: document.getElementById("layer-list"),
@@ -340,6 +346,7 @@ import {
     collapseMobilePanel: document.getElementById("collapse-mobile-panel"),
     panelQuicknav: document.getElementById("panel-quicknav"),
     toggleTopbar: document.getElementById("toggle-topbar"),
+    toggleCompactMenu: document.getElementById("toggle-compact-menu"),
     triggerUpload: document.getElementById("trigger-upload"),
     toolbarTogglePanel: document.getElementById("toolbar-toggle-panel"),
     toolbarZoomIn: document.getElementById("toolbar-zoom-in"),
@@ -356,6 +363,11 @@ import {
     toolbarClearMeasure: document.getElementById("toolbar-clear-measure"),
     systemStatusTitle: document.getElementById("system-status-title"),
     systemStatusCopy: document.getElementById("system-status-copy"),
+    compactOpenUserAdmin: document.getElementById("compact-open-user-admin"),
+    compactLogoutSession: document.getElementById("compact-logout-session"),
+    compactToggleSidebar: document.getElementById("compact-toggle-sidebar"),
+    compactOpenHelp: document.getElementById("compact-open-help"),
+    compactOpenLogin: document.getElementById("compact-open-login"),
   };
 
   map.on("mousemove", (event) => {
@@ -413,7 +425,9 @@ import {
     document.getElementById("toggle-sidebar").addEventListener("click", toggleSidebar);
     elements.reopenSidebar.addEventListener("click", toggleSidebar);
     elements.collapseMobilePanel?.addEventListener("click", toggleSidebar);
+    elements.topbarBrandToggle?.addEventListener("click", toggleTopbar);
     elements.toggleTopbar.addEventListener("click", toggleTopbar);
+    elements.toggleCompactMenu?.addEventListener("click", toggleCompactMenu);
     elements.toggleLoginPassword.addEventListener("click", () => togglePasswordFieldVisibility(elements.loginPassword, elements.toggleLoginPassword));
     elements.toggleNewUserPassword.addEventListener("click", () => togglePasswordFieldVisibility(elements.newUserPassword, elements.toggleNewUserPassword));
     syncPasswordToggleButton(elements.loginPassword, elements.toggleLoginPassword);
@@ -423,6 +437,7 @@ import {
     syncTopbarState();
 
     document.getElementById("open-login").addEventListener("click", () => {
+      closeCompactMenu();
       elements.loginModal.showModal();
     });
 
@@ -454,6 +469,23 @@ import {
       }
     });
 
+    document.addEventListener("click", (event) => {
+      if (!state.compactMenuOpen) return;
+      if (
+        elements.topbarCompactMenu?.contains(event.target) ||
+        elements.toggleCompactMenu?.contains(event.target)
+      ) {
+        return;
+      }
+      closeCompactMenu();
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && state.compactMenuOpen) {
+        closeCompactMenu();
+      }
+    });
+
     elements.panelQuicknav?.querySelectorAll("[data-panel-target]").forEach((button) => {
       button.addEventListener("click", () => scrollPanelToSection(button.dataset.panelTarget));
     });
@@ -473,6 +505,7 @@ import {
     });
 
     elements.logoutSession.addEventListener("click", async () => {
+      closeCompactMenu();
       logout();
       await syncLayersFromBackend();
     });
@@ -484,6 +517,7 @@ import {
     });
 
     document.getElementById("open-help").addEventListener("click", () => {
+      closeCompactMenu();
       elements.helpModal.showModal();
     });
 
@@ -493,8 +527,26 @@ import {
 
     elements.openUserAdmin.addEventListener("click", async () => {
       if (state.session.role !== "admin") return;
+      closeCompactMenu();
       await renderUserAdminPanel();
       elements.userAdminModal.showModal();
+    });
+
+    elements.compactOpenLogin?.addEventListener("click", () => {
+      document.getElementById("open-login").click();
+    });
+    elements.compactOpenHelp?.addEventListener("click", () => {
+      document.getElementById("open-help").click();
+    });
+    elements.compactToggleSidebar?.addEventListener("click", () => {
+      document.getElementById("toggle-sidebar").click();
+      closeCompactMenu();
+    });
+    elements.compactOpenUserAdmin?.addEventListener("click", () => {
+      elements.openUserAdmin.click();
+    });
+    elements.compactLogoutSession?.addEventListener("click", () => {
+      elements.logoutSession.click();
     });
 
     elements.closeUserAdmin.addEventListener("click", () => {
@@ -1864,6 +1916,11 @@ import {
     elements.pendingCount.textContent = String(pendingLayers.length);
     elements.openUserAdmin.classList.toggle("hidden", state.session.role !== "admin");
     elements.logoutSession.classList.toggle("hidden", !state.session.isAuthenticated);
+    elements.topbarSessionChip.classList.toggle("hidden", !state.topbarCollapsed);
+    elements.topbarSessionChip.textContent = roleLabel;
+    elements.compactOpenUserAdmin?.classList.toggle("hidden", state.session.role !== "admin");
+    elements.compactLogoutSession?.classList.toggle("hidden", !state.session.isAuthenticated);
+    elements.compactOpenLogin?.classList.toggle("hidden", state.session.isAuthenticated);
     elements.uploadPermissionNote.textContent = canUpload()
       ? "Puedes subir KML, KMZ, GeoJSON, GeoTIFF y Shapefile en ZIP desde este menu."
       : "La medicion es publica. Para subir capas o crear puntos inicia sesion como administrador o director.";
@@ -1879,20 +1936,25 @@ import {
   }
 
   function toggleTopbar() {
-    const shouldCollapse = !elements.appShell.classList.contains("app-shell--topbar-collapsed");
-    elements.appShell.classList.toggle("app-shell--topbar-collapsed", shouldCollapse);
-    syncTopbarState();
-    queueMapResize();
+    applyTopbarMode(!state.topbarCollapsed, { persist: true });
   }
 
   function syncTopbarState() {
-    const collapsed = elements.appShell.classList.contains("app-shell--topbar-collapsed");
+    const collapsed = state.topbarCollapsed;
+    elements.appShell.classList.toggle("app-shell--topbar-collapsed", collapsed);
     elements.toggleTopbar.setAttribute("aria-expanded", String(!collapsed));
     elements.toggleTopbar.setAttribute("title", collapsed ? "Expandir encabezado" : "Comprimir encabezado");
     elements.toggleTopbar.querySelector(".topbar-collapse-toggle__label").textContent = collapsed ? "Expandir" : "Comprimir";
+    elements.topbarBrandToggle?.setAttribute("aria-expanded", String(!collapsed));
+    elements.topbarBrandToggle?.setAttribute("title", collapsed ? "Mostrar encabezado" : "Ocultar encabezado");
+    elements.topbarBrandToggle?.setAttribute("aria-label", collapsed ? "Mostrar encabezado" : "Ocultar encabezado");
+    elements.toggleCompactMenu?.setAttribute("aria-expanded", String(state.compactMenuOpen));
     const icon = elements.toggleTopbar.querySelector("svg path");
     if (icon) {
       icon.setAttribute("d", collapsed ? "M7 14l5-5 5 5z" : "M7 10l5 5 5-5z");
+    }
+    if (!collapsed) {
+      closeCompactMenu();
     }
   }
 
@@ -1911,19 +1973,48 @@ import {
     if (state.viewportMode === nextMode) return;
 
     state.viewportMode = nextMode;
-    if (nextMode === "mobile") {
-      elements.appShell.classList.add("app-shell--topbar-collapsed");
-      state.sidebarCollapsed = false;
-      elements.appShell.classList.remove("app-shell--sidebar-collapsed");
-    } else {
-      elements.appShell.classList.remove("app-shell--topbar-collapsed");
-      state.sidebarCollapsed = false;
-      elements.appShell.classList.remove("app-shell--sidebar-collapsed");
+    if (state.topbarCollapsed === null) {
+      state.topbarCollapsed = nextMode !== "desktop";
     }
+    state.sidebarCollapsed = false;
+    elements.appShell.classList.remove("app-shell--sidebar-collapsed");
 
     syncTopbarState();
     syncSidebarState();
     queueMapResize();
+  }
+
+  function toggleCompactMenu() {
+    if (!state.topbarCollapsed) return;
+    state.compactMenuOpen = !state.compactMenuOpen;
+    if (elements.topbarCompactMenu) {
+      elements.topbarCompactMenu.hidden = !state.compactMenuOpen;
+      elements.topbarCompactMenu.classList.toggle("is-open", state.compactMenuOpen);
+    }
+    elements.toggleCompactMenu?.setAttribute("aria-expanded", String(state.compactMenuOpen));
+  }
+
+  function closeCompactMenu() {
+    state.compactMenuOpen = false;
+    if (elements.topbarCompactMenu) {
+      elements.topbarCompactMenu.hidden = true;
+      elements.topbarCompactMenu.classList.remove("is-open");
+    }
+    elements.toggleCompactMenu?.setAttribute("aria-expanded", "false");
+  }
+
+  function applyTopbarMode(collapsed, options = {}) {
+    state.topbarCollapsed = collapsed;
+    if (options.persist !== false) {
+      saveTopbarModePreference(collapsed);
+    }
+    syncTopbarState();
+    renderSession();
+    queueMapResize();
+    elements.topbarBrandToggle?.classList.add("is-pressed");
+    window.setTimeout(() => {
+      elements.topbarBrandToggle?.classList.remove("is-pressed");
+    }, 180);
   }
 
   function scrollPanelToSection(sectionId) {
@@ -3303,6 +3394,25 @@ import {
   function saveManagedUsers(users) {
     const customUsers = users.filter((user) => user.source !== "demo");
     localStorage.setItem(STORAGE_KEYS.managedUsers, JSON.stringify(customUsers));
+  }
+
+  function loadTopbarModePreference() {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEYS.topbarMode);
+      if (stored === null) return null;
+      return stored === "compact";
+    } catch (error) {
+      console.warn("No se pudo leer el modo del encabezado.", error);
+      return null;
+    }
+  }
+
+  function saveTopbarModePreference(collapsed) {
+    try {
+      localStorage.setItem(STORAGE_KEYS.topbarMode, collapsed ? "compact" : "expanded");
+    } catch (error) {
+      console.warn("No se pudo guardar el modo del encabezado.", error);
+    }
   }
 
   function loadUserLayers() {

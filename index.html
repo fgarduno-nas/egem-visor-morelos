@@ -17,20 +17,28 @@
   />
 
   <link rel="icon" href="data:," />
-  <link rel="stylesheet" href="css/style.css?v=ui0602" />
+  <link rel="stylesheet" href="css/style.css?v=ui0604" />
 </head>
 <body>
   <div class="app-shell">
     <header class="topbar">
       <div class="topbar-brand">
-        <img
-          class="topbar-brand__image"
-          src="assets/Convivencia_page-0003.png"
-          alt="Encabezado institucional EGEM"
-        />
+        <button
+          class="topbar-brand-toggle"
+          id="toggle-topbar-brand"
+          type="button"
+          aria-expanded="true"
+          title="Ocultar encabezado"
+        >
+          <img
+            class="topbar-brand__image"
+            src="assets/Convivencia_page-0003.png"
+            alt="Encabezado institucional EGEM"
+          />
+        </button>
         <div class="brand-block">
           <p class="eyebrow">Atlas de riesgos para consulta operativa</p>
-          <p class="brand-short">EGEM Morelos</p>
+          <p class="brand-short">EGEM</p>
           <h1>EGEM - Estudio Geoespacial del Estado de Morelos</h1>
           <p class="subtitle">
             Plataforma institucional de consulta clara para Proteccion Civil estatal y municipal.
@@ -50,6 +58,30 @@
         <button class="ghost-button" id="toggle-sidebar" type="button">Panel</button>
         <button class="ghost-button" id="open-help" type="button">Guia rapida</button>
         <button class="primary-button" id="open-login" type="button">Acceso</button>
+      </div>
+
+      <div class="topbar-compact-actions">
+        <span class="topbar-session-chip hidden" id="topbar-session-chip">Visitante</span>
+        <button
+          class="ghost-button ghost-button--icon topbar-menu-toggle"
+          id="toggle-compact-menu"
+          type="button"
+          aria-expanded="false"
+          title="Abrir menu institucional"
+        >
+          <span class="ghost-button__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M4 7h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/></svg>
+          </span>
+          <span class="topbar-menu-toggle__label">Menu</span>
+        </button>
+      </div>
+
+      <div class="topbar-compact-menu" id="topbar-compact-menu" hidden>
+        <button class="menu-action" id="compact-open-user-admin" type="button">Usuarios</button>
+        <button class="menu-action" id="compact-logout-session" type="button">Cerrar sesion</button>
+        <button class="menu-action" id="compact-toggle-sidebar" type="button">Panel lateral</button>
+        <button class="menu-action" id="compact-open-help" type="button">Guia rapida</button>
+        <button class="menu-action" id="compact-open-login" type="button">Acceso</button>
       </div>
     </header>
 
@@ -631,6 +663,6 @@
       retryDelayMs: 450
     };
   </script>
-  <script type="module" src="js/map.js?v=ui0602"></script>
+  <script type="module" src="js/map.js?v=ui0604"></script>
 </body>
 </html>
