@@ -384,13 +384,13 @@ import {
   renderBaseMapOptions();
   renderLayerCatalog();
   captureVisibleSnapshot();
-  initializeRemoteState();
 
   map.on("load", async () => {
     await loadStaticData();
     restoreMapState();
     captureVisibleSnapshot();
     focusMorelos();
+    await initializeRemoteState();
   });
 
   map.on("click", (event) => {
@@ -1212,12 +1212,12 @@ import {
 
   function setStaticVisibility(layerId, visible) {
     if (layerId === "estado") {
-      map.setLayoutProperty("estado", "visibility", visible ? "visible" : "none");
-      map.setLayoutProperty("estado-fill", "visibility", visible ? "visible" : "none");
+      safeSetLayoutProperty("estado", "visibility", visible ? "visible" : "none");
+      safeSetLayoutProperty("estado-fill", "visibility", visible ? "visible" : "none");
     }
     if (layerId === "municipios") {
-      map.setLayoutProperty("municipios", "visibility", visible ? "visible" : "none");
-      map.setLayoutProperty("municipios-hit", "visibility", visible ? "visible" : "none");
+      safeSetLayoutProperty("municipios", "visibility", visible ? "visible" : "none");
+      safeSetLayoutProperty("municipios-hit", "visibility", visible ? "visible" : "none");
     }
   }
 
@@ -1549,19 +1549,11 @@ import {
     const pointId = `${layer.id}-point`;
     const rasterId = `${layer.id}-raster`;
 
-    if (map.getLayer(fillId)) {
-      map.setPaintProperty(fillId, "fill-opacity", 0.78 * opacity);
-    }
-    if (map.getLayer(lineId)) {
-      map.setPaintProperty(lineId, "line-opacity", opacity);
-    }
-    if (map.getLayer(pointId)) {
-      map.setPaintProperty(pointId, "circle-opacity", opacity);
-      map.setPaintProperty(pointId, "circle-stroke-opacity", opacity);
-    }
-    if (map.getLayer(rasterId)) {
-      map.setPaintProperty(rasterId, "raster-opacity", opacity);
-    }
+    safeSetPaintProperty(fillId, "fill-opacity", 0.78 * opacity);
+    safeSetPaintProperty(lineId, "line-opacity", opacity);
+    safeSetPaintProperty(pointId, "circle-opacity", opacity);
+    safeSetPaintProperty(pointId, "circle-stroke-opacity", opacity);
+    safeSetPaintProperty(rasterId, "raster-opacity", opacity);
   }
 
   function applyStaticLayerOpacity(layerId) {
@@ -1570,14 +1562,14 @@ import {
     const opacity = getLayerOpacity(layer);
 
     if (layerId === "estado") {
-      if (map.getLayer("estado-fill")) map.setPaintProperty("estado-fill", "fill-opacity", 0.16 * opacity);
-      if (map.getLayer("estado")) map.setPaintProperty("estado", "line-opacity", opacity);
+      safeSetPaintProperty("estado-fill", "fill-opacity", 0.16 * opacity);
+      safeSetPaintProperty("estado", "line-opacity", opacity);
       return;
     }
 
     if (layerId === "municipios") {
-      if (map.getLayer("municipios-hit")) map.setPaintProperty("municipios-hit", "fill-opacity", 0.01 * opacity);
-      if (map.getLayer("municipios")) map.setPaintProperty("municipios", "line-opacity", opacity);
+      safeSetPaintProperty("municipios-hit", "fill-opacity", 0.01 * opacity);
+      safeSetPaintProperty("municipios", "line-opacity", opacity);
     }
   }
 
@@ -2737,6 +2729,43 @@ import {
     }
   }
 
+  function safeSetLayoutProperty(layerId, property, value) {
+    if (!map.getLayer(layerId)) return false;
+    map.setLayoutProperty(layerId, property, value);
+    return true;
+  }
+
+  function safeSetPaintProperty(layerId, property, value) {
+    if (!map.getLayer(layerId)) return false;
+    map.setPaintProperty(layerId, property, value);
+    return true;
+  }
+
+  function safeMoveLayer(layerId, beforeId) {
+    if (!map.getLayer(layerId)) return false;
+    if (beforeId && !map.getLayer(beforeId)) return false;
+    map.moveLayer(layerId, beforeId);
+    return true;
+  }
+
+  function waitForMapStyle() {
+    if (map.isStyleLoaded()) return Promise.resolve();
+
+    return new Promise((resolve) => {
+      const resolveWhenReady = () => {
+        if (!map.isStyleLoaded()) return;
+        map.off("load", resolveWhenReady);
+        map.off("styledata", resolveWhenReady);
+        map.off("idle", resolveWhenReady);
+        resolve();
+      };
+
+      map.on("load", resolveWhenReady);
+      map.on("styledata", resolveWhenReady);
+      map.on("idle", resolveWhenReady);
+    });
+  }
+
   function createBaseMapStyle(activeBaseMap) {
     const sources = {};
     const layers = [];
@@ -2778,9 +2807,7 @@ import {
     Object.entries(baseMapConfigs).forEach(([baseMapId, entries]) => {
       const visibility = baseMapId === activeBaseMap ? "visible" : "none";
       entries.forEach((entry) => {
-        if (map.getLayer(entry.layerId)) {
-          map.setLayoutProperty(entry.layerId, "visibility", visibility);
-        }
+        safeSetLayoutProperty(entry.layerId, "visibility", visibility);
       });
     });
   }
@@ -3599,11 +3626,19 @@ import {
       extra: [`API configurada: ${runtimeConfig.apiBaseUrl}`],
     });
 
+    if (!map.isStyleLoaded()) {
+      await waitForMapStyle();
+    }
+
     await syncLayersFromBackend();
   }
 
   async function syncLayersFromBackend() {
     if (state.remoteSyncInProgress) return;
+    if (!map.isStyleLoaded()) {
+      await waitForMapStyle();
+      if (state.remoteSyncInProgress) return;
+    }
 
     state.remoteSyncInProgress = true;
     try {
