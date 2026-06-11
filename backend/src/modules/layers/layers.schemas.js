@@ -33,6 +33,11 @@ export const uploadLayerBodySchema = z.object({
   title: z.string().min(3).max(180),
   description: z.string().max(2000).optional().nullable(),
   municipality: z.string().max(150).optional().nullable(),
+  source: z.string().max(180).optional().nullable(),
+  responsibleAgency: z.string().max(180).optional().nullable(),
+  updatedAt: z.string().max(30).optional().nullable(),
+  scaleOrResolution: z.string().max(120).optional().nullable(),
+  crs: z.string().max(120).optional().nullable(),
   tags: tagsSchema,
   "tags[]": z.any().optional(),
 });

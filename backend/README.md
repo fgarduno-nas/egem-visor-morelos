@@ -73,11 +73,11 @@ NODE_ENV=development
 PORT=4000
 API_PREFIX=/api/v1
 APP_NAME=EGEM Backend
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/egem_backend?schema=public
+DATABASE_URL=postgresql://postgres:postgres@localhost:55432/egem_backend?schema=public
 JWT_SECRET=change_this_super_secret_key
 JWT_EXPIRES_IN=8h
 BCRYPT_SALT_ROUNDS=12
-CORS_ORIGIN=http://localhost:5500,http://127.0.0.1:5500
+CORS_ORIGIN=http://localhost:4173,http://127.0.0.1:4173,http://localhost:5500,http://127.0.0.1:5500
 RATE_LIMIT_WINDOW_MS=900000
 RATE_LIMIT_MAX=150
 MAX_UPLOAD_SIZE_MB=100
@@ -159,6 +159,22 @@ Lo crea el seed con estas variables:
 - `ADMIN` publica -> `published`
 - `ADMIN` despublica -> `unpublished`
 - `ADMIN` rechaza -> `rejected`
+
+Una capa no debe exponerse al visor publico hasta quedar en estado `published`. El backend solo devuelve capas publicas desde `GET /api/v1/layers/public` cuando su estado es `published`.
+
+## Catalogo de metadatos
+
+La carga de capas acepta metadatos institucionales y los guarda en `LayerMetadata.properties`:
+
+- `source`
+- `responsibleAgency`
+- `updatedAt`
+- `scaleOrResolution`
+- `crs`
+- `coverage`
+- `tags`
+
+Para GeoJSON, el backend intenta extraer conteo de entidades y tipo de geometria. Para Shapefile ZIP, KML/KMZ y GeoTIFF se conserva la estructura de carga y metadatos para procesamiento posterior o vista previa del visor cuando aplique.
 
 ## Tipos de archivo aceptados
 

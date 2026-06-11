@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import path from "node:path";
 import slugify from "slugify";
 
@@ -21,8 +22,10 @@ export async function uploadLayer({ body, files, actor, req }) {
 
   const slugBase = slugify(body.title, { lower: true, strict: true });
   const slug = `${slugBase}-${Date.now()}`;
+  const sourceType = path.extname(files[0].originalname).replace(".", "").toLowerCase();
   const status =
     actor.role === ROLE_CODES.ADMIN ? LAYER_STATUS.APPROVED : LAYER_STATUS.PENDING_REVIEW;
+  const institutionalMetadata = buildInstitutionalMetadata(body, files, sourceType);
 
   const created = await prisma.layer.create({
     data: {
@@ -30,14 +33,15 @@ export async function uploadLayer({ body, files, actor, req }) {
       slug,
       description: body.description ?? null,
       municipality: body.municipality ?? actor.municipality ?? null,
-      sourceType: path.extname(files[0].originalname).replace(".", "").toLowerCase(),
+      sourceType,
       status,
       createdById: actor.sub,
       metadata: {
         create: {
-          properties: {
-            tags: body.tags ?? [],
-          },
+          featureCount: institutionalMetadata.featureCount,
+          geometryType: institutionalMetadata.geometryType,
+          crs: institutionalMetadata.crs,
+          properties: institutionalMetadata.properties,
         },
       },
       files: {
@@ -184,6 +188,13 @@ async function changeLayerStatus({ id, actor, req, toStatus, reason = null, desc
 
   if (!layer || layer.isDeleted) {
     throw new AppError("Capa no encontrada.", 404);
+  }
+
+  if (
+    toStatus === LAYER_STATUS.PUBLISHED &&
+    ![LAYER_STATUS.APPROVED, LAYER_STATUS.UNPUBLISHED, LAYER_STATUS.PUBLISHED].includes(layer.status)
+  ) {
+    throw new AppError("La capa debe estar aprobada antes de publicarse.", 409);
   }
 
   const updated = await prisma.layer.update({
@@ -348,4 +359,72 @@ function mapLayer(layer) {
           : null,
       })) ?? [],
   };
+}
+
+function buildInstitutionalMetadata(body, files, sourceType) {
+  const geoJsonSummary = summarizeGeoJsonUpload(files[0], sourceType);
+  const geometryType = geoJsonSummary.geometryType || inferGeometryTypeFromSource(sourceType);
+  const uploadedFileNames = files.map((file) => file.originalname);
+
+  return {
+    featureCount: geoJsonSummary.featureCount,
+    geometryType,
+    crs: normalizeOptionalText(body.crs) || "EPSG:4326",
+    properties: {
+      tags: body.tags ?? [],
+      source: normalizeOptionalText(body.source),
+      responsibleAgency: normalizeOptionalText(body.responsibleAgency),
+      updatedAt: normalizeOptionalText(body.updatedAt),
+      scaleOrResolution: normalizeOptionalText(body.scaleOrResolution),
+      crs: normalizeOptionalText(body.crs) || "EPSG:4326",
+      geometryType,
+      featureCount: geoJsonSummary.featureCount,
+      coverage: normalizeOptionalText(body.municipality),
+      originalFileNames: uploadedFileNames,
+      supportedFormatsNote:
+        "GeoJSON se visualiza directamente; Shapefile ZIP, KML/KMZ y GeoTIFF quedan registrados para procesamiento y vista previa cuando el visor pueda convertirlos.",
+    },
+  };
+}
+
+function summarizeGeoJsonUpload(file, sourceType) {
+  if (!["geojson", "json"].includes(String(sourceType || "").toLowerCase())) {
+    return { featureCount: null, geometryType: null };
+  }
+
+  try {
+    const raw = fs.readFileSync(file.path, "utf8");
+    const parsed = JSON.parse(raw);
+    const features =
+      parsed.type === "FeatureCollection"
+        ? parsed.features || []
+        : parsed.type === "Feature"
+          ? [parsed]
+          : [];
+    const geometryTypes = new Set(
+      features.map((feature) => feature.geometry?.type).filter(Boolean)
+    );
+
+    return {
+      featureCount: features.length,
+      geometryType: geometryTypes.size ? [...geometryTypes].join(", ") : "Vector GeoJSON",
+    };
+  } catch (_error) {
+    return { featureCount: null, geometryType: "Vector GeoJSON" };
+  }
+}
+
+function normalizeOptionalText(value) {
+  if (value === null || value === undefined) return null;
+  const normalized = String(value).trim();
+  return normalized || null;
+}
+
+function inferGeometryTypeFromSource(sourceType) {
+  const normalized = String(sourceType || "").toLowerCase();
+  if (normalized === "geojson" || normalized === "json") return "Vector";
+  if (normalized === "zip" || normalized === "shp") return "Vector shapefile";
+  if (normalized === "kml" || normalized === "kmz") return "Vector KML";
+  if (normalized === "tif" || normalized === "tiff") return "Raster GeoTIFF";
+  return "No especificado";
 }

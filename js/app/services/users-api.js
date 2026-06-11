@@ -31,3 +31,25 @@ export async function resetPasswordRequest(token, userId, password) {
 
   return payload?.data ?? null;
 }
+
+export async function setUserStatusRequest(token, userId, isActive) {
+  const payload = await request(`/users/${userId}/status`, {
+    method: "PATCH",
+    token,
+    body: { isActive },
+    retries: 0,
+  });
+
+  return payload?.data ?? null;
+}
+
+export async function setUserRoleRequest(token, userId, roleCode) {
+  const payload = await request(`/users/${userId}/role`, {
+    method: "PATCH",
+    token,
+    body: { roleCode },
+    retries: 0,
+  });
+
+  return payload?.data ?? null;
+}

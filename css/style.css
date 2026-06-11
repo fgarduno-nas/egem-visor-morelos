@@ -849,20 +849,28 @@ select {
 
 .search-box input,
 .form-field input,
-.form-field select {
+.form-field select,
+.form-field textarea {
   padding: 12px 14px;
   border-radius: 16px;
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.92);
   color: var(--ink);
+  font: inherit;
 }
 
 .search-box input:focus,
 .form-field input:focus,
-.form-field select:focus {
+.form-field select:focus,
+.form-field textarea:focus {
   outline: none;
   border-color: rgba(122, 32, 58, 0.46);
   box-shadow: 0 0 0 4px rgba(122, 32, 58, 0.08);
+}
+
+.form-field textarea {
+  resize: vertical;
+  min-height: 86px;
 }
 
 .password-input-wrap {
@@ -1333,6 +1341,12 @@ select {
   padding-right: 4px;
 }
 
+.metadata-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 12px;
+}
+
 .upload-file-button {
   margin-top: 8px;
   min-height: 48px;
@@ -1624,6 +1638,10 @@ select {
   .upload-draft-grid {
     grid-template-columns: 1fr;
     gap: 10px;
+  }
+
+  .metadata-grid {
+    grid-template-columns: 1fr;
   }
 
   .modal {
@@ -2100,7 +2118,8 @@ select {
 
   .search-box input,
   .form-field input,
-  .form-field select {
+  .form-field select,
+  .form-field textarea {
     padding: 11px 12px;
     font-size: 16px;
   }
@@ -2116,6 +2135,11 @@ select {
 
   .map-overlay--bottom-right {
     bottom: calc(min(56vh, 470px) + 14px);
+  }
+
+  .maplibregl-ctrl-bottom-right,
+  .maplibregl-ctrl-bottom-left {
+    bottom: calc(min(56vh, 470px) + 12px);
   }
 
   .floating-card {
@@ -2248,5 +2272,10 @@ select {
 
   .map-overlay--bottom-right {
     bottom: calc(min(58vh, 440px) + 14px);
+  }
+
+  .maplibregl-ctrl-bottom-right,
+  .maplibregl-ctrl-bottom-left {
+    bottom: calc(min(58vh, 440px) + 12px);
   }
 }

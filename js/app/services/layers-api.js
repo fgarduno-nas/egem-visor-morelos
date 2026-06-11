@@ -45,6 +45,11 @@ export async function uploadLayerRequest(token, metadata, files) {
   formData.append("title", metadata.title);
   formData.append("description", metadata.description || "");
   formData.append("municipality", metadata.municipality || "");
+  formData.append("source", metadata.source || "");
+  formData.append("responsibleAgency", metadata.responsibleAgency || "");
+  formData.append("updatedAt", metadata.updatedAt || "");
+  formData.append("scaleOrResolution", metadata.scaleOrResolution || "");
+  formData.append("crs", metadata.crs || "");
 
   (metadata.tags || []).forEach((tag) => formData.append("tags", tag));
   files.forEach((file) => formData.append("files", file));

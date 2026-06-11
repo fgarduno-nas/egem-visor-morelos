@@ -4,6 +4,8 @@ import {
   createUserRequest,
   listUsersRequest,
   resetPasswordRequest,
+  setUserRoleRequest,
+  setUserStatusRequest,
 } from "./app/services/users-api.js";
 import {
   approveLayerRequest,
@@ -30,13 +32,13 @@ import {
 
   const roleLabels = {
     admin: "Administrador",
-    director: "Director",
+    director: "Alimentador",
     visitante: "Visitante",
   };
 
   const roleCapabilities = {
     admin: "Puede revisar, aprobar, visualizar y descargar capas cargadas.",
-    director: "Puede cargar y descargar capas, pero no publicarlas.",
+    director: "Puede cargar capas para revision y consultar sus propias cargas.",
     visitante: "Solo puede consultar capas ya publicadas.",
   };
 
@@ -321,6 +323,14 @@ import {
     uploadPreviewToggle: document.getElementById("upload-preview-toggle"),
     uploadPreviewState: document.getElementById("upload-preview-state"),
     uploadLayerFeedback: document.getElementById("upload-layer-feedback"),
+    uploadLayerTitle: document.getElementById("upload-layer-title"),
+    uploadLayerDescription: document.getElementById("upload-layer-description"),
+    uploadLayerMunicipality: document.getElementById("upload-layer-municipality"),
+    uploadLayerSource: document.getElementById("upload-layer-source"),
+    uploadLayerAgency: document.getElementById("upload-layer-agency"),
+    uploadLayerUpdatedAt: document.getElementById("upload-layer-updated-at"),
+    uploadLayerScale: document.getElementById("upload-layer-scale"),
+    uploadLayerCrs: document.getElementById("upload-layer-crs"),
     loginModal: document.getElementById("login-modal"),
     helpModal: document.getElementById("help-modal"),
     userAdminModal: document.getElementById("user-admin-modal"),
@@ -1830,11 +1840,7 @@ import {
       updateInfoPanel({
         title: name,
         description: layerMeta.description,
-        extra: [
-          `Municipio: ${layerMeta.municipality || "Sin especificar"}`,
-          `Estatus: ${getStatusLabel(layerMeta.status)}`,
-          `Formato: ${layerMeta.fileType ? layerMeta.fileType.toUpperCase() : "GeoJSON"}`,
-        ],
+        extra: buildLayerCatalogLines(layerMeta),
         attributes: props,
       });
 
@@ -1860,7 +1866,10 @@ import {
   function updateInfoPanel(info) {
     if (!info) return;
     const extras = info.extra
-      ? info.extra.map((line) => `<p class="info-copy">${escapeHtml(line)}</p>`).join("")
+      ? info.extra
+          .filter((line) => line !== null && line !== undefined && String(line).trim() !== "")
+          .map((line) => `<p class="info-copy">${escapeHtml(line)}</p>`)
+          .join("")
       : "";
     const attributes = info.attributes ? renderAttributeTable(info.attributes) : "";
 
@@ -1870,6 +1879,42 @@ import {
       ${extras}
       ${attributes}
     `;
+  }
+
+  function buildLayerCatalogLines(layer) {
+    const properties = layer.metadata?.properties || {};
+    const metadata = layer.metadata || {};
+    const publicationDate = layer.publishedAt || metadata.publishedAt || null;
+    const createdAt = layer.createdAt || metadata.createdAt || null;
+
+    return [
+      `Nombre: ${layer.title || "Sin nombre"}`,
+      `Descripcion: ${layer.description || "Sin descripcion"}`,
+      `Municipio/cobertura: ${properties.coverage || metadata.coverage || layer.municipality || "Sin especificar"}`,
+      `Fuente: ${properties.source || metadata.source || "Sin especificar"}`,
+      `Dependencia responsable: ${properties.responsibleAgency || metadata.responsibleAgency || "Sin especificar"}`,
+      `Fecha de actualizacion: ${formatCatalogDate(properties.updatedAt || metadata.updatedAt)}`,
+      `Escala/resolucion: ${properties.scaleOrResolution || metadata.scaleOrResolution || "Sin especificar"}`,
+      `Sistema de referencia: ${properties.crs || metadata.crs || "Sin especificar"}`,
+      `Tipo de geometria: ${metadata.geometryType || properties.geometryType || layer.fileType || "Sin especificar"}`,
+      `Objetos: ${metadata.featureCount ?? properties.featureCount ?? "Sin especificar"}`,
+      `Estatus: ${getStatusLabel(layer.status)}`,
+      `Usuario creador: ${layer.createdBy || "Sistema"}`,
+      `Fecha de creacion: ${formatCatalogDate(createdAt)}`,
+      `Fecha de publicacion: ${formatCatalogDate(publicationDate)}`,
+      `Formato: ${layer.fileType ? layer.fileType.toUpperCase() : "GeoJSON"}`,
+    ];
+  }
+
+  function formatCatalogDate(value) {
+    if (!value) return "Sin especificar";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return date.toLocaleDateString("es-MX", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
   }
 
   function renderAttributeTable(attributes) {
@@ -2191,6 +2236,7 @@ import {
     state.uploadDraft.category = elements.uploadLayerCategory?.value || "geologicos";
     state.uploadDraft.minimized = false;
     if (elements.uploadLayerFeedback) elements.uploadLayerFeedback.textContent = "";
+    clearUploadMetadataForm();
     syncUploadDraftUi();
   }
 
@@ -2332,7 +2378,12 @@ import {
     try {
       const draftLayers = await createLayersFromFiles(state.uploadDraft.files);
       state.uploadDraft.previewLayers = draftLayers.map((layer) => {
+        const uploadMetadata = collectUploadMetadata();
         applyCategoryToLayer(layer, state.uploadDraft.category);
+        layer.title = uploadMetadata.title || layer.title;
+        layer.description = uploadMetadata.description || layer.description;
+        layer.municipality = uploadMetadata.municipality || layer.municipality;
+        layer.metadata = buildLayerMetadata(uploadMetadata, layer);
         layer.status = state.session.role === "admin" ? "approved" : "pending_review";
         return layer;
       });
@@ -2390,6 +2441,7 @@ import {
 
       const uploadResult = await uploadFilesToBackend(state.uploadDraft.files, {
         category: state.uploadDraft.category,
+        metadata: collectUploadMetadata(),
       });
 
       clearUploadDraftPreview();
@@ -2416,7 +2468,83 @@ import {
   function applyCategoryToDraftLayers() {
     state.uploadDraft.previewLayers.forEach((layer) => {
       applyCategoryToLayer(layer, state.uploadDraft.category);
+      layer.metadata = buildLayerMetadata(collectUploadMetadata(), layer);
     });
+  }
+
+  function collectUploadMetadata() {
+    return {
+      title: elements.uploadLayerTitle?.value.trim() || "",
+      description: elements.uploadLayerDescription?.value.trim() || "",
+      municipality: elements.uploadLayerMunicipality?.value.trim() || "",
+      source: elements.uploadLayerSource?.value.trim() || "",
+      responsibleAgency: elements.uploadLayerAgency?.value.trim() || "",
+      updatedAt: elements.uploadLayerUpdatedAt?.value || "",
+      scaleOrResolution: elements.uploadLayerScale?.value.trim() || "",
+      crs: elements.uploadLayerCrs?.value.trim() || "",
+    };
+  }
+
+  function clearUploadMetadataForm() {
+    [
+      elements.uploadLayerTitle,
+      elements.uploadLayerDescription,
+      elements.uploadLayerMunicipality,
+      elements.uploadLayerSource,
+      elements.uploadLayerAgency,
+      elements.uploadLayerUpdatedAt,
+      elements.uploadLayerScale,
+      elements.uploadLayerCrs,
+    ].forEach((field) => {
+      if (field) field.value = "";
+    });
+  }
+
+  function buildLayerMetadata(metadata = {}, layer = {}) {
+    const geometrySummary = summarizeLayerGeometry(layer);
+    const coverage =
+      metadata.municipality ||
+      layer.municipality ||
+      (state.session.role === "director" ? state.session.municipality : "Cobertura estatal");
+
+    return {
+      source: metadata.source || "",
+      responsibleAgency: metadata.responsibleAgency || "",
+      updatedAt: metadata.updatedAt || "",
+      scaleOrResolution: metadata.scaleOrResolution || "",
+      crs: metadata.crs || "EPSG:4326",
+      geometryType: geometrySummary.geometryType || layer.fileType || "",
+      featureCount: geometrySummary.featureCount,
+      coverage,
+    };
+  }
+
+  function summarizeLayerGeometry(layer) {
+    if (layer.sourceKind === "image") {
+      return {
+        geometryType: "Raster",
+        featureCount: null,
+      };
+    }
+
+    const features = layer.data?.features;
+    if (!Array.isArray(features)) {
+      return {
+        geometryType: layer.fileType || "",
+        featureCount: null,
+      };
+    }
+
+    const geometryTypes = new Set(
+      features
+        .map((feature) => feature.geometry?.type)
+        .filter(Boolean)
+    );
+
+    return {
+      geometryType: geometryTypes.size ? [...geometryTypes].join(", ") : "Sin geometria",
+      featureCount: features.length,
+    };
   }
 
   function getUploadDraftLayerSummary(layer) {
@@ -2470,7 +2598,14 @@ import {
               <span>${escapeHtml(user.email)}</span>
               <span>Rol: ${escapeHtml(roleLabels[mapBackendRole(user.role || user.backendRole)] || user.role || user.backendRole)}</span>
               <span>Municipio: ${escapeHtml(user.municipality || "General")}</span>
+              <span>Estado: ${user.isActive === false ? "Inactivo" : "Activo"}</span>
               <div class="user-card__actions">
+                <button class="ghost-button" type="button" data-toggle-user-status="${user.id}">
+                  ${user.isActive === false ? "Activar" : "Desactivar"}
+                </button>
+                <button class="ghost-button" type="button" data-toggle-user-role="${user.id}">
+                  Cambiar a ${mapBackendRole(user.role || user.backendRole) === "director" ? "Visitante" : "Alimentador"}
+                </button>
                 <button class="ghost-button" type="button" data-reset-user-password="${user.id}">Restablecer contrasena</button>
               </div>
             </article>
@@ -2480,6 +2615,12 @@ import {
 
     elements.userAdminList.querySelectorAll("[data-reset-user-password]").forEach((button) => {
       button.addEventListener("click", () => resetManagedUserPassword(button.dataset.resetUserPassword));
+    });
+    elements.userAdminList.querySelectorAll("[data-toggle-user-status]").forEach((button) => {
+      button.addEventListener("click", () => toggleManagedUserStatus(button.dataset.toggleUserStatus));
+    });
+    elements.userAdminList.querySelectorAll("[data-toggle-user-role]").forEach((button) => {
+      button.addEventListener("click", () => toggleManagedUserRole(button.dataset.toggleUserRole));
     });
 
     syncUserRoleForm();
@@ -2620,6 +2761,73 @@ import {
       console.error(error);
       elements.userAdminFeedback.textContent =
         error?.payload?.message || error.message || "No se pudo restablecer la contrasena del usuario.";
+    }
+  }
+
+  async function toggleManagedUserStatus(userId) {
+    if (state.session.role !== "admin") return;
+
+    const user =
+      state.users.find((item) => item.id === userId) ||
+      loadManagedUsers().find((item) => item.id === userId);
+    if (!user) return;
+
+    const nextStatus = user.isActive === false;
+
+    try {
+      if (state.session.token) {
+        await setUserStatusRequest(state.session.token, userId, nextStatus);
+      } else {
+        const managedUsers = loadManagedUsers();
+        const targetUser = managedUsers.find((item) => item.id === userId);
+        if (!targetUser) throw new Error("Usuario no encontrado.");
+        targetUser.isActive = nextStatus;
+        saveManagedUsers(managedUsers);
+      }
+
+      await renderUserAdminPanel();
+      elements.userAdminFeedback.textContent =
+        `${user.email} quedo ${nextStatus ? "activo" : "inactivo"}.`;
+    } catch (error) {
+      console.error(error);
+      elements.userAdminFeedback.textContent =
+        error?.payload?.message || error.message || "No se pudo actualizar el estado del usuario.";
+    }
+  }
+
+  async function toggleManagedUserRole(userId) {
+    if (state.session.role !== "admin") return;
+
+    const user =
+      state.users.find((item) => item.id === userId) ||
+      loadManagedUsers().find((item) => item.id === userId);
+    if (!user) return;
+
+    const currentRole = mapBackendRole(user.role || user.backendRole);
+    const nextRoleCode = currentRole === "director" ? "PUBLIC_USER" : "DATA_PROVIDER";
+
+    try {
+      if (state.session.token) {
+        await setUserRoleRequest(state.session.token, userId, nextRoleCode);
+      } else {
+        const managedUsers = loadManagedUsers();
+        const targetUser = managedUsers.find((item) => item.id === userId);
+        if (!targetUser) throw new Error("Usuario no encontrado.");
+        targetUser.role = nextRoleCode;
+        targetUser.backendRole = nextRoleCode;
+        if (nextRoleCode === "PUBLIC_USER") {
+          targetUser.municipality = "General";
+        }
+        saveManagedUsers(managedUsers);
+      }
+
+      await renderUserAdminPanel();
+      elements.userAdminFeedback.textContent =
+        `${user.email} ahora tiene rol ${roleLabels[mapBackendRole(nextRoleCode)]}.`;
+    } catch (error) {
+      console.error(error);
+      elements.userAdminFeedback.textContent =
+        error?.payload?.message || error.message || "No se pudo cambiar el rol del usuario.";
     }
   }
 
@@ -3076,6 +3284,7 @@ import {
       imageUrl: config.imageUrl || null,
       coordinates: config.coordinates || null,
       download: config.download || null,
+      metadata: config.metadata || null,
     };
   }
 
@@ -3709,7 +3918,7 @@ import {
         });
       }
     } catch (error) {
-      console.error(error);
+      console.warn("No se pudieron sincronizar capas remotas.", error);
       state.backendStatus.reachable = false;
       state.backendStatus.lastError = error.message;
       renderLayerCatalog(elements.layerSearch.value.trim().toLowerCase());
@@ -3753,9 +3962,11 @@ import {
 
   async function uploadFilesToBackend(files, options = {}) {
     const firstFile = files[0];
-    const title = firstFile.name.replace(/\.[^.]+$/u, "");
+    const institutionalMetadata = options.metadata || {};
+    const title = institutionalMetadata.title || firstFile.name.replace(/\.[^.]+$/u, "");
     const municipality =
-      state.session.role === "director" ? state.session.municipality : "Estado de Morelos";
+      institutionalMetadata.municipality ||
+      (state.session.role === "director" ? state.session.municipality : "Estado de Morelos");
     const category = options.category || "geologicos";
 
     if (state.session.token) {
@@ -3763,9 +3974,15 @@ import {
         state.session.token,
         {
           title,
-          description: "Capa cargada desde el visor institucional EGEM.",
+          description:
+            institutionalMetadata.description || "Capa cargada desde el visor institucional EGEM.",
           municipality,
           tags: [`category:${category}`],
+          source: institutionalMetadata.source,
+          responsibleAgency: institutionalMetadata.responsibleAgency,
+          updatedAt: institutionalMetadata.updatedAt,
+          scaleOrResolution: institutionalMetadata.scaleOrResolution,
+          crs: institutionalMetadata.crs,
         },
         files
       );
@@ -3791,6 +4008,9 @@ import {
           `Municipio: ${createdLayer.municipality || municipality}`,
           `Fenomeno: ${getThematicGroupTitle(category)}`,
           `Formato principal: ${(createdLayer.sourceType || getExtension(firstFile.name)).toUpperCase()}`,
+          createdLayer.metadata?.properties?.responsibleAgency
+            ? `Dependencia: ${createdLayer.metadata.properties.responsibleAgency}`
+            : "",
         ],
       };
     }
@@ -3802,6 +4022,11 @@ import {
     localLayers.forEach((layer) => {
       applyCategoryToLayer(layer, category);
       layer.status = state.session.role === "admin" ? "approved" : "pending_review";
+      layer.title = title;
+      layer.description =
+        institutionalMetadata.description || layer.description || "Capa cargada desde el visor institucional EGEM.";
+      layer.municipality = municipality;
+      layer.metadata = buildLayerMetadata(institutionalMetadata, layer);
       state.userLayers.push(layer);
     });
 
@@ -3829,6 +4054,7 @@ import {
         `Municipio: ${municipality}`,
         `Fenomeno: ${getThematicGroupTitle(category)}`,
         `Formato principal: ${getExtension(firstFile.name).toUpperCase()}`,
+        institutionalMetadata.responsibleAgency ? `Dependencia: ${institutionalMetadata.responsibleAgency}` : "",
       ],
     };
   }
@@ -3869,13 +4095,41 @@ import {
       createdBy: record.createdBy?.name || "Sistema",
       createdById: record.createdBy?.id || null,
       status: record.status,
+      createdAt: record.createdAt || hydratedLayer.createdAt,
+      approvedAt: record.approvedAt || null,
+      publishedAt: record.publishedAt || null,
       fileType: sourceType,
+      metadata: normalizeBackendLayerMetadata(record, hydratedLayer),
       download: {
         files: remoteFiles.map((file) => ({
           name: file.originalName,
           mimeType: file.mimeType,
           url: file.publicUrl,
         })),
+      },
+    };
+  }
+
+  function normalizeBackendLayerMetadata(record, hydratedLayer) {
+    const metadata = record.metadata || {};
+    const properties = metadata.properties || {};
+    const localSummary = summarizeLayerGeometry(hydratedLayer);
+
+    return {
+      ...metadata,
+      featureCount: metadata.featureCount ?? localSummary.featureCount,
+      geometryType: metadata.geometryType || properties.geometryType || localSummary.geometryType,
+      crs: metadata.crs || properties.crs || "EPSG:4326",
+      coverage: properties.coverage || record.municipality || hydratedLayer.municipality,
+      source: properties.source || "",
+      responsibleAgency: properties.responsibleAgency || "",
+      updatedAt: properties.updatedAt || "",
+      scaleOrResolution: properties.scaleOrResolution || "",
+      createdAt: record.createdAt || "",
+      publishedAt: record.publishedAt || "",
+      properties: {
+        ...properties,
+        coverage: properties.coverage || record.municipality || hydratedLayer.municipality,
       },
     };
   }

@@ -414,6 +414,48 @@
             </select>
           </label>
 
+          <label class="form-field">
+            <span>Nombre de la capa</span>
+            <input id="upload-layer-title" type="text" maxlength="180" placeholder="Se toma del archivo si se deja vacio" />
+          </label>
+
+          <label class="form-field">
+            <span>Descripcion</span>
+            <textarea id="upload-layer-description" maxlength="2000" rows="3" placeholder="Describe el contenido y uso institucional de la capa"></textarea>
+          </label>
+
+          <div class="metadata-grid">
+            <label class="form-field">
+              <span>Municipio o cobertura</span>
+              <input id="upload-layer-municipality" type="text" maxlength="150" placeholder="Estado de Morelos" />
+            </label>
+
+            <label class="form-field">
+              <span>Fuente</span>
+              <input id="upload-layer-source" type="text" maxlength="180" placeholder="Fuente de datos" />
+            </label>
+
+            <label class="form-field">
+              <span>Dependencia responsable</span>
+              <input id="upload-layer-agency" type="text" maxlength="180" placeholder="Dependencia o area responsable" />
+            </label>
+
+            <label class="form-field">
+              <span>Fecha de actualizacion</span>
+              <input id="upload-layer-updated-at" type="date" />
+            </label>
+
+            <label class="form-field">
+              <span>Escala o resolucion</span>
+              <input id="upload-layer-scale" type="text" maxlength="120" placeholder="Ej. 1:50,000 o 10 m" />
+            </label>
+
+            <label class="form-field">
+              <span>Sistema de referencia</span>
+              <input id="upload-layer-crs" type="text" maxlength="120" placeholder="Ej. EPSG:4326" />
+            </label>
+          </div>
+
           <div class="upload-preview-actions">
             <button class="ghost-button upload-action-button upload-action-button--secondary" id="upload-preview-toggle" type="button">
               Vista previa
@@ -525,7 +567,7 @@
         <article>
           <strong>Roles institucionales</strong>
           <p>
-            Visitante consulta, director propone capas y administrador aprueba o rechaza.
+            Visitante consulta, alimentador propone capas y administrador aprueba o rechaza.
           </p>
         </article>
         <article>
@@ -549,7 +591,7 @@
       </div>
 
       <p class="modal-copy">
-        Solo la cuenta administradora puede crear usuarios de tipo director o visitante.
+        Solo la cuenta administradora puede crear usuarios de tipo alimentador o visitante.
       </p>
 
       <div class="user-admin-grid">
@@ -584,7 +626,7 @@
           <label class="form-field">
             <span>Rol</span>
             <select id="new-user-role" required>
-              <option value="director">Director</option>
+              <option value="director">Alimentador</option>
               <option value="visitante">Visitante</option>
             </select>
           </label>
