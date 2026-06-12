@@ -88,6 +88,12 @@ http://localhost:4000/health
 4. Solo una capa aprobada puede publicarse.
 5. El visor publico consume unicamente capas `published`.
 
+## Formatos geoespaciales
+
+- GeoJSON: se acepta como `FeatureCollection`, `Feature` o geometria valida con Point, MultiPoint, LineString, MultiLineString, Polygon o MultiPolygon.
+- Shapefile ZIP y KMZ/KML: se conservan como formatos de carga y visualizacion del visor.
+- GeoTIFF: el frontend solo puede visualizar raster ya georreferenciado en coordenadas compatibles con el mapa. Si aparece el aviso de reproyeccion, prepara el archivo en EPSG:4326/WGS84 o Web Mercator compatible antes de cargarlo. La reproyeccion automatica queda preparada como trabajo futuro del backend.
+
 ## Validaciones utiles
 
 ```bash

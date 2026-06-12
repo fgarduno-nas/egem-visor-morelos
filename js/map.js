@@ -797,13 +797,13 @@ import {
   function buildCatalog() {
     const staticCatalog = staticLayers.map((layer) => ({
       ...layer,
-      visible: state.renderedLayers.has(layer.id),
+      visible: Boolean(layer.visible),
       municipality: "Cobertura estatal",
     }));
 
     const userCatalog = state.userLayers.map((layer) => ({
       ...layer,
-      visible: state.renderedLayers.has(layer.id),
+      visible: Boolean(layer.visible),
     }));
 
     return [...staticCatalog, ...userCatalog];
@@ -909,7 +909,7 @@ import {
 
   function renderLayerItem(layer) {
     const checked = layer.visible ? "checked" : "";
-    const disableToggle = isPendingStatus(layer.status) && state.session.role !== "admin" ? "disabled" : "";
+    const disableToggle = !canSeeLayer(layer) ? "disabled" : "";
     const reviewButton = state.session.role === "admin" && canPreviewLayer(layer)
       ? `<button class="ghost-button" type="button" data-preview="${layer.id}">Visualizar</button>`
       : "";
@@ -1452,6 +1452,9 @@ import {
       if (layer.visible !== false && canSeeLayer(layer)) {
         addUserLayerToMap(layer);
         state.renderedLayers.set(layer.id, true);
+      } else {
+        removeLayerBundle(layer.id);
+        state.renderedLayers.delete(layer.id);
       }
     });
 
@@ -1487,7 +1490,11 @@ import {
       id: fillId,
       type: "fill",
       source: sourceId,
-      filter: ["==", "$type", "Polygon"],
+      filter: [
+        "any",
+        ["==", ["geometry-type"], "Polygon"],
+        ["==", ["geometry-type"], "MultiPolygon"],
+      ],
       paint: {
         "fill-color": ["coalesce", ["get", "__styleFill"], defaultFillColor],
         "fill-opacity": 0.78 * getLayerOpacity(layer),
@@ -1498,7 +1505,13 @@ import {
       id: lineId,
       type: "line",
       source: sourceId,
-      filter: ["in", "$type", "LineString", "Polygon"],
+      filter: [
+        "any",
+        ["==", ["geometry-type"], "LineString"],
+        ["==", ["geometry-type"], "MultiLineString"],
+        ["==", ["geometry-type"], "Polygon"],
+        ["==", ["geometry-type"], "MultiPolygon"],
+      ],
       paint: {
         "line-color": ["coalesce", ["get", "__styleLine"], defaultLineColor],
         "line-width": ["coalesce", ["to-number", ["get", "__styleWidth"]], 2.4],
@@ -1510,7 +1523,11 @@ import {
       id: pointId,
       type: "circle",
       source: sourceId,
-      filter: ["==", "$type", "Point"],
+      filter: [
+        "any",
+        ["==", ["geometry-type"], "Point"],
+        ["==", ["geometry-type"], "MultiPoint"],
+      ],
       paint: {
         "circle-color": ["coalesce", ["get", "__styleIcon"], defaultPointColor],
         "circle-radius": 6,
@@ -1586,6 +1603,7 @@ import {
   function previewLayer(layer) {
     clearPreviewLayer();
     state.previewLayerId = layer.id;
+    layer.visible = true;
     addUserLayerToMap(layer);
     state.renderedLayers.set(layer.id, true);
     fitLayer(layer);
@@ -1657,12 +1675,22 @@ import {
     }
 
     captureVisibleSnapshot();
+    syncLayerCatalogItemState(layerId, visible);
 
     const current = staticLayer || userLayer;
     updateInfoPanel({
       title: current.title,
       description: visible ? "La capa esta visible en el mapa." : "La capa fue ocultada del mapa.",
     });
+  }
+
+  function syncLayerCatalogItemState(layerId, visible) {
+    const item = elements.layerList?.querySelector(`.layer-item[data-layer-id="${CSS.escape(layerId)}"]`);
+    if (!item) return;
+    const checkbox = item.querySelector('input[type="checkbox"]');
+    if (checkbox) checkbox.checked = visible;
+    item.classList.toggle("is-visible", visible);
+    item.classList.toggle("is-hidden-layer", !visible);
   }
 
   function updateLayerOpacity(layerId, percentage) {
@@ -1685,7 +1713,15 @@ import {
 
   async function approveLayer(layerId) {
     const layer = state.userLayers.find((item) => item.id === layerId);
-    if (!layer?.backendLayerId || !state.session.token) return;
+    if (!layer) return;
+    if (!layer.backendLayerId || !state.session.token) {
+      setSystemStatus("Backend no disponible", "La aprobacion requiere una sesion administradora conectada al backend.");
+      updateInfoPanel({
+        title: "No se puede aprobar en modo local",
+        description: "Inicia sesion contra el backend institucional como Administrador para aprobar capas.",
+      });
+      return;
+    }
 
     try {
       setSystemStatus("Aprobando capa", `Se esta validando ${layer.title} en backend.`);
@@ -3039,6 +3075,10 @@ import {
       return [await createKmlLayer(files[0])];
     }
 
+    if (files.length === 1 && ["geojson", "json"].includes(extensions[0])) {
+      return [await createGeoJsonLayer(files[0])];
+    }
+
     if (files.length === 1 && ["tif", "tiff"].includes(extensions[0])) {
       return [await createGeoTiffLayer(files[0])];
     }
@@ -3150,7 +3190,9 @@ import {
     const bbox = image.getBoundingBox();
 
     if (!isLikelyLngLatBbox(bbox)) {
-      throw new Error("El GeoTIFF necesita estar en coordenadas geograficas compatibles con el visor.");
+      throw new Error(
+        "El GeoTIFF debe estar reproyectado a EPSG:4326/WGS84 o Web Mercator compatible antes de cargarlo. El visor web aun no reproyecta raster en el frontend; prepara el archivo en QGIS/GDAL o procesa la reproyeccion desde backend."
+      );
     }
 
     const imageUrl = await renderGeoTiffToDataUrl(image);
@@ -3286,6 +3328,29 @@ import {
       download: config.download || null,
       metadata: config.metadata || null,
     };
+  }
+
+  async function createGeoJsonLayer(file) {
+    let parsed = null;
+    try {
+      parsed = JSON.parse(await file.text());
+    } catch (_error) {
+      throw new Error("El archivo GeoJSON no contiene JSON valido.");
+    }
+
+    const geojson = ensureFeatureCollection(parsed);
+    if (!geojson.features.length) {
+      throw new Error("El GeoJSON no contiene entidades con geometria utilizable.");
+    }
+
+    return createUserLayer({
+      title: file.name.replace(/\.(geojson|json)$/i, ""),
+      fileType: "geojson",
+      sourceKind: "geojson",
+      data: geojson,
+      description: "Capa GeoJSON cargada para consulta del atlas.",
+      download: await buildDownloadBundle([file]),
+    });
   }
 
   async function buildDownloadBundle(files) {
@@ -3504,9 +3569,82 @@ import {
   }
 
   function ensureFeatureCollection(data) {
-    if (data.type === "FeatureCollection") return data;
-    if (Array.isArray(data.features)) return { type: "FeatureCollection", features: data.features };
-    return { type: "FeatureCollection", features: [] };
+    if (!data || typeof data !== "object") {
+      throw new Error("El GeoJSON esta vacio o no tiene estructura valida.");
+    }
+
+    const supportedGeometryTypes = new Set([
+      "Point",
+      "MultiPoint",
+      "LineString",
+      "MultiLineString",
+      "Polygon",
+      "MultiPolygon",
+    ]);
+
+    const normalizeFeature = (feature) => {
+      if (!feature || feature.type !== "Feature") return null;
+      const geometry = feature.geometry;
+      if (!geometry) return null;
+      if (!supportedGeometryTypes.has(geometry.type)) return null;
+      if (!hasUsableCoordinates(geometry.coordinates)) return null;
+      return {
+        type: "Feature",
+        properties: feature.properties && typeof feature.properties === "object" ? feature.properties : {},
+        geometry,
+      };
+    };
+
+    if (data.type === "FeatureCollection") {
+      if (!Array.isArray(data.features)) {
+        throw new Error("El GeoJSON FeatureCollection no contiene un arreglo features valido.");
+      }
+      return {
+        type: "FeatureCollection",
+        features: data.features.map(normalizeFeature).filter(Boolean),
+      };
+    }
+
+    if (data.type === "Feature") {
+      const normalized = normalizeFeature(data);
+      return {
+        type: "FeatureCollection",
+        features: normalized ? [normalized] : [],
+      };
+    }
+
+    if (supportedGeometryTypes.has(data.type)) {
+      if (!hasUsableCoordinates(data.coordinates)) {
+        throw new Error(`La geometria ${data.type} no contiene coordenadas validas.`);
+      }
+      return {
+        type: "FeatureCollection",
+        features: [
+          {
+            type: "Feature",
+            properties: {},
+            geometry: data,
+          },
+        ],
+      };
+    }
+
+    if (Array.isArray(data.features)) {
+      return {
+        type: "FeatureCollection",
+        features: data.features.map(normalizeFeature).filter(Boolean),
+      };
+    }
+
+    throw new Error("El GeoJSON debe ser FeatureCollection, Feature o una geometria valida.");
+  }
+
+  function hasUsableCoordinates(coordinates) {
+    if (!Array.isArray(coordinates) || !coordinates.length) return false;
+    if (typeof coordinates[0] === "number") {
+      return coordinates.length >= 2 && Number.isFinite(coordinates[0]) && Number.isFinite(coordinates[1]);
+    }
+    return coordinates.some(hasUsableCoordinates);
   }
 
   function groupShapefileParts(files) {
@@ -3771,7 +3909,15 @@ import {
 
   async function togglePublishLayer(layerId) {
     const layer = state.userLayers.find((item) => item.id === layerId);
-    if (!layer?.backendLayerId || !state.session.token) return;
+    if (!layer) return;
+    if (!layer.backendLayerId || !state.session.token) {
+      setSystemStatus("Backend no disponible", "La publicacion requiere una sesion administradora conectada al backend.");
+      updateInfoPanel({
+        title: "No se puede publicar en modo local",
+        description: "Inicia sesion contra el backend institucional como Administrador para publicar o despublicar capas.",
+      });
+      return;
+    }
 
     const nextStatus = layer.status === "published" ? "unpublished" : "published";
 
@@ -3802,7 +3948,15 @@ import {
 
   async function rejectLayer(layerId) {
     const layer = state.userLayers.find((item) => item.id === layerId);
-    if (!layer?.backendLayerId || !state.session.token) return;
+    if (!layer) return;
+    if (!layer.backendLayerId || !state.session.token) {
+      setSystemStatus("Backend no disponible", "El rechazo requiere una sesion administradora conectada al backend.");
+      updateInfoPanel({
+        title: "No se puede rechazar en modo local",
+        description: "Inicia sesion contra el backend institucional como Administrador para rechazar capas.",
+      });
+      return;
+    }
 
     const reason = window.prompt("Indica brevemente el motivo del rechazo:", "No cumple criterios de publicacion.");
     if (!reason) return;
@@ -3874,7 +4028,7 @@ import {
 
       const persistedPreferences = loadPersistedLayerPreferences();
       const previousVisibility = new Map(
-        state.userLayers.map((layer) => [layer.backendLayerId || layer.id, state.renderedLayers.has(layer.id)])
+        state.userLayers.map((layer) => [layer.backendLayerId || layer.id, Boolean(layer.visible)])
       );
 
       state.userLayers.forEach((layer) => {
@@ -3923,11 +4077,11 @@ import {
       state.backendStatus.lastError = error.message;
       renderLayerCatalog(elements.layerSearch.value.trim().toLowerCase());
       renderSession();
-      setSystemStatus("Conexion inestable", error.message || "No se pudieron sincronizar capas remotas.");
+      setSystemStatus("Backend no disponible", "El visor continua en modo local mientras la API no responde.");
       updateInfoPanel({
-        title: "Modo degradado activado",
-        description: "No se logro consultar el backend institucional. El visor sigue operativo, pero sin capas remotas actualizadas.",
-        extra: [error.message || "Error de conectividad con la API."],
+        title: "Backend no disponible",
+        description: "No se logro consultar la API institucional. Puedes seguir usando las capas base y herramientas locales.",
+        extra: [runtimeConfig.apiBaseUrl, error.message || "Error de conectividad con la API."],
       });
     } finally {
       state.remoteSyncInProgress = false;

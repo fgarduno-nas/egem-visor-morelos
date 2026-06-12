@@ -176,6 +176,8 @@ La carga de capas acepta metadatos institucionales y los guarda en `LayerMetadat
 
 Para GeoJSON, el backend intenta extraer conteo de entidades y tipo de geometria. Para Shapefile ZIP, KML/KMZ y GeoTIFF se conserva la estructura de carga y metadatos para procesamiento posterior o vista previa del visor cuando aplique.
 
+Nota GeoTIFF: el frontend no reproyecta raster. Para visualizacion directa, carga GeoTIFF en EPSG:4326/WGS84 o Web Mercator compatible. Si se requiere reproyeccion automatica, debe implementarse como procesamiento backend con GDAL/rasterio o un worker geoespacial.
+
 ## Tipos de archivo aceptados
 
 - `KML`

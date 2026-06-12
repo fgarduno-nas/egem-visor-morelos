@@ -33,7 +33,7 @@ app.use(
 app.use(
   cors({
     origin(origin, callback) {
-      if (!origin || env.CORS_ORIGIN.includes(origin)) {
+      if (!origin || env.CORS_ORIGIN.includes(origin) || isAllowedDevelopmentOrigin(origin)) {
         return callback(null, true);
       }
       return callback(new Error("Origen no permitido por CORS"));
@@ -41,6 +41,16 @@ app.use(
     credentials: true,
   })
 );
+
+function isAllowedDevelopmentOrigin(origin) {
+  if (env.NODE_ENV === "production") return false;
+  try {
+    const url = new URL(origin);
+    return ["localhost", "127.0.0.1", "::1"].includes(url.hostname);
+  } catch (_error) {
+    return false;
+  }
+}
 app.use(limiter);
 app.use(express.json({ limit: "5mb" }));
 app.use(express.urlencoded({ extended: true, limit: "5mb" }));

@@ -12,7 +12,7 @@ export const runtimeConfig = {
   ).replace(/\/+$/, ""),
   requestTimeoutMs: Number(globalConfig.requestTimeoutMs || 12000),
   publicLayerCacheTtlMs: Number(globalConfig.publicLayerCacheTtlMs || 120000),
-  retryAttempts: Number(globalConfig.retryAttempts || 2),
+  retryAttempts: Number(globalConfig.retryAttempts ?? 0),
   retryDelayMs: Number(globalConfig.retryDelayMs || 450),
 };
 
