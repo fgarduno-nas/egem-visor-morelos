@@ -1497,7 +1497,7 @@ import {
       ],
       paint: {
         "fill-color": ["coalesce", ["get", "__styleFill"], defaultFillColor],
-        "fill-opacity": 0.78 * getLayerOpacity(layer),
+        "fill-opacity": 1 * getLayerOpacity(layer),
       },
     });
 
@@ -1576,7 +1576,7 @@ import {
     const pointId = `${layer.id}-point`;
     const rasterId = `${layer.id}-raster`;
 
-    safeSetPaintProperty(fillId, "fill-opacity", 0.78 * opacity);
+    safeSetPaintProperty(fillId, "fill-opacity", 1 * opacity);
     safeSetPaintProperty(lineId, "line-opacity", opacity);
     safeSetPaintProperty(pointId, "circle-opacity", opacity);
     safeSetPaintProperty(pointId, "circle-stroke-opacity", opacity);
@@ -1871,22 +1871,23 @@ import {
       if (state.activeTool) return;
       const feature = event.features && event.features[0];
       const props = (feature && feature.properties) || {};
-      const name = props.name || props.Name || props.NOMBRE || layerMeta.title;
+      const cleanedAttributes = cleanFeatureAttributes(props);
+      const mainAttribute = findMainFeatureAttribute(cleanedAttributes);
 
       updateInfoPanel({
-        title: name,
+        title: layerMeta.title,
         description: layerMeta.description,
-        extra: buildLayerCatalogLines(layerMeta),
-        attributes: props,
+        extra: [
+          mainAttribute ? `${mainAttribute.label}: ${mainAttribute.value}` : null,
+          ...buildLayerCatalogLines(layerMeta),
+        ],
+        attributes: cleanedAttributes,
       });
 
+      // Popup de atributos: usa los properties reales de la entidad clickeada.
       new maplibregl.Popup({ closeButton: true, closeOnClick: true })
         .setLngLat(event.lngLat)
-        .setHTML(`
-          <strong>${escapeHtml(String(name))}</strong><br />
-          ${escapeHtml(layerMeta.municipality || "Cobertura estatal")}<br />
-          ${escapeHtml(getStatusLabel(layerMeta.status))}
-        `)
+        .setHTML(buildFeaturePopup(layerMeta.title, props))
         .addTo(map);
     });
 
@@ -1951,6 +1952,93 @@ import {
       month: "2-digit",
       day: "2-digit",
     });
+  }
+
+  function buildFeaturePopup(layerName, properties = {}) {
+    const attributes = cleanFeatureAttributes(properties);
+    const mainAttribute = findMainFeatureAttribute(attributes);
+    const rows = Object.entries(attributes)
+      .map(([key, value]) => `
+        <tr>
+          <td>${escapeHtml(formatAttributeLabel(key))}</td>
+          <td>${escapeHtml(String(value))}</td>
+        </tr>
+      `)
+      .join("");
+
+    return `
+      <section class="feature-popup">
+        <header class="feature-popup__header">
+          <strong>${escapeHtml(layerName || "Capa seleccionada")}</strong>
+          ${
+            mainAttribute
+              ? `<span class="feature-popup__highlight">${escapeHtml(mainAttribute.label)}: ${escapeHtml(String(mainAttribute.value))}</span>`
+              : ""
+          }
+        </header>
+        <div class="feature-popup__body">
+          ${
+            rows
+              ? `<table class="feature-popup__table">${rows}</table>`
+              : `<p class="feature-popup__empty">Sin atributos disponibles para este elemento</p>`
+          }
+        </div>
+      </section>
+    `;
+  }
+
+  function cleanFeatureAttributes(properties = {}) {
+    const entries = Object.entries(properties)
+      .filter(([_key, value]) => isUsablePopupValue(value))
+      .map(([key, value]) => [normalizeAttributeKey(key), String(value).trim()]);
+    const normalizedLookup = new Map(entries);
+    const canonicalEntries = getPopupAttributeSchema()
+      .map(({ label, keys }) => {
+        const matchKey = keys.map(normalizeAttributeKey).find((key) => normalizedLookup.has(key));
+        return matchKey ? [label, normalizedLookup.get(matchKey)] : null;
+      })
+      .filter(Boolean);
+
+    return Object.fromEntries(canonicalEntries);
+  }
+
+  function getPopupAttributeSchema() {
+    return [
+      { label: "Municipio", keys: ["Municipio", "MUN", "NOM_MUN", "NOMBRE", "Name"] },
+      { label: "Intensidad", keys: ["Intensidad", "INTENSIDAD", "Riesgo", "RIESGO", "Nivel", "NIVEL"] },
+      { label: "Detalles", keys: ["Detalles", "DETALLES", "Descripcion", "Descripción", "DESCRIP"] },
+      { label: "Clasificación", keys: ["Clasificacion", "Clasificación", "Fen_Clasif", "FEN_CLASIF"] },
+      { label: "Amenaza", keys: ["Amenaza", "Ame_Ampl", "AME_AMPL"] },
+      { label: "Magnitud", keys: ["Magnitud", "Magni_num", "MAGNI_NUM", "Valor", "VALOR"] },
+      { label: "Indicador", keys: ["Indicador", "R_P_V_E_A", "INDICADOR"] },
+      { label: "Fuente", keys: ["Fuente", "FUENTE"] },
+    ];
+  }
+
+  function findMainFeatureAttribute(attributes) {
+    if (!attributes.Intensidad) return null;
+    return {
+      key: "Intensidad",
+      label: "Intensidad",
+      value: attributes.Intensidad,
+    };
+  }
+
+  function formatAttributeLabel(key) {
+    return key;
+  }
+
+  function isUsablePopupValue(value) {
+    if (value === null || value === undefined) return false;
+    if (typeof value === "object") return false;
+    return String(value).trim() !== "";
+  }
+
+  function normalizeAttributeKey(key) {
+    return String(key || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
   }
 
   function renderAttributeTable(attributes) {
