@@ -29,6 +29,8 @@ import {
   const MAP_ROTATION_STEP = 20;
   const MAP_PITCH_STEP = 12;
   const MAX_MAP_PITCH = 70;
+  const DEFAULT_MAP_MAX_ZOOM = 22;
+  const SATELLITE_MAP_MAX_ZOOM = 20;
 
   const roleLabels = {
     admin: "Administrador",
@@ -120,15 +122,21 @@ import {
   const baseMapConfigs = {
     satelite: [
       {
-        sourceId: "basemap-satelite-imagery",
-        layerId: "basemap-satelite-imagery",
+        sourceId: "satellite-source",
+        layerId: "satellite-layer",
+        minzoom: 0,
+        maxzoom: 24,
         source: {
           type: "raster",
           tiles: [
-            "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+            "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
           ],
           tileSize: 256,
-          attribution: "Esri",
+          minzoom: 0,
+          // Esri World Imagery puede tener tiles faltantes en z18+.
+          // Usamos maxzoom nativo 17 para forzar overzoom y evitar "Map data not yet available".
+          maxzoom: 17,
+          attribution: "Tiles © Esri, Maxar, Earthstar Geographics, and the GIS User Community",
         },
       },
       {
@@ -278,7 +286,7 @@ import {
     center: MORELOS_CENTER,
     zoom: 8.2,
     minZoom: 6,
-    maxZoom: 18,
+    maxZoom: state.activeBaseMap === "satelite" ? SATELLITE_MAP_MAX_ZOOM : DEFAULT_MAP_MAX_ZOOM,
     dragRotate: true,
     pitchWithRotate: true,
     touchPitch: true,
@@ -386,6 +394,9 @@ import {
   });
 
   map.on("error", (event) => {
+    if (event?.error?.message?.includes("World_Imagery")) {
+      console.warn("Error cargando tiles de Esri World Imagery", event.error);
+    }
     console.error("Error en MapLibre:", event.error);
   });
 
@@ -3109,6 +3120,8 @@ import {
           id: entry.layerId,
           type: "raster",
           source: entry.sourceId,
+          ...(entry.minzoom !== undefined ? { minzoom: entry.minzoom } : {}),
+          ...(entry.maxzoom !== undefined ? { maxzoom: entry.maxzoom } : {}),
           layout: {
             visibility: baseMapId === activeBaseMap ? "visible" : "none",
           },
@@ -3135,6 +3148,17 @@ import {
 
   function applyBaseMapVisibility(activeBaseMap) {
     if (!map.isStyleLoaded()) return;
+
+    const maxZoom = activeBaseMap === "satelite" ? SATELLITE_MAP_MAX_ZOOM : DEFAULT_MAP_MAX_ZOOM;
+    map.setMaxZoom(maxZoom);
+    if (map.getZoom() > maxZoom) {
+      map.easeTo({ zoom: maxZoom });
+    }
+    if (activeBaseMap === "satelite") {
+      console.info("Satélite activo: Esri World Imagery");
+      console.info("Zoom máximo satelital:", map.getMaxZoom());
+      console.info("Source satelital:", map.getSource("satellite-source"));
+    }
 
     Object.entries(baseMapConfigs).forEach(([baseMapId, entries]) => {
       const visibility = baseMapId === activeBaseMap ? "visible" : "none";
