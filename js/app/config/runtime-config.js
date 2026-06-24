@@ -1,7 +1,7 @@
 const globalConfig = window.__EGEM_CONFIG__ ?? {};
 
 const localApiBaseUrl = "http://localhost:4000/api/v1";
-const productionApiBaseUrl = "https://egem-backend.onrender.com/api/v1";
+const productionApiBaseUrl = "http://2.25.67.210/api/v1";
 
 export const runtimeConfig = {
   apiBaseUrl: String(
