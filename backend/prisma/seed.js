@@ -6,6 +6,10 @@ dotenv.config();
 
 const prisma = new PrismaClient();
 
+const adminEmail = process.env.ADMIN_EMAIL || process.env.DEFAULT_ADMIN_EMAIL || "admin@egem.local";
+const adminPassword = process.env.ADMIN_PASSWORD || process.env.DEFAULT_ADMIN_PASSWORD || "password";
+const adminName = process.env.ADMIN_NAME || process.env.DEFAULT_ADMIN_NAME || "Administrador EGEM";
+
 async function main() {
   const roles = [
     {
@@ -40,24 +44,26 @@ async function main() {
     where: { code: "ADMIN" },
   });
 
-  const passwordHash = await bcrypt.hash(process.env.DEFAULT_ADMIN_PASSWORD, Number(process.env.BCRYPT_SALT_ROUNDS || 12));
+  const passwordHash = await bcrypt.hash(adminPassword, Number(process.env.BCRYPT_SALT_ROUNDS || 12));
 
   await prisma.user.upsert({
-    where: { email: process.env.DEFAULT_ADMIN_EMAIL.toLowerCase() },
+    where: { email: adminEmail.toLowerCase() },
     update: {
-      name: process.env.DEFAULT_ADMIN_NAME,
+      name: adminName,
       passwordHash,
       isActive: true,
       roleId: adminRole.id,
     },
     create: {
-      name: process.env.DEFAULT_ADMIN_NAME,
-      email: process.env.DEFAULT_ADMIN_EMAIL.toLowerCase(),
+      name: adminName,
+      email: adminEmail.toLowerCase(),
       passwordHash,
       municipality: "Estado de Morelos",
       roleId: adminRole.id,
     },
   });
+
+  console.info(`Usuario administrador listo: ${adminEmail.toLowerCase()}`);
 }
 
 main()

@@ -83,8 +83,11 @@ RATE_LIMIT_MAX=150
 MAX_UPLOAD_SIZE_MB=100
 UPLOAD_BASE_DIR=uploads
 PUBLIC_BASE_URL=http://localhost:4000
-DEFAULT_ADMIN_EMAIL=admin@egem.morelos
-DEFAULT_ADMIN_PASSWORD=Admin123!
+ADMIN_EMAIL=admin@egem.local
+ADMIN_PASSWORD=password
+ADMIN_NAME=Administrador EGEM
+DEFAULT_ADMIN_EMAIL=admin@egem.local
+DEFAULT_ADMIN_PASSWORD=password
 DEFAULT_ADMIN_NAME=Administrador EGEM
 ```
 
@@ -120,7 +123,7 @@ npx prisma migrate dev
 Seed inicial:
 
 ```bash
-npx prisma db seed
+npm run seed
 ```
 
 Arranque en desarrollo:
@@ -133,9 +136,60 @@ npm run dev
 
 Lo crea el seed con estas variables:
 
+- `ADMIN_EMAIL`
+- `ADMIN_PASSWORD`
+- `ADMIN_NAME`
 - `DEFAULT_ADMIN_EMAIL`
 - `DEFAULT_ADMIN_PASSWORD`
 - `DEFAULT_ADMIN_NAME`
+
+Las variables `ADMIN_*` tienen prioridad. Las variables `DEFAULT_ADMIN_*` se mantienen como compatibilidad con configuraciones anteriores.
+
+## Flujo local minimo en PowerShell
+
+Desde `backend/`:
+
+```powershell
+npm install
+npm run prisma:generate
+npm run prisma:migrate
+npm run seed
+npm run dev
+```
+
+En otra terminal, valida que el backend responda:
+
+```powershell
+Invoke-RestMethod -Uri http://localhost:4000/health
+Invoke-RestMethod -Uri http://localhost:4000/api/v1
+```
+
+Obtén un token con el admin local:
+
+```powershell
+$body = @{
+  email = "admin@egem.local"
+  password = "password"
+} | ConvertTo-Json
+
+$response = Invoke-RestMethod `
+  -Uri http://localhost:4000/api/v1/auth/login `
+  -Method POST `
+  -ContentType "application/json" `
+  -Body $body
+
+$token = $response.data.token
+```
+
+Consulta capas con el token:
+
+```powershell
+Invoke-RestMethod `
+  -Uri http://localhost:4000/api/v1/layers `
+  -Headers @{ Authorization = "Bearer $token" }
+```
+
+Si consultas `GET /api/v1/layers` sin `Authorization: Bearer ...`, la respuesta esperada es `Token de autenticacion requerido.` porque ese endpoint se mantiene protegido.
 
 ## Roles iniciales
 
@@ -174,9 +228,57 @@ La carga de capas acepta metadatos institucionales y los guarda en `LayerMetadat
 - `coverage`
 - `tags`
 
-Para GeoJSON, el backend intenta extraer conteo de entidades y tipo de geometria. Para Shapefile ZIP, KML/KMZ y GeoTIFF se conserva la estructura de carga y metadatos para procesamiento posterior o vista previa del visor cuando aplique.
+Para GeoJSON, el backend valida y genera una copia procesada para visualizacion. Para KML, KMZ y Shapefile ZIP intenta convertir automaticamente a GeoJSON con GDAL/ogr2ogr. GeoTIFF se conserva como carga raster para procesamiento posterior.
 
 Nota GeoTIFF: el frontend no reproyecta raster. Para visualizacion directa, carga GeoTIFF en EPSG:4326/WGS84 o Web Mercator compatible. Si se requiere reproyeccion automatica, debe implementarse como procesamiento backend con GDAL/rasterio o un worker geoespacial.
+
+## Procesamiento vectorial a GeoJSON
+
+El backend guarda siempre el archivo original y, para capas vectoriales, intenta generar una copia procesada en:
+
+```text
+uploads/processed/{layerId}/layer.geojson
+```
+
+Formatos soportados para visualizacion vectorial:
+
+- `GeoJSON` y `JSON`: se validan como `FeatureCollection` o `Feature` y se copian como GeoJSON procesado.
+- `KML`: se convierte a GeoJSON con GDAL/ogr2ogr.
+- `KMZ`: se lee como ZIP, se valida que no incluya rutas peligrosas, se localiza el `.kml` principal y se convierte con GDAL/ogr2ogr.
+- `Shapefile ZIP`: se valida que incluya al menos `.shp`, `.shx` y `.dbf`; se convierte a GeoJSON reproyectado a `EPSG:4326` con GDAL/ogr2ogr.
+
+El estado queda registrado en `LayerMetadata.properties`:
+
+- `processingStatus`: `processed`, `pending` o `failed`
+- `processingMessage`
+- `processedGeojsonPath`
+- `processedGeojsonUrl`
+- `isVisualizable`
+- `originalFileNames`
+
+`GET /api/v1/layers/:id/geojson` devuelve el GeoJSON procesado. Si todavia no existe, responde con un mensaje claro indicando que la capa aun no cuenta con GeoJSON procesado para visualizacion.
+
+Para convertir `KML`, `KMZ` y `Shapefile ZIP` se requiere `ogr2ogr`.
+
+Windows:
+
+1. Instala OSGeo4W o una distribucion de GDAL para Windows.
+2. Asegura que `ogr2ogr` quede disponible en `PATH`.
+3. Verifica:
+
+```powershell
+ogr2ogr --version
+```
+
+Ubuntu:
+
+```bash
+sudo apt update
+sudo apt install -y gdal-bin
+ogr2ogr --version
+```
+
+Si GDAL no esta instalado, la subida no falla. El backend conserva el archivo original y marca la capa como `pending` con el mensaje: `La capa fue cargada, pero requiere procesamiento GDAL para visualizacion.`
 
 ## Tipos de archivo aceptados
 
@@ -197,8 +299,8 @@ Ejemplo request:
 
 ```json
 {
-  "email": "admin@egem.morelos",
-  "password": "Admin123!"
+  "email": "admin@egem.local",
+  "password": "password"
 }
 ```
 
@@ -209,10 +311,11 @@ Ejemplo response:
   "success": true,
   "message": "Login exitoso.",
   "data": {
+    "token": "jwt-token",
     "accessToken": "jwt-token",
     "user": {
       "id": "clx...",
-      "email": "admin@egem.morelos",
+      "email": "admin@egem.local",
       "name": "Administrador EGEM",
       "municipality": "Estado de Morelos",
       "role": "ADMIN"
@@ -232,10 +335,12 @@ Ejemplo response:
 ### Capas
 
 - `POST /api/v1/layers`
+- `GET /api/v1/layers`
 - `GET /api/v1/layers/public`
 - `GET /api/v1/layers/mine`
 - `GET /api/v1/layers/admin/pending`
 - `GET /api/v1/layers/:id`
+- `GET /api/v1/layers/:id/geojson`
 - `PATCH /api/v1/layers/:id/approve`
 - `PATCH /api/v1/layers/:id/reject`
 - `PATCH /api/v1/layers/:id/publish-state`

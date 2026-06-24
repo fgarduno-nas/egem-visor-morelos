@@ -14,6 +14,7 @@ import {
   getFileExtension,
 } from "../../shared/utils/file-utils.js";
 import { getRequestMetadata } from "../../shared/utils/request-metadata.js";
+import { processUploadedLayer } from "./layer-processing.service.js";
 
 export async function uploadLayer({ body, files, actor, req }) {
   if (!files?.length) {
@@ -65,20 +66,56 @@ export async function uploadLayer({ body, files, actor, req }) {
       },
     },
   });
+  const processing = await processUploadedLayer(created, files);
+  const updated = await prisma.layer.update({
+    where: { id: created.id },
+    data: {
+      metadata: {
+        update: {
+          featureCount: processing.featureCount ?? created.metadata?.featureCount,
+          geometryType: processing.geometryType ?? created.metadata?.geometryType,
+          bbox: processing.bbox,
+          crs: processing.crs ?? created.metadata?.crs,
+          preview: processing.isVisualizable
+            ? {
+                type: "geojson",
+                url: processing.processedGeojsonUrl,
+              }
+            : null,
+          properties: {
+            ...(created.metadata?.properties ?? {}),
+            processingStatus: processing.processingStatus,
+            processingMessage: processing.processingMessage,
+            processedGeojsonPath: processing.processedGeojsonPath,
+            processedGeojsonUrl: processing.processedGeojsonUrl,
+            isVisualizable: processing.isVisualizable,
+            originalFileNames: processing.originalFileNames,
+          },
+        },
+      },
+    },
+    include: {
+      files: true,
+      metadata: true,
+      createdBy: {
+        include: { role: true },
+      },
+    },
+  });
 
   const requestInfo = getRequestMetadata(req);
   await createAuditLog({
     actorId: actor.sub,
     entityType: "Layer",
-    entityId: created.id,
+    entityId: updated.id,
     action: "LAYER_CREATED",
-    description: `Capa ${created.title} creada.`,
-    metadata: { status: created.status },
+    description: `Capa ${updated.title} creada.`,
+    metadata: { status: updated.status, processingStatus: processing.processingStatus },
     ipAddress: requestInfo.ipAddress,
     userAgent: requestInfo.userAgent,
   });
 
-  return mapLayer(created);
+  return mapLayer(updated);
 }
 
 export async function listPublicLayers() {
@@ -139,6 +176,18 @@ export async function listAdminLayers() {
   return layers.map(mapLayer);
 }
 
+export function listLayersForUser(actor) {
+  if (actor.role === ROLE_CODES.ADMIN) {
+    return listAdminLayers();
+  }
+
+  if (actor.role === ROLE_CODES.DATA_PROVIDER) {
+    return listOwnLayers(actor);
+  }
+
+  return listPublicLayers();
+}
+
 export async function listOwnLayers(actor) {
   const layers = await prisma.layer.findMany({
     where: {
@@ -179,6 +228,36 @@ export async function getLayerDetail(id) {
   }
 
   return mapLayer(layer);
+}
+
+export async function getLayerGeoJson(id) {
+  const layer = await prisma.layer.findUnique({
+    where: { id },
+    include: {
+      files: true,
+      metadata: true,
+    },
+  });
+
+  if (!layer || layer.isDeleted) {
+    throw new AppError("Capa no encontrada.", 404);
+  }
+
+  const processedGeojsonPath = layer.metadata?.properties?.processedGeojsonPath;
+  if (!processedGeojsonPath) {
+    throw new AppError("La capa aÃºn no cuenta con GeoJSON procesado para visualizaciÃ³n.", 404);
+  }
+
+  if (!fs.existsSync(processedGeojsonPath)) {
+    throw new AppError("La capa aÃºn no cuenta con GeoJSON procesado para visualizaciÃ³n.", 404);
+  }
+
+  try {
+    const raw = fs.readFileSync(processedGeojsonPath, "utf8");
+    return JSON.parse(raw);
+  } catch (_error) {
+    throw new AppError("No se pudo leer el GeoJSON procesado de la capa.", 500);
+  }
 }
 
 async function changeLayerStatus({ id, actor, req, toStatus, reason = null, description, action }) {
@@ -311,6 +390,7 @@ export async function deleteLayer(id, actor, req) {
 }
 
 function mapLayer(layer) {
+  const metadataProperties = layer.metadata?.properties ?? {};
   return {
     id: layer.id,
     title: layer.title,
@@ -325,6 +405,9 @@ function mapLayer(layer) {
     publishedAt: layer.publishedAt,
     createdAt: layer.createdAt,
     updatedAt: layer.updatedAt,
+    processingStatus: metadataProperties.processingStatus ?? "pending",
+    processedGeojsonUrl: metadataProperties.processedGeojsonUrl ?? null,
+    isVisualizable: Boolean(metadataProperties.isVisualizable),
     createdBy: layer.createdBy
       ? {
           id: layer.createdBy.id,
@@ -342,7 +425,12 @@ function mapLayer(layer) {
       storagePath: file.storagePath,
       publicUrl: buildPublicFileUrl(env.PUBLIC_BASE_URL, file.storagePath),
     })),
-    metadata: layer.metadata ?? null,
+    metadata: layer.metadata
+      ? {
+          ...layer.metadata,
+          properties: metadataProperties,
+        }
+      : null,
     approvals:
       layer.approvals?.map((approval) => ({
         id: approval.id,
@@ -382,7 +470,7 @@ function buildInstitutionalMetadata(body, files, sourceType) {
       coverage: normalizeOptionalText(body.municipality),
       originalFileNames: uploadedFileNames,
       supportedFormatsNote:
-        "GeoJSON se visualiza directamente; Shapefile ZIP, KML/KMZ y GeoTIFF quedan registrados para procesamiento y vista previa cuando el visor pueda convertirlos.",
+        "GeoJSON se visualiza directamente; KML, KMZ y Shapefile ZIP se procesan a GeoJSON cuando GDAL/ogr2ogr esta disponible. GeoTIFF queda registrado para procesamiento raster posterior.",
     },
   };
 }

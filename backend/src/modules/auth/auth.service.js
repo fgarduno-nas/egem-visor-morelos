@@ -45,6 +45,7 @@ export async function loginUser({ email, password, req }) {
   });
 
   return {
+    token,
     accessToken: token,
     user: {
       id: user.id,

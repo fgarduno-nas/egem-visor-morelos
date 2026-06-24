@@ -9,7 +9,9 @@ import { ROLE_CODES } from "../../shared/constants/roles.js";
 import {
   approveLayerController,
   deleteLayerController,
+  getLayerGeoJsonController,
   getLayerDetailController,
+  listLayersController,
   listAdminLayersController,
   listOwnLayersController,
   listPendingLayersController,
@@ -30,6 +32,7 @@ export const layersRouter = Router();
 layersRouter.get("/public", asyncHandler(listPublicLayersController));
 
 layersRouter.use(authMiddleware);
+layersRouter.get("/", asyncHandler(listLayersController));
 layersRouter.get(
   "/mine",
   authorizeRoles(ROLE_CODES.ADMIN, ROLE_CODES.DATA_PROVIDER),
@@ -76,4 +79,5 @@ layersRouter.delete(
   validate(layerIdSchema),
   asyncHandler(deleteLayerController)
 );
+layersRouter.get("/:id/geojson", validate(layerIdSchema), asyncHandler(getLayerGeoJsonController));
 layersRouter.get("/:id", validate(layerIdSchema), asyncHandler(getLayerDetailController));

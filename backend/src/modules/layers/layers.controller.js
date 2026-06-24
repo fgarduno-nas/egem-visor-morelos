@@ -2,7 +2,9 @@ import { sendSuccess } from "../../shared/utils/api-response.js";
 import {
   approveLayer,
   deleteLayer,
+  getLayerGeoJson,
   getLayerDetail,
+  listLayersForUser,
   listAdminLayers,
   listOwnLayers,
   listPendingLayers,
@@ -32,6 +34,15 @@ export async function listPublicLayersController(_req, res) {
   return sendSuccess(res, {
     statusCode: 200,
     message: "Capas públicas listadas correctamente.",
+    data: layers,
+  });
+}
+
+export async function listLayersController(req, res) {
+  const layers = await listLayersForUser(req.user);
+  return sendSuccess(res, {
+    statusCode: 200,
+    message: "Capas listadas correctamente.",
     data: layers,
   });
 }
@@ -69,6 +80,15 @@ export async function getLayerDetailController(req, res) {
     statusCode: 200,
     message: "Detalle de capa obtenido correctamente.",
     data: layer,
+  });
+}
+
+export async function getLayerGeoJsonController(req, res) {
+  const geojson = await getLayerGeoJson(req.validated.params.id);
+  return sendSuccess(res, {
+    statusCode: 200,
+    message: "GeoJSON de capa obtenido correctamente.",
+    data: geojson,
   });
 }
 
