@@ -921,7 +921,7 @@ import {
   function renderLayerItem(layer) {
     const checked = layer.visible ? "checked" : "";
     const disableToggle = !canSeeLayer(layer) ? "disabled" : "";
-    const reviewButton = state.session.role === "admin" && canPreviewLayer(layer)
+    const reviewButton = canVisualizeLayer(layer) || (state.session.role === "admin" && canPreviewLayer(layer))
       ? `<button class="ghost-button" type="button" data-preview="${layer.id}">Visualizar</button>`
       : "";
     const downloadButton = canDownloadLayer(layer)
@@ -1106,6 +1106,10 @@ import {
     badges.push(`<span class="badge ${getStatusBadgeClass(layer.status)}">${escapeHtml(getStatusLabel(layer.status))}</span>`);
     if (layer.fileType) {
       badges.push(`<span class="badge">${escapeHtml(layer.fileType.toUpperCase())}</span>`);
+    }
+    if (layer.backendLayerId) {
+      const visualStatus = layer.isVisualizable ? "Visualizable" : getProcessingStatusLabel(layer.processingStatus);
+      badges.push(`<span class="badge ${layer.isVisualizable ? "badge--published" : "badge--pending"}">${escapeHtml(visualStatus)}</span>`);
     }
     return badges.join("");
   }
@@ -1553,6 +1557,9 @@ import {
     bindVectorPopup(lineId, layer);
     bindVectorPopup(fillId, layer);
     applyUserLayerOpacityToMap(layer);
+    if (layer.backendLayerId && layer.processedGeojsonUrl) {
+      console.info("GeoJSON visualizado correctamente", layer.title);
+    }
   }
 
   function addImageLayerToMap(layer) {
@@ -1626,9 +1633,12 @@ import {
     const layer = state.userLayers.find((item) => item.id === layerId);
     if (!layer) return;
     previewLayer(layer);
+    const isReviewPreview = !isPublishedStatus(layer.status);
     updateInfoPanel({
       title: layer.title,
-      description: "Vista previa activada para revisar la capa antes de su aprobacion.",
+      description: isReviewPreview
+        ? "Vista previa activada para revisar la capa antes de su aprobacion."
+        : "Capa visualizada correctamente desde el catalogo institucional.",
       extra: [
         `Formato: ${layer.fileType.toUpperCase()}`,
         `Municipio: ${layer.municipality}`,
@@ -4015,6 +4025,19 @@ import {
     return !isPublishedStatus(layer.status) && layer.sourceKind !== "static";
   }
 
+  function canVisualizeLayer(layer) {
+    return layer.sourceKind !== "static" && Boolean(layer.isVisualizable && layer.processedGeojsonUrl);
+  }
+
+  function getProcessingStatusLabel(status) {
+    const labels = {
+      processed: "Visualizable",
+      pending: "En proceso",
+      failed: "No visualizable",
+    };
+    return labels[status] || "No visualizable";
+  }
+
   function canTogglePublish(layer) {
     return ["approved", "unpublished", "published"].includes(layer.status);
   }
@@ -4119,6 +4142,7 @@ import {
     try {
       setSystemStatus("Actualizando capas", "Se esta consultando el catalogo remoto y el estado de publicacion.");
       const publicLayers = await listPublicLayersRequest();
+      console.info("Capas públicas obtenidas:", publicLayers);
       const records = [...publicLayers];
 
       if (state.session.role === "admin" && state.session.token) {
@@ -4142,13 +4166,16 @@ import {
       const previousVisibility = new Map(
         state.userLayers.map((layer) => [layer.backendLayerId || layer.id, Boolean(layer.visible)])
       );
+      const localLayers = state.userLayers.filter((layer) => !layer.backendLayerId);
 
       state.userLayers.forEach((layer) => {
-        removeLayerBundle(layer.id);
-        state.renderedLayers.delete(layer.id);
+        if (layer.backendLayerId) {
+          removeLayerBundle(layer.id);
+          state.renderedLayers.delete(layer.id);
+        }
       });
 
-      state.userLayers = hydratedLayers.map((layer) => {
+      const remoteLayers = hydratedLayers.map((layer) => {
         const preference = persistedPreferences.get(layer.backendLayerId || layer.id);
         const visible =
           previousVisibility.get(layer.backendLayerId || layer.id) ??
@@ -4160,6 +4187,7 @@ import {
           opacity: clampLayerOpacity(preference?.opacity ?? layer.opacity ?? 1),
         };
       });
+      state.userLayers = [...localLayers, ...remoteLayers];
 
       staticLayers.forEach((layer) => {
         const preference = persistedPreferences.get(layer.id);
@@ -4335,7 +4363,9 @@ import {
     const category = extractCategoryFromRecord(record);
     let hydratedLayer = null;
 
-    if (sourceType === "geojson") {
+    if (record.isVisualizable && record.processedGeojsonUrl) {
+      hydratedLayer = await createProcessedGeoJsonLayerFromBackend(record);
+    } else if (sourceType === "geojson") {
       hydratedLayer = await createGeoJsonLayerFromRemoteRecord(record, remoteFiles[0]);
     } else if (sourceType === "kml" || sourceType === "kmz") {
       hydratedLayer = await createKmlLayer(await fetchRemoteFile(remoteFiles[0]));
@@ -4365,6 +4395,9 @@ import {
       approvedAt: record.approvedAt || null,
       publishedAt: record.publishedAt || null,
       fileType: sourceType,
+      isVisualizable: Boolean(record.isVisualizable || record.processedGeojsonUrl),
+      processedGeojsonUrl: record.processedGeojsonUrl || null,
+      processingStatus: record.processingStatus || record.metadata?.properties?.processingStatus || null,
       metadata: normalizeBackendLayerMetadata(record, hydratedLayer),
       download: {
         files: remoteFiles.map((file) => ({
@@ -4393,11 +4426,37 @@ import {
       scaleOrResolution: properties.scaleOrResolution || "",
       createdAt: record.createdAt || "",
       publishedAt: record.publishedAt || "",
+      processingStatus: record.processingStatus || properties.processingStatus || "",
+      processedGeojsonUrl: record.processedGeojsonUrl || properties.processedGeojsonUrl || "",
+      isVisualizable: Boolean(record.isVisualizable || properties.isVisualizable),
       properties: {
         ...properties,
         coverage: properties.coverage || record.municipality || hydratedLayer.municipality,
       },
     };
+  }
+
+  async function createProcessedGeoJsonLayerFromBackend(record) {
+    const response = await fetch(record.processedGeojsonUrl);
+    if (!response.ok) {
+      throw new Error("No se pudo descargar el GeoJSON procesado del backend.");
+    }
+
+    const geojson = ensureFeatureCollection(await response.json());
+    console.info("Capa cargada desde backend:", record.title);
+    return createUserLayer({
+      title: record.title,
+      category: extractCategoryFromRecord(record),
+      fileType: record.sourceType || "geojson",
+      sourceKind: "geojson",
+      data: geojson,
+      description: record.description || "Capa publicada desde el backend institucional.",
+      backendLayerId: record.id,
+      createdById: record.createdBy?.id || null,
+      municipality: record.municipality || "Cobertura estatal",
+      status: record.status,
+      metadata: record.metadata || null,
+    });
   }
 
   async function createGeoJsonLayerFromRemoteRecord(record, remoteFile) {
