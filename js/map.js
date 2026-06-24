@@ -4442,7 +4442,7 @@ import {
       throw new Error("No se pudo descargar el GeoJSON procesado del backend.");
     }
 
-    const geojson = ensureFeatureCollection(await response.json());
+    const geojson = normalizeBackendProcessedGeoJson(ensureFeatureCollection(await response.json()));
     console.info("Capa cargada desde backend:", record.title);
     return createUserLayer({
       title: record.title,
@@ -4457,6 +4457,112 @@ import {
       status: record.status,
       metadata: record.metadata || null,
     });
+  }
+
+  function normalizeBackendProcessedGeoJson(geojson) {
+    return {
+      ...geojson,
+      features: geojson.features.map((feature) => ({
+        ...feature,
+        properties: normalizeBackendFeatureProperties(feature.properties || {}),
+      })),
+    };
+  }
+
+  function normalizeBackendFeatureProperties(properties) {
+    const normalized = { ...properties };
+    const descriptionAttributes = parseKmlDescriptionHtmlAttributes(properties.description);
+
+    if (Object.keys(descriptionAttributes).length) {
+      console.info("Descripcion HTML KML detectada");
+      console.info("Atributos KML extraidos:", descriptionAttributes);
+      Object.entries(descriptionAttributes).forEach(([key, value]) => {
+        if (normalized[key] === undefined || normalized[key] === null || String(normalized[key]).trim() === "") {
+          normalized[key] = value;
+        }
+      });
+    }
+
+    applyBackendAttributeAliases(normalized);
+
+    if (!normalized.__styleFill) {
+      const intensity = normalized.Intensidad;
+      const color = getIntensityFillColor(intensity);
+      if (color) {
+        normalized.__styleFill = color;
+        console.info("Intensidad normalizada:", intensity);
+        console.info("Color aplicado:", color);
+      }
+    }
+
+    return normalized;
+  }
+
+  function parseKmlDescriptionHtmlAttributes(description) {
+    if (typeof description !== "string" || !description.trim()) return {};
+    const attributes = parseHtmlTableAttributes(description);
+    if (Object.keys(attributes).length) return attributes;
+
+    const decoded = new DOMParser().parseFromString(description, "text/html").body.textContent || "";
+    if (decoded && decoded !== description && decoded.includes("<")) {
+      return parseHtmlTableAttributes(decoded);
+    }
+
+    return {};
+  }
+
+  function parseHtmlTableAttributes(html) {
+    const htmlDoc = new DOMParser().parseFromString(html, "text/html");
+    const attributes = {};
+
+    [...htmlDoc.querySelectorAll("tr")].forEach((row) => {
+      const cells = row.querySelectorAll("td, th");
+      if (cells.length >= 2) {
+        const key = normalizeWhitespace(cells[0].textContent).replace(/:$/u, "");
+        const value = normalizeWhitespace(cells[1].textContent);
+        if (key && value) attributes[key] = value;
+      }
+    });
+
+    return attributes;
+  }
+
+  function applyBackendAttributeAliases(properties) {
+    const lookup = new Map(
+      Object.entries(properties)
+        .filter(([_key, value]) => isUsablePopupValue(value))
+        .map(([key, value]) => [normalizeAttributeKey(key), { key, value }])
+    );
+    const aliases = [
+      ["Municipio", ["Municipio", "Name", "name"]],
+      ["Intensidad", ["Intensidad"]],
+      ["Detalles", ["Detalles"]],
+      ["Clasificación", ["Fen_Clasif", "Clasificacion", "Clasificación"]],
+      ["Amenaza", ["Ame_Ampl", "Amenaza"]],
+      ["Magnitud", ["Magni_num", "Magnitud"]],
+      ["Indicador", ["R_P_V_E_A", "Indicador"]],
+      ["Fuente", ["Fuente"]],
+    ];
+
+    aliases.forEach(([canonical, keys]) => {
+      if (isUsablePopupValue(properties[canonical])) return;
+      const matched = keys.map(normalizeAttributeKey).map((key) => lookup.get(key)).find(Boolean);
+      if (matched) {
+        properties[canonical] = String(matched.value).trim();
+      }
+    });
+  }
+
+  function getIntensityFillColor(value) {
+    const normalized = normalizeAttributeKey(value).replace(/\s+/g, " ").trim();
+    const colors = {
+      "muy bajo": "#166534",
+      bajo: "#22c55e",
+      medio: "#facc15",
+      alto: "#f97316",
+      "muy alto": "#dc2626",
+    };
+    return colors[normalized] || null;
   }
 
   async function createGeoJsonLayerFromRemoteRecord(record, remoteFile) {
