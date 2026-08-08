@@ -18,6 +18,11 @@ import {
   setPublishStateRequest,
   uploadLayerRequest,
 } from "./app/services/layers-api.js";
+import {
+  analyzeStyleField,
+  buildContinuousClassification,
+  containsHtmlMarkup as containsRemoteStyleHtml,
+} from "./app/utils/remote-style-utils.js";
 
   const MORELOS_CENTER = [-99.07, 18.84];
   const STORAGE_KEYS = {
@@ -1498,6 +1503,9 @@ import {
     const defaultLineColor = layer.lineColor || layer.color;
     const defaultFillColor = layer.fillColor || layer.color;
     const defaultPointColor = layer.iconColor || layer.color;
+    const fillColorExpression = layer.symbology?.fillColorExpression || ["coalesce", ["get", "__styleFill"], defaultFillColor];
+    const lineColorExpression = layer.symbology?.lineColorExpression || ["coalesce", ["get", "__styleLine"], defaultLineColor];
+    const pointColorExpression = layer.symbology?.pointColorExpression || ["coalesce", ["get", "__styleIcon"], defaultPointColor];
 
     upsertGeoJsonSource(sourceId, layer.data);
 
@@ -1511,7 +1519,7 @@ import {
         ["==", ["geometry-type"], "MultiPolygon"],
       ],
       paint: {
-        "fill-color": ["coalesce", ["get", "__styleFill"], defaultFillColor],
+        "fill-color": fillColorExpression,
         "fill-opacity": 1 * getLayerOpacity(layer),
       },
     });
@@ -1528,7 +1536,7 @@ import {
         ["==", ["geometry-type"], "MultiPolygon"],
       ],
       paint: {
-        "line-color": ["coalesce", ["get", "__styleLine"], defaultLineColor],
+        "line-color": lineColorExpression,
         "line-width": ["coalesce", ["to-number", ["get", "__styleWidth"]], 2.4],
         "line-opacity": getLayerOpacity(layer),
       },
@@ -1544,7 +1552,7 @@ import {
         ["==", ["geometry-type"], "MultiPoint"],
       ],
       paint: {
-        "circle-color": ["coalesce", ["get", "__styleIcon"], defaultPointColor],
+        "circle-color": pointColorExpression,
         "circle-radius": 6,
         "circle-stroke-color": "#ffffff",
         "circle-stroke-width": 1.8,
@@ -1553,6 +1561,7 @@ import {
       },
     });
 
+    layer.interactiveLayerIds = [pointId, lineId, fillId];
     bindVectorPopup(pointId, layer);
     bindVectorPopup(lineId, layer);
     bindVectorPopup(fillId, layer);
@@ -1643,6 +1652,7 @@ import {
         `Formato: ${layer.fileType.toUpperCase()}`,
         `Municipio: ${layer.municipality}`,
       ],
+      legend: layer.legend,
     });
   }
 
@@ -1702,6 +1712,7 @@ import {
     updateInfoPanel({
       title: current.title,
       description: visible ? "La capa esta visible en el mapa." : "La capa fue ocultada del mapa.",
+      legend: current.legend,
     });
   }
 
@@ -1887,11 +1898,13 @@ import {
   function bindVectorPopup(layerId, layerMeta) {
     if (!map.getLayer(layerId) || map[`__bound_${layerId}`]) return;
     map[`__bound_${layerId}`] = true;
+    console.info("IDs de las capas registradas para el clic:", layerMeta.interactiveLayerIds || [layerId]);
 
     map.on("click", layerId, (event) => {
       if (state.activeTool) return;
-      const feature = event.features && event.features[0];
+      const feature = getClickedVectorFeature(event, layerMeta);
       const props = (feature && feature.properties) || {};
+      console.info("Propiedades de una Feature seleccionada:", props);
       const cleanedAttributes = cleanFeatureAttributes(props);
       const mainAttribute = findMainFeatureAttribute(cleanedAttributes);
 
@@ -1903,6 +1916,7 @@ import {
           ...buildLayerCatalogLines(layerMeta),
         ],
         attributes: cleanedAttributes,
+        legend: layerMeta.legend,
       });
 
       // Popup de atributos: usa los properties reales de la entidad clickeada.
@@ -1930,13 +1944,43 @@ import {
           .join("")
       : "";
     const attributes = info.attributes ? renderAttributeTable(info.attributes) : "";
+    const legend = info.legend ? renderLayerLegend(info.legend) : "";
 
     elements.infoPanel.innerHTML = `
       <p class="info-title">${escapeHtml(info.title)}</p>
       <p class="info-copy">${escapeHtml(info.description)}</p>
       ${extras}
+      ${legend}
       ${attributes}
     `;
+  }
+
+  function renderLayerLegend(legend) {
+    if (!legend || legend.type !== "continuous" || !Array.isArray(legend.classes)) return "";
+    const items = legend.classes
+      .map((item) => `
+        <div class="legend-item">
+          <span class="legend-swatch" style="background:${escapeHtml(item.color)}"></span>
+          <div>
+            <strong>${escapeHtml(item.label)}</strong>
+            <p>${escapeHtml(formatLegendNumber(item.min))} - ${escapeHtml(formatLegendNumber(item.max))}</p>
+          </div>
+        </div>
+      `)
+      .join("");
+    return `
+      <div class="legend-list">
+        <p class="info-copy"><strong>${escapeHtml(legend.field)}</strong></p>
+        ${items}
+      </div>
+    `;
+  }
+
+  function formatLegendNumber(value) {
+    if (!Number.isFinite(Number(value))) return "Sin dato";
+    const numeric = Number(value);
+    if (Math.abs(numeric) >= 100) return numeric.toLocaleString("es-MX", { maximumFractionDigits: 2 });
+    return numeric.toLocaleString("es-MX", { maximumFractionDigits: 4 });
   }
 
   function buildLayerCatalogLines(layer) {
@@ -2009,18 +2053,30 @@ import {
   }
 
   function cleanFeatureAttributes(properties = {}) {
-    const entries = Object.entries(properties)
-      .filter(([_key, value]) => isUsablePopupValue(value))
-      .map(([key, value]) => [normalizeAttributeKey(key), String(value).trim()]);
-    const normalizedLookup = new Map(entries);
-    const canonicalEntries = getPopupAttributeSchema()
-      .map(({ label, keys }) => {
-        const matchKey = keys.map(normalizeAttributeKey).find((key) => normalizedLookup.has(key));
-        return matchKey ? [label, normalizedLookup.get(matchKey)] : null;
-      })
-      .filter(Boolean);
+    const sourceEntries = Object.entries(properties)
+      .filter(([key, value]) => isVisiblePopupAttribute(key, value));
+    const normalizedLookup = new Map(
+      sourceEntries.map(([key, value]) => [normalizeAttributeKey(key), { key, value: String(value).trim() }])
+    );
+    const usedKeys = new Set();
+    const attributes = {};
 
-    return Object.fromEntries(canonicalEntries);
+    getPopupAttributeSchema().forEach(({ label, keys }) => {
+      const matchKey = keys.map(normalizeAttributeKey).find((key) => normalizedLookup.has(key));
+      if (!matchKey) return;
+      const entry = normalizedLookup.get(matchKey);
+      attributes[label] = entry.value;
+      usedKeys.add(normalizeAttributeKey(entry.key));
+    });
+
+    sourceEntries.forEach(([key, value]) => {
+      const normalizedKey = normalizeAttributeKey(key);
+      if (usedKeys.has(normalizedKey)) return;
+      attributes[key] = String(value).trim();
+      usedKeys.add(normalizedKey);
+    });
+
+    return attributes;
   }
 
   function getPopupAttributeSchema() {
@@ -2033,6 +2089,7 @@ import {
       { label: "Magnitud", keys: ["Magnitud", "Magni_num", "MAGNI_NUM", "Valor", "VALOR"] },
       { label: "Indicador", keys: ["Indicador", "R_P_V_E_A", "INDICADOR"] },
       { label: "Fuente", keys: ["Fuente", "FUENTE"] },
+      { label: "IVS_FINAL", keys: ["IVS_FINAL"] },
     ];
   }
 
@@ -2053,6 +2110,14 @@ import {
     if (value === null || value === undefined) return false;
     if (typeof value === "object") return false;
     return String(value).trim() !== "";
+  }
+
+  function isVisiblePopupAttribute(key, value) {
+    if (!isUsablePopupValue(value)) return false;
+    if (key.startsWith("__")) return false;
+    if (["geometry", "geom", "the_geom"].includes(normalizeAttributeKey(key))) return false;
+    if (normalizeAttributeKey(key) === "description" && containsRemoteStyleHtml(value)) return false;
+    return true;
   }
 
   function normalizeAttributeKey(key) {
@@ -3449,6 +3514,8 @@ import {
       coordinates: config.coordinates || null,
       download: config.download || null,
       metadata: config.metadata || null,
+      symbology: config.symbology || null,
+      legend: config.legend || null,
     };
   }
 
@@ -4442,7 +4509,8 @@ import {
       throw new Error("No se pudo descargar el GeoJSON procesado del backend.");
     }
 
-    const geojson = normalizeBackendProcessedGeoJson(ensureFeatureCollection(await response.json()));
+    const normalizedRemote = normalizeBackendProcessedGeoJson(ensureFeatureCollection(await response.json()), record);
+    const geojson = normalizedRemote.geojson;
     console.info("Capa cargada desde backend:", record.title);
     return createUserLayer({
       title: record.title,
@@ -4456,16 +4524,51 @@ import {
       municipality: record.municipality || "Cobertura estatal",
       status: record.status,
       metadata: record.metadata || null,
+      symbology: normalizedRemote.symbology,
+      legend: normalizedRemote.legend,
     });
   }
 
-  function normalizeBackendProcessedGeoJson(geojson) {
+  function getClickedVectorFeature(event, layerMeta) {
+    const directFeature = event.features && event.features[0];
+    if (hasPopupProperties(directFeature?.properties)) return directFeature;
+
+    const layerIds = (layerMeta.interactiveLayerIds || [])
+      .filter((id) => map.getLayer(id));
+    if (!layerIds.length) return directFeature || null;
+
+    const queriedFeatures = map.queryRenderedFeatures(event.point, { layers: layerIds });
+    return queriedFeatures.find((feature) => hasPopupProperties(feature.properties)) || directFeature || null;
+  }
+
+  function hasPopupProperties(properties = {}) {
+    return Object.entries(properties || {}).some(([key, value]) => {
+      return !key.startsWith("__") && isUsablePopupValue(value);
+    });
+  }
+
+  function normalizeBackendProcessedGeoJson(geojson, record = null) {
+    const features = geojson.features.map((feature) => ({
+      ...feature,
+      properties: normalizeBackendFeatureProperties(feature.properties || {}),
+    }));
+    const featuresWithExistingStyle = features.map((feature) => ({
+      ...feature,
+      properties: applyExistingRemoteStyle(feature.properties || {}, record),
+    }));
+    const styleField = chooseBackendStyleFieldSafe(featuresWithExistingStyle);
+    const symbology = buildRemoteLayerSymbology(featuresWithExistingStyle, styleField, record);
+
     return {
-      ...geojson,
-      features: geojson.features.map((feature) => ({
-        ...feature,
-        properties: normalizeBackendFeatureProperties(feature.properties || {}),
-      })),
+      geojson: {
+        ...geojson,
+        features: featuresWithExistingStyle.map((feature) => ({
+          ...feature,
+          properties: applyBackendFeatureStyle(feature.properties || {}, symbology),
+        })),
+      },
+      symbology,
+      legend: symbology?.legend || null,
     };
   }
 
@@ -4484,15 +4587,8 @@ import {
     }
 
     applyBackendAttributeAliases(normalized);
-
-    if (!normalized.__styleFill) {
-      const intensity = normalized.Intensidad;
-      const color = getIntensityFillColor(intensity);
-      if (color) {
-        normalized.__styleFill = color;
-        console.info("Intensidad normalizada:", intensity);
-        console.info("Color aplicado:", color);
-      }
+    if (isUsablePopupValue(normalized.Intensidad) && Object.keys(descriptionAttributes).length) {
+      console.info("Intensidad extraída del HTML:", normalized.Intensidad);
     }
 
     return normalized;
@@ -4563,6 +4659,395 @@ import {
       "muy alto": "#dc2626",
     };
     return colors[normalized] || null;
+  }
+
+  function applyExistingRemoteStyle(properties, record = null) {
+    if (properties.__styleFill) {
+      console.info("Se conserva __styleFill:", properties.__styleFill);
+      return properties;
+    }
+
+    const styleColor = getRemoteStyleColor(properties, record);
+    if (!styleColor) return properties;
+
+    console.info("Estilo remoto existente detectado:", styleColor);
+    return {
+      ...properties,
+      __styleFill: styleColor,
+    };
+  }
+
+  function getRemoteStyleColor(properties, record = null) {
+    const styleKeys = [
+      "__styleFill",
+      "fill",
+      "fillColor",
+      "fill-color",
+      "FillColor",
+      "Style",
+      "style",
+      "color",
+      "Color",
+      "stroke",
+      "styleUrl",
+      "OGR_STYLE",
+      "ogr_style",
+    ];
+    const directValue = getPropertyValueByAlias(properties, styleKeys);
+    const parsedDirect = parseRemoteColorValue(directValue);
+    if (parsedDirect) return parsedDirect;
+
+    const metadataProperties = record?.metadata?.properties || {};
+    const metadataValue = getPropertyValueByAlias(metadataProperties, [
+      "fillColor",
+      "fill",
+      "color",
+      "defaultFillColor",
+      "layerColor",
+    ]);
+    return parseRemoteColorValue(metadataValue);
+  }
+
+  function parseRemoteColorValue(value) {
+    if (!isUsablePopupValue(value)) return null;
+    const raw = String(value).trim();
+    const cssColorMatch = raw.match(/rgba?\([^)]+\)/iu);
+    if (cssColorMatch) return cssColorMatch[0];
+    const hexMatch = raw.match(/#?([0-9a-f]{6}|[0-9a-f]{8})\b/iu);
+    if (!hexMatch) return null;
+
+    const hex = hexMatch[1];
+    if (hex.length === 6) return `#${hex}`;
+    return parseKmlColor(hex);
+  }
+
+  function chooseBackendStyleField(features) {
+    const priorityFields = [
+      "Intensidad",
+      "Riesgo",
+      "Peligro",
+      "Vulnerabilidad",
+      "Nivel",
+      "Categoria",
+      "Categoría",
+      "Clasificación",
+      "Fen_Clasif",
+      "IVS_FINAL",
+      "Magni_num",
+      "Intens_num",
+    ];
+
+    const priorityField = priorityFields.find((field) => getUniqueStyleValues(features, field).length > 0);
+    const selectedField = priorityField || findMostVariableStyleField(features);
+    if (!selectedField) return null;
+
+    const uniqueValues = getUniqueStyleValues(features, selectedField);
+    console.info("Campo de estilo elegido:", selectedField);
+    console.info("Número de valores únicos de clasificación:", uniqueValues.length);
+    if (uniqueValues.length <= 1) {
+      console.info("Se aplica estilo único:", uniqueValues[0] || "sin valor");
+    } else {
+      console.info("Se aplica simbología por categorías:", selectedField);
+    }
+    return {
+      field: selectedField,
+      uniqueCount: uniqueValues.length,
+    };
+  }
+
+  function hasVaryingUsableValues(features, field) {
+    const values = getFeatureFieldValues(features, field);
+    return values.length > 0 && new Set(values.map(normalizeStyleValueKey)).size > 1;
+  }
+
+  function getUniqueStyleValues(features, field) {
+    return [...new Set(getFeatureFieldValues(features, field).map(normalizeStyleValueKey))];
+  }
+
+  function findMostVariableStyleField(features) {
+    const ignoredKeys = new Set([
+      "description",
+      "name",
+      "Name",
+      "Municipio",
+      "__styleLine",
+      "__styleFill",
+      "__styleIcon",
+      "__styleWidth",
+    ]);
+    const scores = new Map();
+
+    features.forEach((feature) => {
+      Object.entries(feature.properties || {}).forEach(([key, value]) => {
+        if (ignoredKeys.has(key) || key.startsWith("__") || !isUsablePopupValue(value)) return;
+        if (!scores.has(key)) scores.set(key, new Set());
+        scores.get(key).add(normalizeStyleValueKey(value));
+      });
+    });
+
+    return [...scores.entries()]
+      .filter(([_key, values]) => values.size > 1)
+      .sort((a, b) => b[1].size - a[1].size)[0]?.[0] || null;
+  }
+
+  function getFeatureFieldValues(features, field) {
+    return features
+      .map((feature) => getPropertyValueByAlias(feature.properties || {}, [field]))
+      .filter(isUsablePopupValue)
+      .map((value) => String(value).trim());
+  }
+
+  function applyBackendFeatureStyle(properties, styleField) {
+    if (styleField?.type === "continuous") {
+      return properties;
+    }
+
+    const intensity = getPropertyValueByAlias(properties, ["Intensidad"]);
+    const intensityColor = getTextCategoryColor(intensity);
+    if (intensityColor) {
+      console.info("Campo de simbología final:", "Intensidad");
+      console.info("Valor de estilo detectado:", intensity);
+      console.info("Color por intensidad aplicado:", intensityColor);
+      return {
+        ...properties,
+        __styleFill: intensityColor,
+      };
+    }
+
+    if (properties.__styleFill) {
+      console.info("Se conserva __styleFill:", properties.__styleFill);
+      return properties;
+    }
+    const fieldName = typeof styleField === "string" ? styleField : styleField?.field;
+    const styleValue = fieldName ? getPropertyValueByAlias(properties, [fieldName]) : null;
+    const color = getStyleColorForValue(styleValue, styleField);
+    if (color) {
+      console.info("Valor de estilo detectado:", styleValue);
+      console.info("Color final aplicado:", color);
+      return {
+        ...properties,
+        __styleFill: color,
+      };
+    }
+    return properties;
+  }
+
+  function getStyleColorForValue(value, styleField = null) {
+    if (!isUsablePopupValue(value)) return null;
+    const textColor = getTextCategoryColor(value);
+    if (textColor) return textColor;
+    const numericColor = getNumericCategoryColor(value);
+    if (numericColor) return numericColor;
+    if (styleField?.uniqueCount <= 1) return null;
+    return getCategoricalColor(value);
+  }
+
+  function getTextCategoryColor(value) {
+    const normalized = normalizeAttributeKey(value).replace(/\s+/g, " ").trim();
+    if (normalized.includes("muy bajo")) return "#166534";
+    if (normalized.includes("muy alto")) return "#dc2626";
+    if (normalized.includes("bajo")) return "#22c55e";
+    if (normalized.includes("medio")) return "#facc15";
+    if (normalized.includes("alto")) return "#f97316";
+    return null;
+  }
+
+  function getNumericCategoryColor(value) {
+    const numeric = Number(String(value).replace(",", ".").trim());
+    if (!Number.isFinite(numeric)) return null;
+    if (numeric >= 0 && numeric <= 0.2) return "#166534";
+    if (numeric > 0.2 && numeric <= 0.4) return "#22c55e";
+    if (numeric > 0.4 && numeric <= 0.6) return "#facc15";
+    if (numeric > 0.6 && numeric <= 0.8) return "#f97316";
+    if (numeric > 0.8 && numeric <= 1) return "#dc2626";
+    return null;
+  }
+
+  function getCategoricalColor(value) {
+    const palette = ["#2563eb", "#16a34a", "#f59e0b", "#dc2626", "#7c3aed", "#0891b2", "#db2777", "#65a30d"];
+    const key = normalizeStyleValueKey(value);
+    let hash = 0;
+    for (let index = 0; index < key.length; index += 1) {
+      hash = (hash * 31 + key.charCodeAt(index)) >>> 0;
+    }
+    return palette[hash % palette.length];
+  }
+
+  function getPropertyValueByAlias(properties, aliases) {
+    const lookup = new Map(
+      Object.entries(properties).map(([key, value]) => [normalizeAttributeKey(key), value])
+    );
+    const alias = aliases.map(normalizeAttributeKey).find((key) => lookup.has(key));
+    return alias ? lookup.get(alias) : null;
+  }
+
+  function normalizeStyleValueKey(value) {
+    return normalizeAttributeKey(value).replace(/\s+/g, " ").trim();
+  }
+
+  function chooseBackendStyleFieldSafe(features) {
+    const priorityFields = [
+      "Intensidad",
+      "Riesgo",
+      "Peligro",
+      "Vulnerabilidad",
+      "Nivel",
+      "Categoria",
+      "Categoría",
+      "Clasificación",
+      "Fen_Clasif",
+      "IVS_FINAL",
+      "Magni_num",
+      "Intens_num",
+    ];
+    const priorityField = priorityFields.find((field) => getUniqueSafeStyleValues(features, field).length > 0);
+    const selectedField = priorityField || findMostVariableSafeStyleField(features);
+    if (!selectedField) return null;
+
+    const uniqueValues = getUniqueSafeStyleValues(features, selectedField);
+    console.info("Campo seleccionado para simbología:", selectedField);
+    console.info("Valores únicos detectados:", uniqueValues.length <= 12 ? uniqueValues : `${uniqueValues.length} valores`);
+    return {
+      field: selectedField,
+      uniqueCount: uniqueValues.length,
+    };
+  }
+
+  function findMostVariableSafeStyleField(features) {
+    const scores = new Map();
+
+    features.forEach((feature) => {
+      Object.entries(feature.properties || {}).forEach(([key, value]) => {
+        if (!isSafeStyleFieldCandidate(key, value)) return;
+        if (!scores.has(key)) scores.set(key, new Set());
+        scores.get(key).add(normalizeStyleValueKey(value));
+      });
+    });
+
+    return [...scores.entries()]
+      .filter(([_key, values]) => values.size > 1)
+      .sort((a, b) => b[1].size - a[1].size)[0]?.[0] || null;
+  }
+
+  function getUniqueSafeStyleValues(features, field) {
+    return [...new Set(getSafeFeatureFieldValues(features, field).map(normalizeStyleValueKey))];
+  }
+
+  function getSafeFeatureFieldValues(features, field) {
+    return features
+      .map((feature) => getPropertyValueByAlias(feature.properties || {}, [field]))
+      .filter((value) => isSafeStyleValue(value, field))
+      .map((value) => String(value).trim());
+  }
+
+  function buildRemoteLayerSymbology(features, styleField, record = null) {
+    if (!styleField?.field) return null;
+
+    const analysis = analyzeStyleField(features, styleField.field);
+    if (!analysis.validCount) return null;
+
+    let classification = null;
+    if (analysis.type === "continuous") {
+      classification = buildContinuousClassification(styleField.field, analysis.numericValues);
+    }
+
+    const symbology = classification?.type === "continuous" || classification?.type === "single"
+      ? {
+          type: "continuous",
+          field: styleField.field,
+          fillColorExpression: classification.expression,
+          lineColorExpression: classification.expression,
+          pointColorExpression: classification.expression,
+          legend: {
+            type: "continuous",
+            field: styleField.field,
+            classes: classification.legend,
+            method: classification.method,
+          },
+          diagnostics: {
+            layerName: record?.title || "Capa remota",
+            field: styleField.field,
+            type: "numérico continuo",
+            featureCount: features.length,
+            validCount: analysis.validCount,
+            uniqueCount: analysis.uniqueCount,
+            min: classification.min,
+            max: classification.max,
+            method: classification.method,
+            cuts: classification.cuts,
+            expression: classification.expression,
+          },
+        }
+      : {
+          type: "categorical",
+          field: styleField.field,
+          legend: null,
+          diagnostics: {
+            layerName: record?.title || "Capa remota",
+            field: styleField.field,
+            type: "categórico",
+            featureCount: features.length,
+            validCount: analysis.validCount,
+            uniqueCount: analysis.uniqueCount,
+            min: null,
+            max: null,
+            method: "categorical",
+            cuts: [],
+            expression: null,
+          },
+        };
+
+    console.info("Diagnóstico simbología remota:", symbology.diagnostics);
+    return symbology;
+  }
+
+  function isSafeStyleFieldCandidate(key, value) {
+    const blockedFields = new Set([
+      "description",
+      "Description",
+      "html",
+      "HTML",
+      "snippet",
+      "Snippet",
+      "name",
+      "Name",
+      "Style",
+      "style",
+      "styleUrl",
+      "OGR_STYLE",
+      "fill",
+      "fillColor",
+      "fill-color",
+      "color",
+      "stroke",
+      "altitudeMode",
+      "tessellate",
+      "extrude",
+      "visibility",
+    ]);
+
+    const blockedNormalized = new Set([...blockedFields].map(normalizeAttributeKey));
+    if (blockedFields.has(key) || blockedNormalized.has(normalizeAttributeKey(key)) || key.startsWith("__")) return false;
+    return isSafeStyleValue(value, key);
+  }
+
+  function isSafeStyleValue(value, key = null) {
+    if (!isUsablePopupValue(value)) return false;
+    const text = String(value).trim();
+    if (containsStyleHtml(text)) {
+      if (key) console.info("Campo descartado por HTML:", key);
+      return false;
+    }
+    return isNumericStyleValueSafe(text) || text.length <= 80;
+  }
+
+  function containsStyleHtml(value) {
+    const text = String(value || "").toLowerCase();
+    return ["<html", "<table", "<tr", "<td"].some((token) => text.includes(token));
+  }
+
+  function isNumericStyleValueSafe(value) {
+    return Number.isFinite(Number(String(value).replace(",", ".").trim()));
   }
 
   async function createGeoJsonLayerFromRemoteRecord(record, remoteFile) {
