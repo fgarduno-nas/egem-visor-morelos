@@ -3,7 +3,11 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>EGEM - Estudio Geoespacial del Estado de Morelos</title>
+  <title>Atlas del Estado de Morelos</title>
+  <meta
+    name="description"
+    content="Atlas del Estado de Morelos para consulta territorial institucional."
+  />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -33,13 +37,13 @@
           <img
             class="topbar-brand__image"
             src="assets/Convivencia_page-0003.png"
-            alt="Encabezado institucional EGEM"
+            alt="Encabezado institucional del Atlas del Estado de Morelos"
           />
         </button>
         <div class="brand-block">
           <p class="eyebrow">Atlas de riesgos para consulta operativa</p>
-          <p class="brand-short">EGEM</p>
-          <h1>EGEM - Estudio Geoespacial del Estado de Morelos</h1>
+          <p class="brand-short">Atlas Morelos</p>
+          <h1>Atlas del Estado de Morelos</h1>
           <p class="subtitle">
             Plataforma institucional de consulta clara para Proteccion Civil estatal y municipal.
           </p>
@@ -124,28 +128,13 @@
               </article>
               <article>
                 <strong id="published-count">0</strong>
-                <span>Capas publicadas</span>
+                <span>Capas tematicas disponibles</span>
               </article>
               <article>
                 <strong id="pending-count">0</strong>
-                <span>Capas pendientes</span>
+                <span>Capas en revision</span>
               </article>
             </div>
-          </div>
-        </details>
-
-        <details class="panel-card panel-accordion" id="basemap-panel" open>
-          <summary class="panel-summary">
-            <div class="section-heading">
-              <div>
-                <p class="section-kicker">Mapa base</p>
-                <h3>Fondos cartograficos</h3>
-              </div>
-            </div>
-            <span class="panel-summary__chevron" aria-hidden="true"></span>
-          </summary>
-          <div class="panel-content">
-            <div class="basemap-list" id="basemap-list"></div>
           </div>
         </details>
 
@@ -165,6 +154,7 @@
               <input id="layer-search" type="search" placeholder="Ej. inundacion, Cuernavaca" />
             </label>
 
+            <p class="layer-catalog-notice hidden" id="layer-catalog-notice"></p>
             <div class="layer-list" id="layer-list"></div>
           </div>
         </details>
@@ -173,42 +163,15 @@
           <summary class="panel-summary">
             <div class="section-heading">
               <div>
-                <p class="section-kicker">Referencia</p>
-                <h3>Leyenda del visor</h3>
+                <p class="section-kicker">Simbologia</p>
+                <h3>Simbologia de capa</h3>
               </div>
             </div>
             <span class="panel-summary__chevron" aria-hidden="true"></span>
           </summary>
           <div class="panel-content">
-            <div class="legend-list">
-              <article class="legend-item">
-                <span class="legend-swatch legend-swatch--base"></span>
-                <div>
-                  <strong>Capas base y limites</strong>
-                  <p>Elementos de referencia estatal y municipal para orientacion territorial.</p>
-                </div>
-              </article>
-              <article class="legend-item">
-                <span class="legend-swatch legend-swatch--published"></span>
-                <div>
-                  <strong>Capa publicada</strong>
-                  <p>Informacion validada y disponible para consulta publica.</p>
-                </div>
-              </article>
-              <article class="legend-item">
-                <span class="legend-swatch legend-swatch--pending"></span>
-                <div>
-                  <strong>Capa en revision</strong>
-                  <p>Contenido cargado pendiente de aprobacion administrativa.</p>
-                </div>
-              </article>
-              <article class="legend-item">
-                <span class="legend-swatch legend-swatch--restricted"></span>
-                <div>
-                  <strong>Capa restringida o rechazada</strong>
-                  <p>Informacion no publicada o bloqueada para consulta abierta.</p>
-                </div>
-              </article>
+            <div class="legend-list" id="selected-layer-legend">
+              <p class="empty-state">Selecciona una capa para consultar su simbologia.</p>
             </div>
           </div>
         </details>
@@ -246,12 +209,11 @@
           <div class="panel-content">
             <div class="credits-card">
               <p class="info-copy">
-                Plataforma orientada a la consulta operativa del Atlas de Riesgos del Estado de Morelos.
+                Plataforma orientada a la consulta operativa del Atlas del Estado de Morelos.
               </p>
               <ul class="credits-list">
-                <li>Fuente base: limites estatales y municipales de referencia institucional.</li>
-                <li>Capas tematicas: informacion cargada y validada por perfiles autorizados.</li>
-                <li>Visualizador: EGEM / MapLibre GL JS.</li>
+                <li>Coordinacion Estatal de Proteccion Civil Morelos</li>
+                <li>Universidad Autonoma del Estado de Morelos</li>
               </ul>
             </div>
           </div>
@@ -265,16 +227,30 @@
           Mostrar panel
         </button>
 
-        <div class="map-overlay map-overlay--top-left">
-          <div class="floating-card floating-card--compact">
-            <p class="overlay-label">Estado de operacion</p>
-            <strong id="session-summary">Modo visitante</strong>
-            <span id="session-summary-copy">Consulta publica de capas aprobadas.</span>
-          </div>
-        </div>
-
         <div class="map-overlay map-overlay--top-right" id="tools-overlay">
           <div class="map-toolbar" aria-label="Herramientas del visor">
+            <div class="basemap-control">
+              <button
+                class="toolbar-button toolbar-button--basemap"
+                id="toolbar-basemap"
+                type="button"
+                aria-label="Elegir fondo cartografico"
+                aria-expanded="false"
+                aria-controls="basemap-flyout"
+                title="Fondos cartograficos"
+              >
+                <span class="toolbar-icon">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5 9 3l6 2.5 5-2.5v15l-5 2.5L9 19l-5 2.5v-15zm6-.05v11.74l4 1.66V7.1l-4-1.66zm-2 .05L6 6.5v11.74l2-1V5.5zm8 1.5v11.74l2-1V6.5l-2 .5z"/></svg>
+                </span>
+              </button>
+              <div class="basemap-flyout" id="basemap-flyout" hidden>
+                <div class="basemap-flyout__header">
+                  <strong>Fondos cartograficos</strong>
+                  <button class="icon-button" id="close-basemap-flyout" type="button" aria-label="Cerrar">x</button>
+                </div>
+                <div class="basemap-list basemap-list--flyout" id="basemap-flyout-list"></div>
+              </div>
+            </div>
             <button class="toolbar-button" id="toolbar-toggle-panel" type="button" title="Mostrar u ocultar panel">
               <span class="toolbar-icon">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h7v14H4zM13 5h7v14h-7z"/></svg>
@@ -358,13 +334,6 @@
           </div>
         </div>
 
-        <div class="map-overlay map-overlay--bottom-right">
-          <div class="floating-card floating-card--status" id="system-status-card">
-            <p class="overlay-label">Estado del sistema</p>
-            <strong id="system-status-title">Visor listo</strong>
-            <span id="system-status-copy">Capas, base de datos y herramientas listas para consulta.</span>
-          </div>
-        </div>
       </section>
     </main>
   </div>
@@ -494,17 +463,17 @@
         <article>
           <strong>Administrador</strong>
           <span>Credencial de prueba actual</span>
-          <span>`admin@egem.morelos` / `Admin123!`</span>
+          <span>`admin@atlas.morelos` / `Admin123!`</span>
         </article>
         <article>
           <strong>Director</strong>
           <span>Credencial de prueba actual</span>
-          <span>`director.cuernavaca@egem.morelos` / `Director123!`</span>
+          <span>`director.cuernavaca@atlas.morelos` / `Director123!`</span>
         </article>
         <article>
           <strong>Visitante</strong>
           <span>Credencial de prueba actual</span>
-          <span>`visitante@egem.morelos` / `Visitante123!`</span>
+          <span>`visitante@atlas.morelos` / `Visitante123!`</span>
         </article>
       </div>
 
@@ -514,7 +483,7 @@
 
       <label class="form-field">
         <span>Correo</span>
-        <input id="login-email" type="email" placeholder="usuario@egem.morelos" required />
+        <input id="login-email" type="email" placeholder="usuario@atlas.morelos" required />
       </label>
 
       <label class="form-field">
@@ -545,8 +514,8 @@
     <div class="modal-card modal-card--wide">
       <div class="modal-header">
         <div>
-          <p class="section-kicker">Enfoque EGEM</p>
-          <h2>Que ya resuelve este rediseño</h2>
+          <p class="section-kicker">Consulta territorial</p>
+          <h2>Que ya resuelve este visor</h2>
         </div>
         <button class="icon-button" id="close-help" type="button" aria-label="Cerrar">x</button>
       </div>

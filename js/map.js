@@ -20,8 +20,11 @@ import {
 } from "./app/services/layers-api.js";
 import {
   analyzeStyleField,
+  buildInstitutionalHazardLegend,
   buildContinuousClassification,
   containsHtmlMarkup as containsRemoteStyleHtml,
+  getInstitutionalHazardLabel,
+  isInstitutionalHazardField,
 } from "./app/utils/remote-style-utils.js";
 
   const MORELOS_CENTER = [-99.07, 18.84];
@@ -52,8 +55,8 @@ import {
   const demoUsers = [
     {
       id: "demo-admin",
-      name: "Administrador EGEM",
-      email: "admin@egem.morelos",
+      name: "Administrador del Atlas",
+      email: "admin@atlas.morelos",
       password: "Admin123!",
       role: "admin",
       backendRole: "ADMIN",
@@ -64,7 +67,7 @@ import {
     {
       id: "demo-director-cuernavaca",
       name: "Director Cuernavaca",
-      email: "director.cuernavaca@egem.morelos",
+      email: "director.cuernavaca@atlas.morelos",
       password: "Director123!",
       role: "director",
       backendRole: "DATA_PROVIDER",
@@ -74,8 +77,8 @@ import {
     },
     {
       id: "demo-visitante",
-      name: "Visitante EGEM",
-      email: "visitante@egem.morelos",
+      name: "Visitante del Atlas",
+      email: "visitante@atlas.morelos",
       password: "Visitante123!",
       role: "visitante",
       backendRole: "PUBLIC_USER",
@@ -270,11 +273,14 @@ import {
     users: [],
     userLayers: loadUserLayers(),
     renderedLayers: new Map(),
+    selectedLayerId: null,
+    symbologyCache: new Map(),
     previewLayerId: null,
     lastCapturedLayerId: null,
     backendStatus: {
       reachable: false,
       lastError: null,
+      state: "unknown",
     },
     uploadDraft: {
       files: [],
@@ -311,14 +317,17 @@ import {
     topbarCompactMenu: document.getElementById("topbar-compact-menu"),
     topbarSessionChip: document.getElementById("topbar-session-chip"),
     controlPanel: document.querySelector(".control-panel"),
-    basemapList: document.getElementById("basemap-list"),
+    basemapFlyout: document.getElementById("basemap-flyout"),
+    basemapFlyoutList: document.getElementById("basemap-flyout-list"),
+    toolbarBasemap: document.getElementById("toolbar-basemap"),
+    closeBasemapFlyout: document.getElementById("close-basemap-flyout"),
     layerList: document.getElementById("layer-list"),
+    layerCatalogNotice: document.getElementById("layer-catalog-notice"),
+    selectedLayerLegend: document.getElementById("selected-layer-legend"),
     layerSearch: document.getElementById("layer-search"),
     infoPanel: document.getElementById("info-panel"),
     statusbar: document.getElementById("statusbar"),
     sessionRoleLabel: document.getElementById("session-role-label"),
-    sessionSummary: document.getElementById("session-summary"),
-    sessionSummaryCopy: document.getElementById("session-summary-copy"),
     publishedCount: document.getElementById("published-count"),
     pendingCount: document.getElementById("pending-count"),
     uploadPermissionNote: document.getElementById("upload-permission-note"),
@@ -384,8 +393,6 @@ import {
     toolbarAddPoint: document.getElementById("toolbar-add-point"),
     toolbarFocusMorelos: document.getElementById("focus-morelos-menu"),
     toolbarClearMeasure: document.getElementById("toolbar-clear-measure"),
-    systemStatusTitle: document.getElementById("system-status-title"),
-    systemStatusCopy: document.getElementById("system-status-copy"),
     compactOpenUserAdmin: document.getElementById("compact-open-user-admin"),
     compactLogoutSession: document.getElementById("compact-logout-session"),
     compactToggleSidebar: document.getElementById("compact-toggle-sidebar"),
@@ -448,6 +455,8 @@ import {
     elements.toolbarAddPoint.addEventListener("click", togglePointTool);
     elements.toolbarFocusMorelos.addEventListener("click", focusMorelos);
     elements.toolbarClearMeasure.addEventListener("click", clearMeasurement);
+    elements.toolbarBasemap?.addEventListener("click", toggleBasemapFlyout);
+    elements.closeBasemapFlyout?.addEventListener("click", closeBasemapFlyout);
     document.getElementById("toggle-sidebar").addEventListener("click", toggleSidebar);
     elements.reopenSidebar.addEventListener("click", toggleSidebar);
     elements.collapseMobilePanel?.addEventListener("click", toggleSidebar);
@@ -496,6 +505,22 @@ import {
     });
 
     document.addEventListener("click", (event) => {
+      const clearSelectionButton = event.target.closest("[data-clear-layer-selection]");
+      if (clearSelectionButton) {
+        clearSelectedLayer();
+        renderLayerCatalog(elements.layerSearch.value.trim().toLowerCase());
+        return;
+      }
+
+      if (
+        elements.basemapFlyout &&
+        !elements.basemapFlyout.hidden &&
+        !elements.basemapFlyout.contains(event.target) &&
+        !elements.toolbarBasemap?.contains(event.target)
+      ) {
+        closeBasemapFlyout();
+      }
+
       if (!state.compactMenuOpen) return;
       if (
         elements.topbarCompactMenu?.contains(event.target) ||
@@ -507,6 +532,9 @@ import {
     });
 
     document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && elements.basemapFlyout && !elements.basemapFlyout.hidden) {
+        closeBasemapFlyout();
+      }
       if (event.key === "Escape" && state.compactMenuOpen) {
         closeCompactMenu();
       }
@@ -675,21 +703,23 @@ import {
 
   function renderBaseMapOptions() {
     const basemaps = [
-      { id: "satelite", title: "Satelite", description: "Base principal para consulta operativa." },
-      { id: "topografico", title: "Topografico", description: "Relieve y contexto fisico." },
-      { id: "claro", title: "Claro", description: "Fondo limpio para presentacion." },
-      { id: "oscuro", title: "Oscuro", description: "Mayor contraste de capas." },
+      { id: "satelite", title: "Satelite", description: "Imagen satelital", thumbnail: "satellite" },
+      { id: "topografico", title: "Topografico", description: "Relieve", thumbnail: "topographic" },
+      { id: "claro", title: "Claro", description: "Calles claras", thumbnail: "light" },
+      { id: "oscuro", title: "Oscuro", description: "Alto contraste", thumbnail: "dark" },
     ];
 
-    elements.basemapList.innerHTML = basemaps
+    [elements.basemapFlyoutList].filter(Boolean).forEach((container) => {
+      container.innerHTML = basemaps
       .map((basemap) => {
         const checked = basemap.id === state.activeBaseMap ? "checked" : "";
         const activeClass = basemap.id === state.activeBaseMap ? " basemap-option--active" : "";
         return `
-          <label class="basemap-option${activeClass}">
+          <label class="basemap-option basemap-option--compact${activeClass}" title="${escapeHtml(basemap.description)}">
+            <span class="basemap-option__thumb basemap-option__thumb--${basemap.thumbnail}" aria-hidden="true"></span>
             <input type="radio" name="basemap" value="${basemap.id}" ${checked} />
-            <span>
-              <strong>${basemap.title}</strong><br />
+            <span class="basemap-option__copy">
+              <strong>${basemap.title}</strong>
               <span>${basemap.description}</span>
             </span>
           </label>
@@ -697,12 +727,55 @@ import {
       })
       .join("");
 
-    elements.basemapList.querySelectorAll('input[name="basemap"]').forEach((input) => {
-      input.addEventListener("change", (event) => {
-        state.activeBaseMap = event.target.value;
-        applyBaseMapVisibility(state.activeBaseMap);
-        renderBaseMapOptions();
+      container.querySelectorAll('input[name="basemap"]').forEach((input) => {
+        input.addEventListener("change", (event) => {
+          state.activeBaseMap = event.target.value;
+          applyBaseMapVisibility(state.activeBaseMap);
+          restoreStateBoundaryHighlight();
+          renderBaseMapOptions();
+        });
       });
+    });
+  }
+
+  function toggleBasemapFlyout() {
+    const shouldOpen = elements.basemapFlyout?.hidden;
+    if (shouldOpen) {
+      openBasemapFlyout();
+    } else {
+      closeBasemapFlyout();
+    }
+  }
+
+  function openBasemapFlyout() {
+    if (!elements.basemapFlyout) return;
+    renderBaseMapOptions();
+    resetBasemapFlyoutPositionProperties();
+    elements.basemapFlyout.hidden = false;
+    elements.toolbarBasemap?.setAttribute("aria-expanded", "true");
+  }
+
+  function closeBasemapFlyout() {
+    if (!elements.basemapFlyout) return;
+    elements.basemapFlyout.hidden = true;
+    elements.toolbarBasemap?.setAttribute("aria-expanded", "false");
+  }
+
+  function resetBasemapFlyoutPositionProperties() {
+    if (!elements.basemapFlyout) return;
+    [
+      "left",
+      "right",
+      "top",
+      "bottom",
+      "inset",
+      "transform",
+      "translate",
+      "--basemap-flyout-left",
+      "--basemap-flyout-top",
+      "--basemap-flyout-width",
+    ].forEach((property) => {
+      elements.basemapFlyout.style.removeProperty(property);
     });
   }
 
@@ -749,9 +822,6 @@ import {
               <input type="checkbox" ${checked} ${disableToggle} />
               <div class="layer-item__copy">
                 <strong>${escapeHtml(layer.title)}</strong>
-                <span>${escapeHtml(layer.description)}</span>
-                <span>${escapeHtml(layer.group)} · ${escapeHtml(layer.municipality || "Cobertura estatal")}</span>
-                <div class="layer-badges">${renderBadges(layer)}</div>
               </div>
             </div>
             <div class="layer-actions">
@@ -829,6 +899,7 @@ import {
     const layers = buildCatalog()
       .filter((layer) => layerMatchesSearch(layer, searchTerm))
       .filter((layer) => canSeeLayer(layer));
+    syncLayerCatalogNotice();
 
     if (!layers.length && searchTerm) {
       elements.layerList.innerHTML = `
@@ -840,17 +911,34 @@ import {
     }
 
     const groupedLayers = groupCatalogLayers(layers);
+    if (state.selectedLayerId && !layers.some((layer) => layer.id === state.selectedLayerId)) {
+      clearSelectedLayer();
+    }
 
-    elements.layerList.innerHTML = thematicLayerGroups
+    elements.layerList.innerHTML = getVisibleLayerGroups(groupedLayers, searchTerm)
       .map((group) => renderLayerGroup(group, groupedLayers.get(group.id) || [], searchTerm))
       .join("");
 
     elements.layerList.querySelectorAll(".layer-item").forEach((item) => {
       const layerId = item.dataset.layerId;
       const checkbox = item.querySelector('input[type="checkbox"]');
+      item.addEventListener("click", (event) => {
+        if (event.target.closest("button, input, label, a")) return;
+        selectLayer(layerId);
+      });
+      item.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        if (event.target.closest("button, input, label, a")) return;
+        event.preventDefault();
+        selectLayer(layerId);
+      });
       checkbox.addEventListener("change", (event) => {
         toggleLayerVisibility(layerId, event.target.checked);
       });
+    });
+
+    elements.layerList.querySelectorAll("[data-select-layer]").forEach((button) => {
+      button.addEventListener("click", () => selectLayer(button.dataset.selectLayer));
     });
 
     elements.layerList.querySelectorAll("[data-approve]").forEach((button) => {
@@ -926,7 +1014,7 @@ import {
   function renderLayerItem(layer) {
     const checked = layer.visible ? "checked" : "";
     const disableToggle = !canSeeLayer(layer) ? "disabled" : "";
-    const reviewButton = canVisualizeLayer(layer) || (state.session.role === "admin" && canPreviewLayer(layer))
+    const reviewButton = state.session.role === "admin" && canPreviewLayer(layer)
       ? `<button class="ghost-button" type="button" data-preview="${layer.id}">Visualizar</button>`
       : "";
     const downloadButton = canDownloadLayer(layer)
@@ -944,32 +1032,25 @@ import {
     const publishButton = state.session.role === "admin" && canTogglePublish(layer)
       ? `<button class="ghost-button" type="button" data-publish="${layer.id}">${layer.status === "published" ? "Despublicar" : "Publicar"}</button>`
       : "";
+    const actionButtons = [reviewButton, downloadButton, publishButton, deleteButton, rejectButton, approveButton]
+      .filter(Boolean)
+      .join("");
     const opacityValue = getLayerOpacityPercent(layer);
-    const itemClassName = `layer-item ${layer.visible ? "is-visible" : "is-hidden-layer"}`;
+    const itemClassName = `layer-item ${layer.visible ? "is-visible" : "is-hidden-layer"}${state.selectedLayerId === layer.id ? " is-selected" : ""}`;
 
     return `
-      <div class="${itemClassName}" data-layer-id="${layer.id}">
+      <div class="${itemClassName}" data-layer-id="${layer.id}" role="button" tabindex="0" aria-pressed="${state.selectedLayerId === layer.id ? "true" : "false"}">
         <div class="layer-item__meta">
-          <input type="checkbox" ${checked} ${disableToggle} />
+          <input type="checkbox" ${checked} ${disableToggle} aria-label="Mostrar u ocultar ${escapeHtml(layer.title)}" />
           <div class="layer-item__copy">
-            <strong>${escapeHtml(layer.title)}</strong>
-            <span>${escapeHtml(layer.description)}</span>
-            <span>${escapeHtml(layer.group)} Â· ${escapeHtml(layer.municipality || "Cobertura estatal")}</span>
-            <div class="layer-badges">${renderBadges(layer)}</div>
+            <button class="layer-select-button" type="button" data-select-layer="${escapeHtml(layer.id)}">${escapeHtml(layer.title)}</button>
             <label class="layer-opacity-control">
               <span>Visibilidad <strong>${opacityValue}%</strong></span>
               <input type="range" min="10" max="100" step="5" value="${opacityValue}" data-opacity="${layer.id}" />
             </label>
           </div>
         </div>
-        <div class="layer-actions">
-          ${reviewButton}
-          ${downloadButton}
-          ${publishButton}
-          ${deleteButton}
-          ${rejectButton}
-          ${approveButton}
-        </div>
+        ${actionButtons ? `<div class="layer-actions">${actionButtons}</div>` : ""}
       </div>
     `;
   }
@@ -1107,16 +1188,210 @@ import {
   }
 
   function renderBadges(layer) {
+    if (!canUpload()) return "";
     const badges = [];
     badges.push(`<span class="badge ${getStatusBadgeClass(layer.status)}">${escapeHtml(getStatusLabel(layer.status))}</span>`);
     if (layer.fileType) {
       badges.push(`<span class="badge">${escapeHtml(layer.fileType.toUpperCase())}</span>`);
     }
     if (layer.backendLayerId) {
-      const visualStatus = layer.isVisualizable ? "Visualizable" : getProcessingStatusLabel(layer.processingStatus);
+      const visualStatus = layer.isVisualizable ? "Procesada" : getProcessingStatusLabel(layer.processingStatus);
       badges.push(`<span class="badge ${layer.isVisualizable ? "badge--published" : "badge--pending"}">${escapeHtml(visualStatus)}</span>`);
     }
     return badges.join("");
+  }
+
+  function getVisibleLayerGroups(groupedLayers, searchTerm = "") {
+    if (searchTerm) return thematicLayerGroups;
+    if (state.backendStatus.state === "unavailable" || state.backendStatus.state === "http-error" || state.backendStatus.state === "invalid") {
+      return thematicLayerGroups.filter((group) => (groupedLayers.get(group.id) || []).length > 0);
+    }
+    return thematicLayerGroups;
+  }
+
+  function syncLayerCatalogNotice() {
+    if (!elements.layerCatalogNotice) return;
+    const message = getLayerCatalogNoticeMessage();
+    elements.layerCatalogNotice.textContent = message;
+    elements.layerCatalogNotice.classList.toggle("hidden", !message);
+  }
+
+  function getLayerCatalogNoticeMessage() {
+    if (state.backendStatus.state === "unavailable") {
+      return "Las capas tematicas no estan disponibles temporalmente. El mapa base y los limites territoriales continuan operativos.";
+    }
+    if (state.backendStatus.state === "empty") {
+      return "Por el momento no hay capas tematicas publicadas.";
+    }
+    if (state.backendStatus.state === "http-error" || state.backendStatus.state === "invalid") {
+      return "Las capas tematicas no pudieron consultarse temporalmente. El mapa base y los limites territoriales continuan operativos.";
+    }
+    return "";
+  }
+
+  function selectLayer(layerId) {
+    const layer = findCatalogLayer(layerId);
+    if (!layer || !canSeeLayer(layer)) {
+      clearSelectedLayer();
+      return;
+    }
+
+    state.selectedLayerId = layerId;
+    renderSelectedLayerLegend(layer);
+    updateInfoPanel({
+      title: layer.title,
+      description: layer.description || "Capa disponible para consulta territorial.",
+      legend: getLayerSymbology(layer),
+    });
+    renderLayerCatalog(elements.layerSearch.value.trim().toLowerCase());
+    revealSelectedLayerLegend();
+  }
+
+  function clearSelectedLayer() {
+    state.selectedLayerId = null;
+    if (elements.selectedLayerLegend) {
+      elements.selectedLayerLegend.innerHTML = `<p class="empty-state">Selecciona una capa para consultar su simbologia.</p>`;
+    }
+  }
+
+  function findCatalogLayer(layerId) {
+    return buildCatalog().find((layer) => layer.id === layerId) || null;
+  }
+
+  function renderSelectedLayerLegend(layer) {
+    if (!elements.selectedLayerLegend) return;
+    const legend = getLayerSymbology(layer);
+    elements.selectedLayerLegend.innerHTML = `
+      <div class="legend-panel-header">
+        <p class="info-title">${escapeHtml(layer.title)}</p>
+        <button class="icon-button icon-button--small" type="button" data-clear-layer-selection aria-label="Cerrar simbologia">x</button>
+      </div>
+      ${renderLayerLegend(legend) || `<p class="empty-state">Esta capa no tiene simbologia disponible.</p>`}
+    `;
+  }
+
+  function revealSelectedLayerLegend() {
+    const legendPanel = document.getElementById("legend-panel");
+    if (legendPanel) {
+      legendPanel.open = true;
+      window.requestAnimationFrame(() => {
+        legendPanel.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      });
+    }
+  }
+
+  function getLayerSymbology(layer) {
+    const cacheKey = `${layer.id}:${layer.legend ? JSON.stringify(layer.legend) : ""}:${layer.symbology?.field || ""}:${layer.data?.features?.length || 0}`;
+    if (state.symbologyCache.has(cacheKey)) return state.symbologyCache.get(cacheKey);
+    const legend = buildLayerSymbology(layer);
+    state.symbologyCache.set(cacheKey, legend);
+    return legend;
+  }
+
+  function buildLayerSymbology(layer) {
+    if (layer.legend?.type === "continuous" && Array.isArray(layer.legend.classes)) {
+      return normalizeLayerLegend(layer.legend, layer);
+    }
+
+    if (layer.sourceKind === "static") {
+      const color = layer.id === "estado" ? "#7A203A" : "#8F7B5A";
+      return {
+        type: "categorical",
+        field: "Limite",
+        classes: [{ label: layer.title, color, outlineColor: color }],
+      };
+    }
+
+    const features = layer.data?.features || [];
+    if (!features.length) {
+      return buildSingleStyleLegend(layer);
+    }
+
+    const styleField = layer.symbology?.field || chooseLegendField(features);
+    const values = styleField ? getFeatureFieldValues(features, styleField) : [];
+    if (styleField && isInstitutionalHazardField(styleField)) {
+      const hazardLegend = buildInstitutionalHazardLegend(values);
+      if (hazardLegend) return hazardLegend;
+    }
+
+    const styleClasses = buildPreservedStyleClasses(features, styleField);
+    if (styleClasses.length) {
+      return {
+        type: "categorical",
+        field: styleField || "Estilo",
+        classes: styleClasses,
+      };
+    }
+
+    return buildSingleStyleLegend(layer);
+  }
+
+  function normalizeLayerLegend(legend, layer) {
+    if (isInstitutionalHazardField(legend.field)) {
+      const values = layer.data?.features?.length ? getFeatureFieldValues(layer.data.features, legend.field) : [];
+      const hazardLegend = buildInstitutionalHazardLegend(values);
+      if (hazardLegend) return hazardLegend;
+    }
+    return legend;
+  }
+
+  function chooseLegendField(features) {
+    const priorityFields = [
+      "Intensidad",
+      "Riesgo",
+      "Peligro",
+      "Vulnerabilidad",
+      "Nivel",
+      "Categoria",
+      "Categoría",
+      "Clasificación",
+      "Clasificacion",
+      "Fen_Clasif",
+      "IVS_FINAL",
+      "Magni_num",
+      "Intens_num",
+    ];
+    return priorityFields.find((field) => getFeatureFieldValues(features, field).length) || findMostVariableSafeStyleField(features);
+  }
+
+  function buildPreservedStyleClasses(features, styleField) {
+    const classes = new Map();
+    features.forEach((feature) => {
+      const properties = feature.properties || {};
+      const label =
+        (styleField && getPropertyValueByAlias(properties, [styleField])) ||
+        getPropertyValueByAlias(properties, ["name", "Name", "NOMBRE"]) ||
+        "Estilo de la capa";
+      const color =
+        properties.__styleFill ||
+        properties.__styleLine ||
+        properties.__styleIcon ||
+        getStyleColorForValue(label, { uniqueCount: 2 });
+      if (!isUsablePopupValue(label) || !color) return;
+      const normalizedLabel = getInstitutionalHazardLabel(label) || String(label).trim();
+      if (!classes.has(normalizedLabel)) {
+        classes.set(normalizedLabel, {
+          label: normalizedLabel,
+          color,
+          outlineColor: properties.__styleLine || properties.__styleStroke || properties.stroke || color,
+        });
+      }
+    });
+    return [...classes.values()].slice(0, 12);
+  }
+
+  function buildSingleStyleLegend(layer) {
+    const color = layer.fillColor || layer.lineColor || layer.iconColor || layer.color;
+    if (!color) return null;
+    return {
+      type: "categorical",
+      field: "Estilo",
+      classes: [{
+        label: "Simbolo de la capa",
+        color,
+        outlineColor: layer.lineColor || layer.fillColor || layer.iconColor || layer.color,
+      }],
+    };
   }
 
   function injectStaticSources() {
@@ -1147,6 +1422,28 @@ import {
     });
 
     addLayerIfMissing({
+      id: "estado-highlight-halo",
+      type: "line",
+      source: "estado-source",
+      paint: {
+        "line-color": "#ffffff",
+        "line-width": ["interpolate", ["linear"], ["zoom"], 6, 4, 10, 7, 14, 10],
+        "line-opacity": 0.92,
+      },
+    });
+
+    addLayerIfMissing({
+      id: "estado-highlight",
+      type: "line",
+      source: "estado-source",
+      paint: {
+        "line-color": "#7A203A",
+        "line-width": ["interpolate", ["linear"], ["zoom"], 6, 2.2, 10, 4, 14, 6],
+        "line-opacity": 0.98,
+      },
+    });
+
+    addLayerIfMissing({
       id: "municipios-hit",
       type: "fill",
       source: "municipios-source",
@@ -1169,7 +1466,20 @@ import {
 
     setStaticVisibility("estado", staticLayers.find((layer) => layer.id === "estado").visible);
     setStaticVisibility("municipios", staticLayers.find((layer) => layer.id === "municipios").visible);
+    restoreStateBoundaryHighlight();
     bindMunicipiosPopup();
+  }
+
+  function restoreStateBoundaryHighlight() {
+    ["estado-highlight-halo", "estado-highlight"].forEach((layerId) => {
+      if (!map.getLayer(layerId)) return;
+      safeSetLayoutProperty(layerId, "visibility", "visible");
+      try {
+        map.moveLayer(layerId);
+      } catch (error) {
+        console.warn("No se pudo reposicionar el limite estatal resaltado:", error);
+      }
+    });
   }
 
   function injectMeasurementSources() {
@@ -1485,6 +1795,7 @@ import {
         state.renderedLayers.set(previewLayer.id, true);
       }
     }
+    restoreStateBoundaryHighlight();
   }
 
   function addUserLayerToMap(layer) {
@@ -1708,12 +2019,9 @@ import {
     captureVisibleSnapshot();
     syncLayerCatalogItemState(layerId, visible);
 
-    const current = staticLayer || userLayer;
-    updateInfoPanel({
-      title: current.title,
-      description: visible ? "La capa esta visible en el mapa." : "La capa fue ocultada del mapa.",
-      legend: current.legend,
-    });
+    if (state.selectedLayerId === layerId) {
+      renderSelectedLayerLegend(staticLayer || userLayer);
+    }
   }
 
   function syncLayerCatalogItemState(layerId, visible) {
@@ -1956,14 +2264,14 @@ import {
   }
 
   function renderLayerLegend(legend) {
-    if (!legend || legend.type !== "continuous" || !Array.isArray(legend.classes)) return "";
+    if (!legend || !Array.isArray(legend.classes)) return "";
     const items = legend.classes
       .map((item) => `
         <div class="legend-item">
-          <span class="legend-swatch" style="background:${escapeHtml(item.color)}"></span>
+          <span class="legend-swatch" style="${escapeHtml(getLegendSwatchStyle(item))}"></span>
           <div>
             <strong>${escapeHtml(item.label)}</strong>
-            <p>${escapeHtml(formatLegendNumber(item.min))} - ${escapeHtml(formatLegendNumber(item.max))}</p>
+            ${legend.type === "continuous" ? `<p>${escapeHtml(formatLegendNumber(item.min))} - ${escapeHtml(formatLegendNumber(item.max))}</p>` : ""}
           </div>
         </div>
       `)
@@ -1976,6 +2284,12 @@ import {
     `;
   }
 
+  function getLegendSwatchStyle(item) {
+    const fill = item.color || "transparent";
+    const outline = item.outlineColor || item.strokeColor || item.color || "rgba(70, 36, 49, 0.35)";
+    return `background:${fill};border:2px solid ${outline};`;
+  }
+
   function formatLegendNumber(value) {
     if (!Number.isFinite(Number(value))) return "Sin dato";
     const numeric = Number(value);
@@ -1986,8 +2300,6 @@ import {
   function buildLayerCatalogLines(layer) {
     const properties = layer.metadata?.properties || {};
     const metadata = layer.metadata || {};
-    const publicationDate = layer.publishedAt || metadata.publishedAt || null;
-    const createdAt = layer.createdAt || metadata.createdAt || null;
 
     return [
       `Nombre: ${layer.title || "Sin nombre"}`,
@@ -1998,13 +2310,6 @@ import {
       `Fecha de actualizacion: ${formatCatalogDate(properties.updatedAt || metadata.updatedAt)}`,
       `Escala/resolucion: ${properties.scaleOrResolution || metadata.scaleOrResolution || "Sin especificar"}`,
       `Sistema de referencia: ${properties.crs || metadata.crs || "Sin especificar"}`,
-      `Tipo de geometria: ${metadata.geometryType || properties.geometryType || layer.fileType || "Sin especificar"}`,
-      `Objetos: ${metadata.featureCount ?? properties.featureCount ?? "Sin especificar"}`,
-      `Estatus: ${getStatusLabel(layer.status)}`,
-      `Usuario creador: ${layer.createdBy || "Sistema"}`,
-      `Fecha de creacion: ${formatCatalogDate(createdAt)}`,
-      `Fecha de publicacion: ${formatCatalogDate(publicationDate)}`,
-      `Formato: ${layer.fileType ? layer.fileType.toUpperCase() : "GeoJSON"}`,
     ];
   }
 
@@ -2115,9 +2420,35 @@ import {
   function isVisiblePopupAttribute(key, value) {
     if (!isUsablePopupValue(value)) return false;
     if (key.startsWith("__")) return false;
-    if (["geometry", "geom", "the_geom"].includes(normalizeAttributeKey(key))) return false;
+    if (isTechnicalPublicAttribute(key, value)) return false;
     if (normalizeAttributeKey(key) === "description" && containsRemoteStyleHtml(value)) return false;
     return true;
+  }
+
+  function isTechnicalPublicAttribute(key, value = "") {
+    const normalizedKey = normalizeAttributeKey(key).replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
+    const normalizedValue = normalizeAttributeKey(value).trim();
+    const blockedKeys = new Set([
+      "geometry",
+      "geom",
+      "the geom",
+      "published",
+      "publicado",
+      "is published",
+      "visualizable",
+      "is visualizable",
+      "processing status",
+      "estado de operacion",
+      "operacion",
+      "estado del sistema",
+      "referencia",
+      "reference",
+    ]);
+    if (blockedKeys.has(normalizedKey)) return true;
+    if ((normalizedKey === "format" || normalizedKey === "formato" || normalizedKey === "file type") && normalizedValue === "kmz") {
+      return true;
+    }
+    return false;
   }
 
   function normalizeAttributeKey(key) {
@@ -2133,7 +2464,8 @@ import {
         !key.startsWith("__") &&
         value !== null &&
         value !== undefined &&
-        String(value).trim() !== ""
+        String(value).trim() !== "" &&
+        !isTechnicalPublicAttribute(key, value)
       )
       .slice(0, 24)
       .map(([key, value]) => `
@@ -2157,8 +2489,6 @@ import {
     }
 
     elements.sessionRoleLabel.textContent = roleLabel;
-    elements.sessionSummary.textContent = `${roleLabel} activo`;
-    elements.sessionSummaryCopy.textContent = roleCapabilities[state.session.role];
     elements.publishedCount.textContent = String(publishedLayers.length);
     elements.pendingCount.textContent = String(pendingLayers.length);
     elements.openUserAdmin.classList.toggle("hidden", state.session.role !== "admin");
@@ -2169,7 +2499,7 @@ import {
     elements.compactLogoutSession?.classList.toggle("hidden", !state.session.isAuthenticated);
     elements.compactOpenLogin?.classList.toggle("hidden", state.session.isAuthenticated);
     elements.uploadPermissionNote.textContent = canUpload()
-      ? "Puedes subir KML, KMZ, GeoJSON, GeoTIFF y Shapefile en ZIP desde este menu."
+      ? "Puedes subir capas vectoriales, raster y Shapefile en ZIP desde este menu."
       : "La medicion es publica. Para subir capas o crear puntos inicia sesion como administrador o director.";
     updateToolbarState();
     syncSidebarState();
@@ -2284,8 +2614,7 @@ import {
   }
 
   function setSystemStatus(title, description) {
-    elements.systemStatusTitle.textContent = title;
-    elements.systemStatusCopy.textContent = description;
+    console.info(`${title}: ${description}`);
   }
 
   function syncPasswordToggleButton(input, button) {
@@ -3312,7 +3641,7 @@ import {
       fileType: extension,
       sourceKind: "geojson",
       data: geojson,
-      description: "Capa cargada desde archivo KML/KMZ para consulta del atlas.",
+      description: "Capa cargada desde archivo vectorial para consulta del atlas.",
       download: await buildDownloadBundle([file]),
       lineColor: geojson.meta.lineColor,
       fillColor: geojson.meta.fillColor,
@@ -4062,11 +4391,11 @@ import {
 
   function getStatusLabel(status) {
     const labels = {
-      published: "Publicado",
+      published: "Disponible",
       pending_review: "Pendiente",
       approved: "Aprobado",
       rejected: "Rechazado",
-      unpublished: "No publicado",
+      unpublished: "Retirada",
       pending: "Pendiente",
     };
     return labels[status] || status;
@@ -4098,11 +4427,11 @@ import {
 
   function getProcessingStatusLabel(status) {
     const labels = {
-      processed: "Visualizable",
+      processed: "Procesada",
       pending: "En proceso",
-      failed: "No visualizable",
+      failed: "Con error",
     };
-    return labels[status] || "No visualizable";
+    return labels[status] || "Con error";
   }
 
   function canTogglePublish(layer) {
@@ -4186,9 +4515,8 @@ import {
   async function initializeRemoteState() {
     setSystemStatus("Sincronizando visor", "Se esta conectando el visualizador con el backend institucional.");
     updateInfoPanel({
-      title: "Inicializando visor institucional",
-      description: "Se esta conectando el frontend con el backend y cargando capas reales.",
-      extra: [`API configurada: ${runtimeConfig.apiBaseUrl}`],
+      title: "Inicializando visor",
+      description: "Se esta preparando la consulta de capas tematicas.",
     });
 
     if (!map.isStyleLoaded()) {
@@ -4207,8 +4535,13 @@ import {
 
     state.remoteSyncInProgress = true;
     try {
-      setSystemStatus("Actualizando capas", "Se esta consultando el catalogo remoto y el estado de publicacion.");
+      setSystemStatus("Actualizando capas", "Se esta consultando el catalogo remoto.");
       const publicLayers = await listPublicLayersRequest();
+      if (!Array.isArray(publicLayers)) {
+        const invalidError = new Error("La API devolvio una respuesta de capas incompleta.");
+        invalidError.code = "INVALID_LAYER_RESPONSE";
+        throw invalidError;
+      }
       console.info("Capas públicas obtenidas:", publicLayers);
       const records = [...publicLayers];
 
@@ -4266,6 +4599,7 @@ import {
 
       state.backendStatus.reachable = true;
       state.backendStatus.lastError = null;
+      state.backendStatus.state = hydratedLayers.length ? "ready" : "empty";
       renderVisibleLayers();
       renderLayerCatalog(elements.layerSearch.value.trim().toLowerCase());
       renderSession();
@@ -4274,25 +4608,79 @@ import {
 
       if (!hydratedLayers.length) {
         updateInfoPanel({
-          title: "Backend conectado",
-          description: "La API ya responde, pero aun no existen capas publicadas o visibles para esta sesion.",
+          title: "Sin capas tematicas publicadas",
+          description: "Por el momento no hay capas tematicas publicadas.",
         });
       }
     } catch (error) {
-      console.warn("No se pudieron sincronizar capas remotas.", error);
+      const diagnosis = classifyBackendSyncError(error);
+      console.warn("Diagnostico tecnico de sincronizacion de capas:", diagnosis, error);
       state.backendStatus.reachable = false;
       state.backendStatus.lastError = error.message;
+      state.backendStatus.state = diagnosis.state;
       renderLayerCatalog(elements.layerSearch.value.trim().toLowerCase());
       renderSession();
-      setSystemStatus("Backend no disponible", "El visor continua en modo local mientras la API no responde.");
+      setSystemStatus(diagnosis.title, diagnosis.technicalSummary);
       updateInfoPanel({
-        title: "Backend no disponible",
-        description: "No se logro consultar la API institucional. Puedes seguir usando las capas base y herramientas locales.",
-        extra: [runtimeConfig.apiBaseUrl, error.message || "Error de conectividad con la API."],
+        title: diagnosis.publicTitle,
+        description: diagnosis.publicMessage,
       });
     } finally {
       state.remoteSyncInProgress = false;
     }
+  }
+
+  function classifyBackendSyncError(error) {
+    if (error?.code === "INVALID_LAYER_RESPONSE") {
+      return {
+        state: "invalid",
+        title: "Respuesta invalida",
+        publicTitle: "Capas tematicas no disponibles",
+        publicMessage: "Las capas tematicas no pudieron consultarse temporalmente. El mapa base y los limites territoriales continuan operativos.",
+        technicalSummary: "La respuesta del backend no contiene una coleccion valida de capas.",
+      };
+    }
+
+    if (error?.status) {
+      return {
+        state: "http-error",
+        title: "Error del backend",
+        publicTitle: "Capas tematicas no disponibles",
+        publicMessage: "Las capas tematicas no pudieron consultarse temporalmente. El mapa base y los limites territoriales continuan operativos.",
+        technicalSummary: `El backend respondio con HTTP ${error.status}.`,
+      };
+    }
+
+    if (isBackendUnavailableError(error)) {
+      return {
+        state: "unavailable",
+        title: "Backend no disponible",
+        publicTitle: "Capas tematicas no disponibles",
+        publicMessage: "Las capas tematicas no estan disponibles temporalmente. El mapa base y los limites territoriales continuan operativos.",
+        technicalSummary: "No fue posible conectar con el backend configurado.",
+      };
+    }
+
+    return {
+      state: "http-error",
+      title: "Error de sincronizacion",
+      publicTitle: "Capas tematicas no disponibles",
+      publicMessage: "Las capas tematicas no pudieron consultarse temporalmente. El mapa base y los limites territoriales continuan operativos.",
+      technicalSummary: error?.message || "Error no clasificado al consultar capas.",
+    };
+  }
+
+  function isBackendUnavailableError(error) {
+    const message = String(error?.message || error?.name || "").toLowerCase();
+    return (
+      error?.name === "TypeError" ||
+      error?.name === "AbortError" ||
+      message.includes("failed to fetch") ||
+      message.includes("networkerror") ||
+      message.includes("load failed") ||
+      message.includes("connection") ||
+      message.includes("abort")
+    );
   }
 
   function mergeRecords(target, incoming) {
@@ -4336,7 +4724,7 @@ import {
         {
           title,
           description:
-            institutionalMetadata.description || "Capa cargada desde el visor institucional EGEM.",
+            institutionalMetadata.description || "Capa cargada desde el visor institucional.",
           municipality,
           tags: [`category:${category}`],
           source: institutionalMetadata.source,
@@ -4385,7 +4773,7 @@ import {
       layer.status = state.session.role === "admin" ? "approved" : "pending_review";
       layer.title = title;
       layer.description =
-        institutionalMetadata.description || layer.description || "Capa cargada desde el visor institucional EGEM.";
+        institutionalMetadata.description || layer.description || "Capa cargada desde el visor institucional.";
       layer.municipality = municipality;
       layer.metadata = buildLayerMetadata(institutionalMetadata, layer);
       state.userLayers.push(layer);
@@ -4574,7 +4962,8 @@ import {
 
   function normalizeBackendFeatureProperties(properties) {
     const normalized = { ...properties };
-    const descriptionAttributes = parseKmlDescriptionHtmlAttributes(properties.description);
+    const description = getPropertyValueByAlias(properties, ["description", "Description"]);
+    const descriptionAttributes = parseKmlDescriptionHtmlAttributes(description);
 
     if (Object.keys(descriptionAttributes).length) {
       console.info("Descripcion HTML KML detectada");

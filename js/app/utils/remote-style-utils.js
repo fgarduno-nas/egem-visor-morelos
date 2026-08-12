@@ -1,5 +1,13 @@
 export const GRADUATED_CLASS_COLORS = ["#166534", "#65A30D", "#FACC15", "#F97316", "#DC2626"];
 export const GRADUATED_CLASS_LABELS = ["Muy bajo", "Bajo", "Medio", "Alto", "Muy alto"];
+export const INSTITUTIONAL_HAZARD_LABELS = ["Muy alto", "Alto", "Medio", "Bajo", "Muy bajo"];
+export const INSTITUTIONAL_HAZARD_COLORS = {
+  "Muy alto": "#DC2626",
+  Alto: "#F97316",
+  Medio: "#FACC15",
+  Bajo: "#65A30D",
+  "Muy bajo": "#166534",
+};
 
 const CONTINUOUS_UNIQUE_THRESHOLD = 12;
 const CONTINUOUS_UNIQUE_RATIO = 0.2;
@@ -139,6 +147,69 @@ export function buildGraduatedLegend(min, max, cuts) {
   }));
 }
 
+export function getInstitutionalHazardLabel(value) {
+  const normalized = normalizeInstitutionalHazardKey(value);
+  const aliases = {
+    "muy alto": "Muy alto",
+    muy_alto: "Muy alto",
+    muyalto: "Muy alto",
+    "5": "Muy alto",
+    alto: "Alto",
+    "4": "Alto",
+    medio: "Medio",
+    mediano: "Medio",
+    "3": "Medio",
+    bajo: "Bajo",
+    "2": "Bajo",
+    "muy bajo": "Muy bajo",
+    muy_bajo: "Muy bajo",
+    muybajo: "Muy bajo",
+    "1": "Muy bajo",
+  };
+  if (aliases[normalized]) return aliases[normalized];
+  if (normalized.includes("muy alto")) return "Muy alto";
+  if (normalized.includes("muy bajo")) return "Muy bajo";
+  if (normalized.includes("alto")) return "Alto";
+  if (normalized.includes("medio") || normalized.includes("mediano")) return "Medio";
+  if (normalized.includes("bajo")) return "Bajo";
+  return null;
+}
+
+export function isInstitutionalHazardField(field) {
+  const normalized = normalizeAttributeKey(field).replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
+  return [
+    "intensidad",
+    "riesgo",
+    "peligro",
+    "nivel",
+    "clasificacion",
+    "fen clasif",
+    "vulnerabilidad",
+  ].includes(normalized);
+}
+
+export function buildInstitutionalHazardLegend(values) {
+  const presentLabels = new Set(
+    values
+      .map(getInstitutionalHazardLabel)
+      .filter(Boolean)
+  );
+  const classes = INSTITUTIONAL_HAZARD_LABELS
+    .filter((label) => presentLabels.has(label))
+    .map((label) => ({
+      label,
+      color: INSTITUTIONAL_HAZARD_COLORS[label],
+    }));
+
+  return classes.length
+    ? {
+        type: "institutional-hazard",
+        field: "Clasificacion de peligro",
+        classes,
+      }
+    : null;
+}
+
 export function getPropertyValueByAlias(properties, aliases) {
   const lookup = new Map(
     Object.entries(properties).map(([key, value]) => [normalizeAttributeKey(key), value])
@@ -156,6 +227,15 @@ export function normalizeAttributeKey(key) {
 
 export function normalizeStyleValueKey(value) {
   return normalizeAttributeKey(value).replace(/\s+/g, " ").trim();
+}
+
+function normalizeInstitutionalHazardKey(value) {
+  return normalizeAttributeKey(value)
+    .replace(/[_-]+/g, " ")
+    .replace(/\b(riesgo|peligro|nivel|clasificacion|clase)\b/gu, "")
+    .replace(/[():;,%]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 export function containsHtmlMarkup(value) {

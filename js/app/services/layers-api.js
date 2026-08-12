@@ -7,7 +7,14 @@ export async function listPublicLayersRequest() {
     cacheKey: "GET:/layers/public",
   });
 
-  return payload?.data ?? [];
+  if (!Array.isArray(payload?.data)) {
+    const error = new Error("La API devolvio una respuesta de capas incompleta.");
+    error.code = "INVALID_LAYER_RESPONSE";
+    error.payload = payload;
+    throw error;
+  }
+
+  return payload.data;
 }
 
 export async function listPendingLayersRequest(token) {

@@ -607,7 +607,7 @@ select {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 0 12px 12px;
+  padding: 0 8px 10px;
   min-width: 0;
 }
 
@@ -619,9 +619,9 @@ select {
 .basemap-option,
 .layer-item {
   display: flex;
-  gap: 12px;
+  gap: 8px;
   align-items: flex-start;
-  padding: 12px 14px;
+  padding: 10px 12px;
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.78);
   border: 1px solid rgba(122, 32, 58, 0.08);
@@ -635,6 +635,73 @@ select {
   margin-top: 2px;
 }
 
+.basemap-option--compact {
+  min-height: 42px;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 9px;
+  border-radius: 12px;
+}
+
+.basemap-option--compact input {
+  margin: 0;
+  flex: 0 0 auto;
+}
+
+.basemap-option__thumb {
+  width: 50px;
+  height: 36px;
+  flex: 0 0 50px;
+  border-radius: 8px;
+  border: 1px solid rgba(70, 36, 49, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.34);
+}
+
+.basemap-option__thumb--satellite {
+  background:
+    radial-gradient(circle at 28% 32%, rgba(78, 123, 72, 0.82), transparent 26%),
+    radial-gradient(circle at 72% 58%, rgba(117, 93, 52, 0.82), transparent 30%),
+    linear-gradient(135deg, #394f35, #8a744b 52%, #4f6a43);
+}
+
+.basemap-option__thumb--topographic {
+  background:
+    repeating-radial-gradient(ellipse at 45% 55%, rgba(122, 93, 54, 0.5) 0 1px, transparent 2px 7px),
+    linear-gradient(135deg, #f4efe3, #d8e2c9);
+}
+
+.basemap-option__thumb--light {
+  background:
+    linear-gradient(90deg, transparent 0 28%, rgba(130, 138, 146, 0.38) 29% 31%, transparent 32%),
+    linear-gradient(0deg, transparent 0 45%, rgba(130, 138, 146, 0.3) 46% 48%, transparent 49%),
+    linear-gradient(135deg, #f8fafc, #e5e7eb);
+}
+
+.basemap-option__thumb--dark {
+  background:
+    linear-gradient(90deg, transparent 0 38%, rgba(226, 232, 240, 0.42) 39% 41%, transparent 42%),
+    linear-gradient(0deg, transparent 0 55%, rgba(226, 232, 240, 0.3) 56% 58%, transparent 59%),
+    linear-gradient(135deg, #1f2937, #111827);
+}
+
+.basemap-option__copy {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+
+.basemap-option__copy strong {
+  font-family: "Barlow", sans-serif;
+  font-size: 0.92rem;
+  line-height: 1.05;
+}
+
+.basemap-option__copy span {
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.1;
+}
+
 .basemap-option--active {
   border-color: rgba(122, 32, 58, 0.32);
   box-shadow: inset 0 0 0 1px rgba(122, 32, 58, 0.12);
@@ -644,11 +711,27 @@ select {
   flex-direction: column;
   align-items: stretch;
   align-self: stretch;
+  cursor: pointer;
 }
 
 .layer-item.is-visible {
   border-color: rgba(122, 32, 58, 0.28);
   box-shadow: inset 0 0 0 1px rgba(122, 32, 58, 0.08);
+}
+
+.layer-item.is-selected {
+  border-color: rgba(122, 32, 58, 0.46);
+  box-shadow:
+    inset 4px 0 0 rgba(122, 32, 58, 0.82),
+    inset 0 0 0 1px rgba(122, 32, 58, 0.1);
+  background: rgba(255, 252, 248, 0.94);
+}
+
+.layer-item:focus-visible,
+.toolbar-button:focus-visible,
+.basemap-option:focus-within {
+  outline: 3px solid rgba(191, 147, 86, 0.72);
+  outline-offset: 3px;
 }
 
 .layer-item.is-hidden-layer {
@@ -711,7 +794,7 @@ select {
 .layer-item__copy {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 7px;
   min-width: 0;
   width: 100%;
   overflow-wrap: anywhere;
@@ -720,8 +803,8 @@ select {
 
 .layer-opacity-control {
   display: grid;
-  gap: 6px;
-  margin-top: 6px;
+  gap: 5px;
+  margin-top: 0;
   min-width: 0;
   width: 100%;
 }
@@ -742,6 +825,36 @@ select {
   font-size: 0.98rem;
   overflow-wrap: anywhere;
   word-break: break-word;
+}
+
+.layer-select-button {
+  width: fit-content;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  font-family: "Barlow", sans-serif;
+  font-size: 0.98rem;
+  font-weight: 700;
+  line-height: 1.2;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.layer-select-button:hover {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.layer-select-button:focus-visible {
+  outline: 3px solid rgba(191, 147, 86, 0.72);
+  outline-offset: 3px;
+  border-radius: 8px;
 }
 
 .layer-item__copy span,
@@ -791,6 +904,14 @@ select {
   gap: 10px;
 }
 
+.legend-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
 .legend-item {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -816,8 +937,8 @@ select {
 }
 
 .legend-swatch {
-  width: 18px;
-  height: 18px;
+  width: 24px;
+  height: 20px;
   border-radius: 6px;
   margin-top: 2px;
   box-shadow: inset 0 0 0 1px rgba(70, 36, 49, 0.1);
@@ -1157,8 +1278,68 @@ select {
 
 .floating-card,
 .floating-menu,
-.map-toolbar {
+.map-toolbar,
+.basemap-control {
   pointer-events: auto;
+}
+
+.basemap-control {
+  position: relative;
+  display: inline-flex;
+  overflow: visible;
+}
+
+.toolbar-button--basemap {
+  background: rgba(122, 32, 58, 0.08);
+}
+
+.basemap-flyout {
+  position: absolute;
+  inset: auto;
+  top: calc(100% + 8px);
+  left: 0;
+  right: auto;
+  bottom: auto;
+  transform: none;
+  translate: none;
+  z-index: 40;
+  width: min(260px, calc(100vw - 24px));
+  max-height: min(320px, calc(100vh - 120px));
+  overflow-y: auto;
+  padding: 9px;
+  border-radius: 14px;
+  border: 1px solid rgba(122, 32, 58, 0.14);
+  background: rgba(255, 252, 248, 0.97);
+  box-shadow: 0 22px 48px rgba(70, 36, 49, 0.2);
+  backdrop-filter: blur(14px);
+}
+
+.basemap-flyout__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 0 2px 4px;
+}
+
+.basemap-list--flyout {
+  margin-top: 6px;
+  gap: 6px;
+}
+
+.basemap-flyout__header strong {
+  font-size: 0.92rem;
+}
+
+.layer-catalog-notice {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(191, 147, 86, 0.28);
+  background: rgba(255, 247, 237, 0.92);
+  color: var(--ink);
+  font-size: 0.86rem;
+  line-height: 1.35;
 }
 
 .floating-card {
@@ -1412,6 +1593,13 @@ select {
   background: rgba(19, 49, 38, 0.06);
   font-size: 1.5rem;
   line-height: 1;
+}
+
+.icon-button--small {
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  font-size: 1rem;
 }
 
 .demo-users,
