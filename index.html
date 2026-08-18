@@ -24,7 +24,7 @@
   <link rel="stylesheet" href="css/style.css?v=ui0604" />
 </head>
 <body>
-  <div class="app-shell">
+  <div class="app-shell" tabindex="-1">
     <header class="topbar">
       <div class="topbar-brand">
         <button
@@ -94,7 +94,7 @@
         <div class="control-panel-mobile-bar">
           <div class="control-panel-mobile-copy">
             <p class="section-kicker">Panel operativo</p>
-            <strong>Capas, leyenda e informacion</strong>
+            <strong>Capas e informacion</strong>
           </div>
           <button class="ghost-button" id="collapse-mobile-panel" type="button">Minimizar panel</button>
         </div>
@@ -102,7 +102,6 @@
         <div class="panel-quicknav" id="panel-quicknav">
           <button class="panel-quicknav__button" type="button" data-panel-target="summary-panel">Resumen</button>
           <button class="panel-quicknav__button" type="button" data-panel-target="layers-panel">Capas</button>
-          <button class="panel-quicknav__button" type="button" data-panel-target="legend-panel">Leyenda</button>
           <button class="panel-quicknav__button" type="button" data-panel-target="info-panel-section">Info</button>
         </div>
 
@@ -159,23 +158,6 @@
           </div>
         </details>
 
-        <details class="panel-card panel-accordion" id="legend-panel" open>
-          <summary class="panel-summary">
-            <div class="section-heading">
-              <div>
-                <p class="section-kicker">Simbologia</p>
-                <h3>Simbologia de capa</h3>
-              </div>
-            </div>
-            <span class="panel-summary__chevron" aria-hidden="true"></span>
-          </summary>
-          <div class="panel-content">
-            <div class="legend-list" id="selected-layer-legend">
-              <p class="empty-state">Selecciona una capa para consultar su simbologia.</p>
-            </div>
-          </div>
-        </details>
-
         <details class="panel-card panel-accordion" id="info-panel-section" open>
           <summary class="panel-summary">
             <div class="section-heading">
@@ -222,6 +204,7 @@
 
       <section class="map-stage">
         <div id="map"></div>
+        <aside class="map-legend-float" id="map-legend-float" aria-live="polite" hidden></aside>
 
         <button class="map-fab map-fab--left hidden" id="reopen-sidebar" type="button">
           Mostrar panel
@@ -425,6 +408,16 @@
             </label>
           </div>
 
+          <div class="raster-legend-editor" id="raster-legend-editor">
+            <div class="raster-legend-editor__header">
+              <h3>Leyenda raster</h3>
+              <button class="ghost-button upload-action-button upload-action-button--secondary" id="add-raster-legend-item" type="button">
+                Agregar elemento
+              </button>
+            </div>
+            <div class="raster-legend-list" id="raster-legend-list"></div>
+          </div>
+
           <div class="upload-preview-actions">
             <button class="ghost-button upload-action-button upload-action-button--secondary" id="upload-preview-toggle" type="button">
               Vista previa
@@ -445,6 +438,33 @@
     </form>
   </dialog>
 
+  <dialog
+    class="modal modal--trial-notice"
+    id="trial-notice-modal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="trial-notice-title"
+    aria-describedby="trial-notice-message"
+  >
+    <div class="modal-card modal-card--trial-notice">
+      <div class="modal-header">
+        <div>
+          <p class="section-kicker">Aviso institucional</p>
+          <h2 id="trial-notice-title">Visualizador en versión de prueba</h2>
+        </div>
+        <button class="icon-button" id="close-trial-notice" type="button" aria-label="Cerrar aviso de versión de prueba">x</button>
+      </div>
+
+      <p class="modal-copy" id="trial-notice-message">
+        Este visualizador se encuentra actualmente en etapa de prueba y construcción. Algunas funciones, capas o contenidos pueden cambiar durante su desarrollo.
+      </p>
+
+      <div class="modal-actions modal-actions--end">
+        <button class="primary-button" id="accept-trial-notice" type="button">Entendido</button>
+      </div>
+    </div>
+  </dialog>
+
   <dialog class="modal" id="login-modal">
     <form class="modal-card" id="login-form" method="dialog">
       <div class="modal-header">
@@ -463,17 +483,17 @@
         <article>
           <strong>Administrador</strong>
           <span>Credencial de prueba actual</span>
-          <span>`admin@atlas.morelos` / `Admin123!`</span>
+          <span>`admin@egem.morelos` / `Admin123!`</span>
         </article>
         <article>
           <strong>Director</strong>
           <span>Credencial de prueba actual</span>
-          <span>`director.cuernavaca@atlas.morelos` / `Director123!`</span>
+          <span>`director.cuernavaca@egem.morelos` / `Director123!`</span>
         </article>
         <article>
           <strong>Visitante</strong>
           <span>Credencial de prueba actual</span>
-          <span>`visitante@atlas.morelos` / `Visitante123!`</span>
+          <span>`visitante@egem.morelos` / `Visitante123!`</span>
         </article>
       </div>
 
@@ -483,7 +503,7 @@
 
       <label class="form-field">
         <span>Correo</span>
-        <input id="login-email" type="email" placeholder="usuario@atlas.morelos" required />
+        <input id="login-email" type="email" placeholder="usuario@egem.morelos" required />
       </label>
 
       <label class="form-field">

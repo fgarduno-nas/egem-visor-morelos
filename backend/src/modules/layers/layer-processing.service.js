@@ -1,11 +1,18 @@
 import fs from "node:fs";
 import path from "node:path";
-import zlib from "node:zlib";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
 import { env } from "../../config/env.js";
 import { buildPublicFileUrl } from "../../shared/utils/file-utils.js";
+import {
+  analyzeKmlText,
+  analyzeKmzFile,
+  extractGroundOverlayImages,
+  readZipEntries,
+  readZipEntryText,
+  validateArchiveEntries as validateArchiveEntriesSecurity,
+} from "./geospatial-importer.service.js";
 
 const execFileAsync = promisify(execFile);
 const VECTOR_EXTENSIONS = new Set(["geojson", "json", "kml", "kmz", "zip"]);
@@ -17,9 +24,7 @@ const KMZ_ALLOWED_EXTENSIONS = new Set([
   "png",
   "jpg",
   "jpeg",
-  "gif",
   "webp",
-  "svg",
   "xsl",
   "xslt",
   "txt",
@@ -104,35 +109,89 @@ export async function processGeoJson(layer, file, originalFileNames = []) {
 
 export function processKml(layer, file, originalFileNames = []) {
   const kmlText = fs.readFileSync(file.path, "utf8");
+  const analysis = analyzeKmlText(kmlText, { sourceName: file.originalname || file.path });
   const kmlStyleIndex = parseKmlStyleIndex(kmlText);
+
+  if (!analysis.vector.geometryCount && analysis.groundOverlays.length) {
+    throw new Error("El KML contiene GroundOverlay, pero la imagen debe venir dentro de un KMZ seguro para poder publicarse.");
+  }
+
   return convertWithOgr2Ogr({
     inputPath: file.path,
     outputPath: getProcessedGeoJsonPath(layer.id),
     originalFileNames,
     kmlStyleIndex,
+    diagnostics: analysis,
   });
 }
 
 export async function processKmz(layer, file, originalFileNames = []) {
-  const entries = readZipEntries(file.path);
+  const analysis = analyzeKmzFile(file.path);
+  const entries = analysis.entries;
   validateKmzEntries(entries);
   console.info("KMZ descomprimido correctamente.");
-  const kmlEntry = findMainKmlEntry(entries);
+  const kmlEntry = analysis.kmlEntry;
 
   if (!kmlEntry) {
     throw new Error("El KMZ no contiene un archivo KML principal.");
   }
 
   console.info(`KML principal detectado: ${kmlEntry.name}`);
-  const kmlText = readZipEntryText(file.path, kmlEntry);
+  const kmlText = analysis.kmlText || readZipEntryText(file.path, kmlEntry);
   const kmlStyleIndex = parseKmlStyleIndex(kmlText);
+  const validOverlays = analysis.groundOverlays.filter((overlay) => overlay.isValid && overlay.imageEntry);
+  const groundOverlays = validOverlays.length
+    ? extractGroundOverlayImages({
+        archivePath: file.path,
+        layerId: layer.id,
+        overlays: validOverlays,
+        outputRoot: env.UPLOAD_BASE_DIR,
+        publicBaseUrl: env.PUBLIC_BASE_URL,
+      })
+    : [];
+
+  if (!analysis.vector.geometryCount && groundOverlays.length) {
+    console.info("GroundOverlay detectado y procesado:", groundOverlays.length);
+    return buildProcessingResult({
+      status: "processed",
+      message: "Capa raster georreferenciada (GroundOverlay) procesada correctamente.",
+      resourceType: "ground-overlay",
+      geometryType: "GroundOverlay raster",
+      featureCount: 0,
+      bbox: analysis.bbox,
+      crs: "EPSG:4326",
+      originalFileNames,
+      groundOverlays,
+      diagnostics: analysis.diagnostics,
+    });
+  }
+
+  if (!analysis.vector.geometryCount && !groundOverlays.length) {
+    const detail = analysis.diagnostics?.errors?.length ? ` ${analysis.diagnostics.errors.join(" ")}` : "";
+    throw new Error(`El archivo no contiene geometria vectorial ni una imagen georreferenciada valida.${detail}`);
+  }
+
   console.info("Conversion ogr2ogr iniciada.");
-  return convertWithOgr2Ogr({
+  const vectorResult = await convertWithOgr2Ogr({
     inputPath: `/vsizip/${normalizeGdalPath(file.path)}/${kmlEntry.name}`,
     outputPath: getProcessedGeoJsonPath(layer.id),
     originalFileNames,
     kmlStyleIndex,
     logSuccess: "GeoJSON procesado generado.",
+    diagnostics: analysis.diagnostics,
+  });
+
+  if (!groundOverlays.length) return vectorResult;
+
+  return buildProcessingResult({
+    ...vectorResult,
+    status: "processed",
+    message: "Capa mixta con geometria vectorial y GroundOverlay procesada correctamente.",
+    resourceType: "mixed",
+    geometryType: `${vectorResult.geometryType || "Vector KML"} + GroundOverlay raster`,
+    bbox: mergeProcessingBboxes(vectorResult.bbox, analysis.bbox),
+    groundOverlays,
+    diagnostics: analysis.diagnostics,
   });
 }
 
@@ -156,13 +215,14 @@ export async function processShapefileZip(layer, file, originalFileNames = []) {
   });
 }
 
-export async function convertWithOgr2Ogr({ inputPath, outputPath, originalFileNames = [], logSuccess = null, kmlStyleIndex = null }) {
+export async function convertWithOgr2Ogr({ inputPath, outputPath, originalFileNames = [], logSuccess = null, kmlStyleIndex = null, diagnostics = null }) {
   const hasOgr = await hasOgr2Ogr();
   if (!hasOgr) {
     return buildProcessingResult({
       status: "pending",
       message: "La capa fue cargada, pero requiere procesamiento GDAL para visualizacion.",
       originalFileNames,
+      diagnostics,
     });
   }
 
@@ -192,7 +252,7 @@ export async function convertWithOgr2Ogr({ inputPath, outputPath, originalFileNa
   if (logSuccess) {
     console.info(logSuccess);
   }
-  return summarizeProcessedGeoJson(geojson, outputPath, originalFileNames);
+  return summarizeProcessedGeoJson(geojson, outputPath, originalFileNames, diagnostics);
 }
 
 function normalizeGeoJson(value) {
@@ -213,7 +273,7 @@ function normalizeGeoJson(value) {
   throw new Error("El archivo GeoJSON debe ser FeatureCollection o Feature.");
 }
 
-function summarizeProcessedGeoJson(geojson, outputPath, originalFileNames) {
+function summarizeProcessedGeoJson(geojson, outputPath, originalFileNames, diagnostics = null) {
   const geometryTypes = new Set();
   const bbox = [Infinity, Infinity, -Infinity, -Infinity];
 
@@ -228,6 +288,7 @@ function summarizeProcessedGeoJson(geojson, outputPath, originalFileNames) {
 
   return buildProcessingResult({
     status: "processed",
+    resourceType: "vector",
     processedGeojsonPath: outputPath,
     processedGeojsonUrl: buildPublicFileUrl(env.PUBLIC_BASE_URL, outputPath),
     geometryType: geometryTypes.size ? [...geometryTypes].join(", ") : "Vector GeoJSON",
@@ -235,6 +296,7 @@ function summarizeProcessedGeoJson(geojson, outputPath, originalFileNames) {
     bbox: hasBbox ? bbox : null,
     crs: "EPSG:4326",
     originalFileNames,
+    diagnostics,
   });
 }
 
@@ -270,60 +332,7 @@ function visitCoordinates(value, visitor) {
   }
 }
 
-function readZipEntries(filePath) {
-  const buffer = fs.readFileSync(filePath);
-  const entries = [];
-  let offset = 0;
-
-  while (offset < buffer.length - 46) {
-    const signature = buffer.readUInt32LE(offset);
-    if (signature !== 0x02014b50) {
-      offset += 1;
-      continue;
-    }
-
-    const compressedSize = buffer.readUInt32LE(offset + 20);
-    const uncompressedSize = buffer.readUInt32LE(offset + 24);
-    const fileNameLength = buffer.readUInt16LE(offset + 28);
-    const extraLength = buffer.readUInt16LE(offset + 30);
-    const commentLength = buffer.readUInt16LE(offset + 32);
-    const compressionMethod = buffer.readUInt16LE(offset + 10);
-    const localHeaderOffset = buffer.readUInt32LE(offset + 42);
-    const nameStart = offset + 46;
-    const nameEnd = nameStart + fileNameLength;
-    const name = buffer.subarray(nameStart, nameEnd).toString("utf8").replace(/\\/g, "/");
-    entries.push({ name, compressedSize, uncompressedSize, compressionMethod, localHeaderOffset });
-    offset = nameEnd + extraLength + commentLength;
-  }
-
-  return entries;
-}
-
-function readZipEntryText(filePath, entry) {
-  const buffer = fs.readFileSync(filePath);
-  const offset = entry.localHeaderOffset;
-
-  if (buffer.readUInt32LE(offset) !== 0x04034b50) {
-    throw new Error(`No se pudo leer la entrada KMZ: ${entry.name}`);
-  }
-
-  const fileNameLength = buffer.readUInt16LE(offset + 26);
-  const extraLength = buffer.readUInt16LE(offset + 28);
-  const dataStart = offset + 30 + fileNameLength + extraLength;
-  const compressed = buffer.subarray(dataStart, dataStart + entry.compressedSize);
-
-  if (entry.compressionMethod === 0) {
-    return compressed.toString("utf8");
-  }
-
-  if (entry.compressionMethod === 8) {
-    return zlib.inflateRawSync(compressed).toString("utf8");
-  }
-
-  throw new Error(`Metodo de compresion KMZ no soportado para ${entry.name}.`);
-}
-
-function parseKmlStyleIndex(kmlText) {
+export function parseKmlStyleIndex(kmlText) {
   const styles = readKmlStyles(kmlText);
   const styleMaps = readKmlStyleMaps(kmlText, styles);
   const mergedStyles = new Map([...styles, ...styleMaps]);
@@ -335,9 +344,24 @@ function parseKmlStyleIndex(kmlText) {
   return {
     styles: mergedStyles,
     placemarks,
-    byName: new Map(placemarks.filter((item) => item.name).map((item) => [item.name, item.style])),
+    byName: buildUniquePlacemarkStyleIndex(placemarks),
     byStyleUrl: new Map(placemarks.filter((item) => item.styleUrl).map((item) => [item.styleUrl, item.style])),
   };
+}
+
+function buildUniquePlacemarkStyleIndex(placemarks) {
+  const grouped = new Map();
+  placemarks.forEach((item) => {
+    if (!item.name || !item.style) return;
+    if (!grouped.has(item.name)) grouped.set(item.name, []);
+    grouped.get(item.name).push(item.style);
+  });
+
+  return new Map(
+    [...grouped.entries()]
+      .filter(([_name, styles]) => styles.length === 1)
+      .map(([name, styles]) => [name, styles[0]])
+  );
 }
 
 function readKmlStyles(kmlText) {
@@ -424,7 +448,7 @@ function mergeKmlStyles(linkedStyle, inlineStyle) {
   };
 }
 
-function enrichGeoJsonWithKmlStyles(geojson, kmlStyleIndex) {
+export function enrichGeoJsonWithKmlStyles(geojson, kmlStyleIndex) {
   if (!kmlStyleIndex?.placemarks?.length) return geojson;
 
   return {
@@ -459,12 +483,15 @@ function resolveFeatureKmlStyle(properties, index, kmlStyleIndex) {
     return kmlStyleIndex.byStyleUrl.get(styleUrl);
   }
 
+  const indexedStyle = kmlStyleIndex.placemarks[index]?.style || null;
+  if (indexedStyle?.fill || indexedStyle?.stroke) return indexedStyle;
+
   const name = properties.Name || properties.name || properties.NAME;
   if (name && kmlStyleIndex.byName.has(name)) {
     return kmlStyleIndex.byName.get(name);
   }
 
-  return kmlStyleIndex.placemarks[index]?.style || null;
+  return null;
 }
 
 function parseKmlColor(value) {
@@ -507,6 +534,7 @@ function decodeXmlText(value) {
 }
 
 function validateArchiveEntries(entries, allowedExtensions) {
+  validateArchiveEntriesSecurity(entries);
   if (!entries.length) {
     throw new Error("El archivo comprimido no contiene entradas legibles.");
   }
@@ -589,6 +617,7 @@ function getExtension(filename) {
 function buildProcessingResult({
   status,
   message = null,
+  resourceType = "vector",
   processedGeojsonPath = null,
   processedGeojsonUrl = null,
   geometryType = null,
@@ -596,17 +625,36 @@ function buildProcessingResult({
   bbox = null,
   crs = null,
   originalFileNames = [],
+  groundOverlays = [],
+  diagnostics = null,
 }) {
   return {
     processingStatus: status,
     processingMessage: message,
+    resourceType,
     processedGeojsonPath,
     processedGeojsonUrl,
-    isVisualizable: status === "processed" && Boolean(processedGeojsonPath),
+    groundOverlays,
+    isVisualizable: status === "processed" && (Boolean(processedGeojsonPath) || groundOverlays.length > 0),
     geometryType,
     featureCount,
     bbox,
     crs,
     originalFileNames,
+    diagnostics,
   };
+}
+
+function mergeProcessingBboxes(primary, secondary) {
+  const boxes = [primary, secondary].filter((bbox) => Array.isArray(bbox) && bbox.length === 4 && bbox.every(Number.isFinite));
+  if (!boxes.length) return null;
+  return boxes.reduce(
+    (acc, bbox) => [
+      Math.min(acc[0], bbox[0]),
+      Math.min(acc[1], bbox[1]),
+      Math.max(acc[2], bbox[2]),
+      Math.max(acc[3], bbox[3]),
+    ],
+    [Infinity, Infinity, -Infinity, -Infinity]
+  );
 }

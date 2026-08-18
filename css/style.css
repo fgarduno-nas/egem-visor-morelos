@@ -821,6 +821,12 @@ select {
   accent-color: #8d2947;
 }
 
+.layer-loading-state {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
 .layer-item__copy strong {
   font-size: 0.98rem;
   overflow-wrap: anywhere;
@@ -904,14 +910,6 @@ select {
   gap: 10px;
 }
 
-.legend-panel-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 10px;
-}
-
 .legend-item {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -942,6 +940,57 @@ select {
   border-radius: 6px;
   margin-top: 2px;
   box-shadow: inset 0 0 0 1px rgba(70, 36, 49, 0.1);
+}
+
+.map-legend-float {
+  position: absolute;
+  top: 86px;
+  right: 18px;
+  z-index: 36;
+  width: min(340px, calc(100vw - 36px));
+  max-height: min(58vh, 520px);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid rgba(122, 32, 58, 0.16);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 18px 42px rgba(70, 36, 49, 0.2);
+  backdrop-filter: blur(10px);
+  pointer-events: auto;
+}
+
+.map-legend-float[hidden] {
+  display: none;
+}
+
+.map-legend-float__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 14px 10px;
+  border-bottom: 1px solid rgba(122, 32, 58, 0.12);
+}
+
+.map-legend-float__header strong {
+  display: block;
+  color: var(--ink);
+  font-family: "Barlow", sans-serif;
+  line-height: 1.15;
+}
+
+.map-legend-float__body {
+  display: grid;
+  gap: 12px;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px 14px 14px;
+}
+
+.floating-legend-section {
+  display: grid;
+  gap: 8px;
 }
 
 .legend-swatch--base {
@@ -1517,6 +1566,16 @@ select {
   backdrop-filter: blur(6px);
 }
 
+.modal--trial-notice {
+  width: min(520px, calc(100% - 28px));
+  z-index: 1000;
+}
+
+.modal--trial-notice::backdrop {
+  background: rgba(11, 18, 16, 0.58);
+  backdrop-filter: blur(5px);
+}
+
 .modal--upload-panel {
   position: fixed;
   top: 180px;
@@ -1538,6 +1597,17 @@ select {
   border-radius: 28px;
   background: var(--panel-strong);
   box-shadow: var(--shadow);
+}
+
+.modal-card--trial-notice {
+  border: 1px solid rgba(122, 32, 58, 0.18);
+  box-shadow: 0 28px 70px rgba(38, 18, 24, 0.34);
+}
+
+.modal-card--trial-notice .modal-copy {
+  color: var(--ink-soft);
+  font-size: 1rem;
+  line-height: 1.55;
 }
 
 .modal-card--upload-panel {
@@ -1626,6 +1696,11 @@ select {
   justify-content: space-between;
   gap: 12px;
   margin-top: 10px;
+}
+
+.modal-actions--end {
+  justify-content: flex-end;
+  margin-top: 18px;
 }
 
 .maplibregl-ctrl-bottom-right .maplibregl-ctrl-group,
@@ -1815,6 +1890,48 @@ select {
 .upload-preview-actions .ghost-button.is-active {
   background: rgba(122, 32, 58, 0.16);
   border: 1px solid rgba(122, 32, 58, 0.18);
+}
+
+.raster-legend-editor {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.raster-legend-editor__header,
+.raster-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.raster-legend-editor__header h3 {
+  margin: 0;
+  font-size: 0.92rem;
+}
+
+.raster-legend-list {
+  display: grid;
+  gap: 6px;
+}
+
+.raster-legend-item {
+  padding: 8px;
+  border: 1px solid rgba(122, 32, 58, 0.12);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.raster-legend-item input[type="text"] {
+  min-width: 0;
+  flex: 1;
+}
+
+.raster-legend-item input[type="color"] {
+  width: 38px;
+  height: 34px;
+  padding: 2px;
 }
 
 .modal-card--upload-panel .modal-header h2 {
@@ -2578,6 +2695,15 @@ select {
     padding: 12px;
     border-radius: 16px;
   }
+
+  .map-legend-float {
+    top: auto;
+    right: 10px;
+    bottom: calc(min(58vh, 440px) + 18px);
+    left: 10px;
+    width: auto;
+    max-height: min(42vh, 360px);
+  }
 }
 
 @media (max-width: 400px) {
@@ -2628,6 +2754,13 @@ select {
 
   .map-overlay--bottom-right {
     bottom: calc(min(58vh, 440px) + 14px);
+  }
+
+  .map-legend-float {
+    right: 6px;
+    bottom: calc(min(58vh, 440px) + 12px);
+    left: 6px;
+    max-height: min(32vh, 260px);
   }
 
   .maplibregl-ctrl-bottom-right,

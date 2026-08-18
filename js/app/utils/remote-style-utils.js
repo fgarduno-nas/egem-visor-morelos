@@ -1,12 +1,12 @@
-export const GRADUATED_CLASS_COLORS = ["#166534", "#65A30D", "#FACC15", "#F97316", "#DC2626"];
+export const GRADUATED_CLASS_COLORS = ["#006100", "#7aab00", "#ffff00", "#ff9900", "#ff2200"];
 export const GRADUATED_CLASS_LABELS = ["Muy bajo", "Bajo", "Medio", "Alto", "Muy alto"];
 export const INSTITUTIONAL_HAZARD_LABELS = ["Muy alto", "Alto", "Medio", "Bajo", "Muy bajo"];
 export const INSTITUTIONAL_HAZARD_COLORS = {
-  "Muy alto": "#DC2626",
-  Alto: "#F97316",
-  Medio: "#FACC15",
-  Bajo: "#65A30D",
-  "Muy bajo": "#166534",
+  "Muy alto": "#ff2200",
+  Alto: "#ff9900",
+  Medio: "#ffff00",
+  Bajo: "#7aab00",
+  "Muy bajo": "#006100",
 };
 
 const CONTINUOUS_UNIQUE_THRESHOLD = 12;

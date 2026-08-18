@@ -38,6 +38,7 @@ export const uploadLayerBodySchema = z.object({
   updatedAt: z.string().max(30).optional().nullable(),
   scaleOrResolution: z.string().max(120).optional().nullable(),
   crs: z.string().max(120).optional().nullable(),
+  rasterLegend: z.string().max(10000).optional().nullable(),
   tags: tagsSchema,
   "tags[]": z.any().optional(),
 });

@@ -26,6 +26,16 @@ import {
   getInstitutionalHazardLabel,
   isInstitutionalHazardField,
 } from "./app/utils/remote-style-utils.js";
+import {
+  analyzeGeospatialFile,
+  createGroundOverlayObjectUrls,
+} from "./app/utils/geospatial-importer.js";
+import {
+  GROUND_OVERLAY_FALLBACK_LEGEND_LABEL,
+  GROUND_OVERLAY_NOTICE,
+  buildGroundOverlayInfoLines,
+  pickTopGroundOverlayHit,
+} from "./app/utils/ground-overlay-popup-utils.js";
 
   const MORELOS_CENTER = [-99.07, 18.84];
   const STORAGE_KEYS = {
@@ -56,7 +66,7 @@ import {
     {
       id: "demo-admin",
       name: "Administrador del Atlas",
-      email: "admin@atlas.morelos",
+      email: "admin@egem.morelos",
       password: "Admin123!",
       role: "admin",
       backendRole: "ADMIN",
@@ -67,7 +77,7 @@ import {
     {
       id: "demo-director-cuernavaca",
       name: "Director Cuernavaca",
-      email: "director.cuernavaca@atlas.morelos",
+      email: "director.cuernavaca@egem.morelos",
       password: "Director123!",
       role: "director",
       backendRole: "DATA_PROVIDER",
@@ -78,7 +88,7 @@ import {
     {
       id: "demo-visitante",
       name: "Visitante del Atlas",
-      email: "visitante@atlas.morelos",
+      email: "visitante@egem.morelos",
       password: "Visitante123!",
       role: "visitante",
       backendRole: "PUBLIC_USER",
@@ -220,7 +230,7 @@ import {
       category: "limites",
       status: "published",
       sourceKind: "static",
-      visible: false,
+      visible: true,
       opacity: 1,
       description: "Contorno general del estado de Morelos.",
     },
@@ -231,7 +241,7 @@ import {
       category: "limites",
       status: "published",
       sourceKind: "static",
-      visible: false,
+      visible: true,
       opacity: 1,
       description: "Division municipal para consulta operativa.",
     },
@@ -273,7 +283,12 @@ import {
     users: [],
     userLayers: loadUserLayers(),
     renderedLayers: new Map(),
+    pendingOpacityFrames: new Map(),
+    pendingLayerLoads: new Map(),
     selectedLayerId: null,
+    activeLayerStack: [],
+    activeInfoPopup: null,
+    activeLegendLayerId: null,
     symbologyCache: new Map(),
     previewLayerId: null,
     lastCapturedLayerId: null,
@@ -288,6 +303,7 @@ import {
       previewLayers: [],
       previewVisible: false,
       minimized: false,
+      rasterLegendItems: [],
     },
   };
 
@@ -323,7 +339,7 @@ import {
     closeBasemapFlyout: document.getElementById("close-basemap-flyout"),
     layerList: document.getElementById("layer-list"),
     layerCatalogNotice: document.getElementById("layer-catalog-notice"),
-    selectedLayerLegend: document.getElementById("selected-layer-legend"),
+    mapLegendFloat: document.getElementById("map-legend-float"),
     layerSearch: document.getElementById("layer-search"),
     infoPanel: document.getElementById("info-panel"),
     statusbar: document.getElementById("statusbar"),
@@ -353,6 +369,12 @@ import {
     uploadLayerUpdatedAt: document.getElementById("upload-layer-updated-at"),
     uploadLayerScale: document.getElementById("upload-layer-scale"),
     uploadLayerCrs: document.getElementById("upload-layer-crs"),
+    rasterLegendEditor: document.getElementById("raster-legend-editor"),
+    rasterLegendList: document.getElementById("raster-legend-list"),
+    addRasterLegendItem: document.getElementById("add-raster-legend-item"),
+    trialNoticeModal: document.getElementById("trial-notice-modal"),
+    acceptTrialNotice: document.getElementById("accept-trial-notice"),
+    closeTrialNotice: document.getElementById("close-trial-notice"),
     loginModal: document.getElementById("login-modal"),
     helpModal: document.getElementById("help-modal"),
     userAdminModal: document.getElementById("user-admin-modal"),
@@ -424,6 +446,7 @@ import {
     captureVisibleSnapshot();
     focusMorelos();
     await initializeRemoteState();
+    showTrialNoticeModal();
   });
 
   map.on("click", (event) => {
@@ -505,10 +528,9 @@ import {
     });
 
     document.addEventListener("click", (event) => {
-      const clearSelectionButton = event.target.closest("[data-clear-layer-selection]");
-      if (clearSelectionButton) {
-        clearSelectedLayer();
-        renderLayerCatalog(elements.layerSearch.value.trim().toLowerCase());
+      const closeFloatingLegendButton = event.target.closest("[data-close-floating-legend]");
+      if (closeFloatingLegendButton) {
+        closeFloatingLegend({ restoreFocus: true });
         return;
       }
 
@@ -535,6 +557,9 @@ import {
       if (event.key === "Escape" && elements.basemapFlyout && !elements.basemapFlyout.hidden) {
         closeBasemapFlyout();
       }
+      if (event.key === "Escape" && state.activeLegendLayerId) {
+        closeFloatingLegend({ restoreFocus: true });
+      }
       if (event.key === "Escape" && state.compactMenuOpen) {
         closeCompactMenu();
       }
@@ -558,10 +583,27 @@ import {
       await toggleUploadDraftPreview();
     });
 
+    elements.acceptTrialNotice?.addEventListener("click", closeTrialNoticeModal);
+    elements.closeTrialNotice?.addEventListener("click", closeTrialNoticeModal);
+    elements.trialNoticeModal?.addEventListener("click", (event) => {
+      if (event.target === elements.trialNoticeModal) {
+        closeTrialNoticeModal();
+      }
+    });
+    elements.trialNoticeModal?.addEventListener("close", restoreViewerFocus);
+
+    elements.addRasterLegendItem?.addEventListener("click", () => {
+      state.uploadDraft.rasterLegendItems.push({
+        label: "",
+        color: "#7a203a",
+      });
+      renderRasterLegendEditor();
+    });
+
     elements.logoutSession.addEventListener("click", async () => {
       closeCompactMenu();
       logout();
-      await syncLayersFromBackend();
+      await syncLayersFromBackend({ preserveSessionVisibility: false });
     });
 
     document.getElementById("close-login").addEventListener("click", () => {
@@ -611,10 +653,11 @@ import {
 
     document.getElementById("continue-visitor").addEventListener("click", () => {
       clearPreviewStateOnRoleChange();
+      resetThematicRuntimeState();
       state.session = createVisitorSession();
       saveSession();
       renderSession();
-      syncLayersFromBackend();
+      syncLayersFromBackend({ preserveSessionVisibility: false });
       elements.loginPassword.type = "password";
       syncPasswordToggleButton(elements.loginPassword, elements.toggleLoginPassword);
       elements.loginModal.close();
@@ -841,7 +884,9 @@ import {
       const layerId = item.dataset.layerId;
       const checkbox = item.querySelector('input[type="checkbox"]');
       checkbox.addEventListener("change", (event) => {
-        toggleLayerVisibility(layerId, event.target.checked);
+        toggleLayerVisibility(layerId, event.target.checked).catch((error) => {
+          console.error("No se pudo cambiar la visibilidad de la capa.", error);
+        });
       });
     });
 
@@ -850,7 +895,11 @@ import {
     });
 
     elements.layerList.querySelectorAll("[data-preview]").forEach((button) => {
-      button.addEventListener("click", () => previewLayerById(button.dataset.preview));
+      button.addEventListener("click", () => {
+        previewLayerById(button.dataset.preview).catch((error) => {
+          console.error("No se pudo visualizar la capa.", error);
+        });
+      });
     });
 
     elements.layerList.querySelectorAll("[data-download]").forEach((button) => {
@@ -871,11 +920,14 @@ import {
 
     elements.layerList.querySelectorAll("[data-opacity]").forEach((input) => {
       input.addEventListener("input", (event) => {
-        updateLayerOpacity(event.target.dataset.opacity, Number(event.target.value));
+        updateLayerOpacity(event.target.dataset.opacity, Number(event.target.value), { persist: false });
         const label = event.target.closest(".layer-opacity-control")?.querySelector("strong");
         if (label) {
           label.textContent = `${Math.round(Number(event.target.value))}%`;
         }
+      });
+      input.addEventListener("change", (event) => {
+        updateLayerOpacity(event.target.dataset.opacity, Number(event.target.value), { persist: true });
       });
     });
   }
@@ -933,7 +985,9 @@ import {
         selectLayer(layerId);
       });
       checkbox.addEventListener("change", (event) => {
-        toggleLayerVisibility(layerId, event.target.checked);
+        toggleLayerVisibility(layerId, event.target.checked).catch((error) => {
+          console.error("No se pudo cambiar la visibilidad de la capa.", error);
+        });
       });
     });
 
@@ -946,7 +1000,11 @@ import {
     });
 
     elements.layerList.querySelectorAll("[data-preview]").forEach((button) => {
-      button.addEventListener("click", () => previewLayerById(button.dataset.preview));
+      button.addEventListener("click", () => {
+        previewLayerById(button.dataset.preview).catch((error) => {
+          console.error("No se pudo visualizar la capa.", error);
+        });
+      });
     });
 
     elements.layerList.querySelectorAll("[data-download]").forEach((button) => {
@@ -967,11 +1025,14 @@ import {
 
     elements.layerList.querySelectorAll("[data-opacity]").forEach((input) => {
       input.addEventListener("input", (event) => {
-        updateLayerOpacity(event.target.dataset.opacity, Number(event.target.value));
+        updateLayerOpacity(event.target.dataset.opacity, Number(event.target.value), { persist: false });
         const label = event.target.closest(".layer-opacity-control")?.querySelector("strong");
         if (label) {
           label.textContent = `${Math.round(Number(event.target.value))}%`;
         }
+      });
+      input.addEventListener("change", (event) => {
+        updateLayerOpacity(event.target.dataset.opacity, Number(event.target.value), { persist: true });
       });
     });
   }
@@ -1013,7 +1074,8 @@ import {
 
   function renderLayerItem(layer) {
     const checked = layer.visible ? "checked" : "";
-    const disableToggle = !canSeeLayer(layer) ? "disabled" : "";
+    const disableToggle = !canSeeLayer(layer) || layer.isLoading ? "disabled" : "";
+    const loadingStatus = layer.isLoading ? '<span class="layer-loading-state" aria-live="polite">Cargando capa...</span>' : "";
     const reviewButton = state.session.role === "admin" && canPreviewLayer(layer)
       ? `<button class="ghost-button" type="button" data-preview="${layer.id}">Visualizar</button>`
       : "";
@@ -1048,6 +1110,7 @@ import {
               <span>Visibilidad <strong>${opacityValue}%</strong></span>
               <input type="range" min="10" max="100" step="5" value="${opacityValue}" data-opacity="${layer.id}" />
             </label>
+            ${loadingStatus}
           </div>
         </div>
         ${actionButtons ? `<div class="layer-actions">${actionButtons}</div>` : ""}
@@ -1145,6 +1208,41 @@ import {
     return Math.round(getLayerOpacity(layer) * 100);
   }
 
+  function getLayerStyleOpacityPaintValue(layer) {
+    const opacity = getLayerOpacity(layer);
+    const styleOpacity = getLayerStyleOpacityMode(layer);
+    if (styleOpacity.type === "scalar") {
+      return styleOpacity.value * opacity;
+    }
+    if (styleOpacity.type === "expression") {
+      return ["*", ["coalesce", ["to-number", ["get", "__styleOpacity"]], 1], opacity];
+    }
+    return opacity;
+  }
+
+  function getLayerStyleOpacityMode(layer) {
+    if (layer.__styleOpacityMode) return layer.__styleOpacityMode;
+    const values = [];
+    const features = Array.isArray(layer?.data?.features) ? layer.data.features : [];
+
+    features.forEach((feature) => {
+      const raw = feature?.properties?.__styleOpacity;
+      if (raw === null || raw === undefined || raw === "") return;
+      const value = Number(raw);
+      if (Number.isFinite(value)) values.push(Math.min(1, Math.max(0, value)));
+    });
+
+    const uniqueValues = [...new Set(values.map((value) => String(value)))].map(Number);
+    if (!uniqueValues.length) {
+      layer.__styleOpacityMode = { type: "none" };
+    } else if (uniqueValues.length === 1) {
+      layer.__styleOpacityMode = { type: "scalar", value: uniqueValues[0] };
+    } else {
+      layer.__styleOpacityMode = { type: "expression" };
+    }
+    return layer.__styleOpacityMode;
+  }
+
   function layerMatchesSearch(layer, searchTerm) {
     if (!searchTerm) return true;
     const candidate = [
@@ -1216,6 +1314,30 @@ import {
     elements.layerCatalogNotice.classList.toggle("hidden", !message);
   }
 
+  function showTrialNoticeModal() {
+    if (!elements.trialNoticeModal || elements.trialNoticeModal.open) return;
+    if (typeof elements.trialNoticeModal.showModal === "function") {
+      elements.trialNoticeModal.showModal();
+    } else {
+      elements.trialNoticeModal.setAttribute("open", "");
+    }
+    window.requestAnimationFrame(() => {
+      elements.acceptTrialNotice?.focus();
+    });
+  }
+
+  function closeTrialNoticeModal() {
+    if (!elements.trialNoticeModal?.open) return;
+    elements.trialNoticeModal.close();
+  }
+
+  function restoreViewerFocus() {
+    const viewerShell = document.querySelector(".app-shell");
+    if (viewerShell && typeof viewerShell.focus === "function") {
+      viewerShell.focus({ preventScroll: true });
+    }
+  }
+
   function getLayerCatalogNoticeMessage() {
     if (state.backendStatus.state === "unavailable") {
       return "Las capas tematicas no estan disponibles temporalmente. El mapa base y los limites territoriales continuan operativos.";
@@ -1229,7 +1351,7 @@ import {
     return "";
   }
 
-  function selectLayer(layerId) {
+  function selectLayer(layerId, options = {}) {
     const layer = findCatalogLayer(layerId);
     if (!layer || !canSeeLayer(layer)) {
       clearSelectedLayer();
@@ -1237,46 +1359,144 @@ import {
     }
 
     state.selectedLayerId = layerId;
-    renderSelectedLayerLegend(layer);
     updateInfoPanel({
       title: layer.title,
       description: layer.description || "Capa disponible para consulta territorial.",
       legend: getLayerSymbology(layer),
     });
-    renderLayerCatalog(elements.layerSearch.value.trim().toLowerCase());
-    revealSelectedLayerLegend();
+    if (options.renderCatalog !== false) {
+      renderLayerCatalog(elements.layerSearch.value.trim().toLowerCase());
+    }
   }
 
   function clearSelectedLayer() {
     state.selectedLayerId = null;
-    if (elements.selectedLayerLegend) {
-      elements.selectedLayerLegend.innerHTML = `<p class="empty-state">Selecciona una capa para consultar su simbologia.</p>`;
-    }
   }
 
   function findCatalogLayer(layerId) {
     return buildCatalog().find((layer) => layer.id === layerId) || null;
   }
 
-  function renderSelectedLayerLegend(layer) {
-    if (!elements.selectedLayerLegend) return;
-    const legend = getLayerSymbology(layer);
-    elements.selectedLayerLegend.innerHTML = `
-      <div class="legend-panel-header">
-        <p class="info-title">${escapeHtml(layer.title)}</p>
-        <button class="icon-button icon-button--small" type="button" data-clear-layer-selection aria-label="Cerrar simbologia">x</button>
+  function openFloatingLegendForLayer(layerId, options = {}) {
+    const layer = findCatalogLayer(layerId);
+    if (!layer || !canSeeLayer(layer)) {
+      closeFloatingLegend({ renderCatalog: options.renderCatalog });
+      return;
+    }
+
+    state.activeLegendLayerId = layerId;
+    renderFloatingLegend(layer);
+    if (options.renderCatalog !== false) {
+      renderLayerCatalog(elements.layerSearch.value.trim().toLowerCase());
+    }
+  }
+
+  function syncFloatingLegendAfterLayerDeactivation(layerId) {
+    if (state.activeLegendLayerId !== layerId) return;
+    const fallbackId = [...state.activeLayerStack]
+      .reverse()
+      .find((candidateId) => {
+        const layer = findCatalogLayer(candidateId);
+        return isThematicQueryableLayer(layer);
+      });
+    if (fallbackId) {
+      openFloatingLegendForLayer(fallbackId);
+    } else {
+      closeFloatingLegend();
+    }
+  }
+
+  function renderFloatingLegend(layer) {
+    if (!elements.mapLegendFloat) return;
+    const categoryTitle = getLayerCategoryTitle(layer) || "Capa tematica";
+    const content = renderFloatingLegendContent(layer);
+    elements.mapLegendFloat.hidden = false;
+    elements.mapLegendFloat.innerHTML = `
+      <div class="map-legend-float__header">
+        <div>
+          <p class="section-kicker">${escapeHtml(categoryTitle)}</p>
+          <strong>${escapeHtml(layer.title)}</strong>
+        </div>
+        <button class="icon-button icon-button--small" type="button" data-close-floating-legend aria-label="Cerrar simbologia">x</button>
       </div>
-      ${renderLayerLegend(legend) || `<p class="empty-state">Esta capa no tiene simbologia disponible.</p>`}
+      <div class="map-legend-float__body">
+        ${content || `<p class="empty-state">Esta capa no tiene simbologia disponible.</p>`}
+      </div>
     `;
   }
 
-  function revealSelectedLayerLegend() {
-    const legendPanel = document.getElementById("legend-panel");
-    if (legendPanel) {
-      legendPanel.open = true;
-      window.requestAnimationFrame(() => {
-        legendPanel.scrollIntoView({ block: "nearest", behavior: "smooth" });
-      });
+  function renderFloatingLegendContent(layer) {
+    const sections = [];
+    const vectorLegend = getVectorLayerSymbology(layer);
+    if (vectorLegend) {
+      sections.push(`
+        <section class="floating-legend-section">
+          ${isImageBackedLayer(layer) ? `<p class="info-copy"><strong>Simbologia vectorial</strong></p>` : ""}
+          ${renderLayerLegend(vectorLegend)}
+        </section>
+      `);
+    }
+
+    if (isImageBackedLayer(layer)) {
+      const rasterLegend = getRasterLayerSymbology(layer);
+      sections.push(`
+        <section class="floating-legend-section">
+          ${layer.data?.features?.length ? `<p class="info-copy"><strong>Simbologia raster</strong></p>` : ""}
+          ${renderLayerLegend(rasterLegend)}
+        </section>
+      `);
+    }
+
+    if (!sections.length) {
+      const legend = getLayerSymbology(layer);
+      if (legend) sections.push(renderLayerLegend(legend));
+    }
+
+    return sections.filter(Boolean).join("");
+  }
+
+  function getVectorLayerSymbology(layer) {
+    if (!layer.data?.features?.length) {
+      return layer.legend?.type && layer.legend.type !== "raster" ? layer.legend : null;
+    }
+    const vectorLayer = {
+      ...layer,
+      legend: layer.legend?.type === "raster" ? null : layer.legend,
+    };
+    return buildLayerSymbology(vectorLayer);
+  }
+
+  function getRasterLayerSymbology(layer) {
+    if (layer.legend?.type === "raster" && Array.isArray(layer.legend.classes) && layer.legend.classes.length) {
+      return layer.legend;
+    }
+    return {
+      type: "raster",
+      field: "Simbologia raster",
+      classes: [{
+        label: GROUND_OVERLAY_FALLBACK_LEGEND_LABEL,
+        color: "transparent",
+        outlineColor: "rgba(70, 36, 49, 0.35)",
+      }],
+    };
+  }
+
+  function closeFloatingLegend(options = {}) {
+    state.activeLegendLayerId = null;
+    if (elements.mapLegendFloat) {
+      elements.mapLegendFloat.hidden = true;
+      elements.mapLegendFloat.innerHTML = "";
+    }
+    if (options.renderCatalog !== false) {
+      renderLayerCatalog(elements.layerSearch.value.trim().toLowerCase());
+    }
+  }
+
+  function closeLegendIfLayerUnavailable() {
+    if (!state.activeLegendLayerId) return;
+    const layer = findCatalogLayer(state.activeLegendLayerId);
+    if (!layer || !canSeeLayer(layer)) {
+      closeFloatingLegend();
     }
   }
 
@@ -1289,12 +1509,28 @@ import {
   }
 
   function buildLayerSymbology(layer) {
+    if (layer.legend?.type === "raster" && Array.isArray(layer.legend.classes)) {
+      return layer.legend;
+    }
+
+    if (isImageBackedLayer(layer) && !layer.data?.features?.length) {
+      return {
+        type: "raster",
+        field: "Simbologia raster",
+        classes: [{
+          label: GROUND_OVERLAY_FALLBACK_LEGEND_LABEL,
+          color: "transparent",
+          outlineColor: "rgba(70, 36, 49, 0.35)",
+        }],
+      };
+    }
+
     if (layer.legend?.type === "continuous" && Array.isArray(layer.legend.classes)) {
       return normalizeLayerLegend(layer.legend, layer);
     }
 
     if (layer.sourceKind === "static") {
-      const color = layer.id === "estado" ? "#7A203A" : "#8F7B5A";
+      const color = layer.id === "estado" ? "#00E5FF" : "#8F7B5A";
       return {
         type: "categorical",
         field: "Limite",
@@ -1406,7 +1642,7 @@ import {
       source: "estado-source",
       paint: {
         "fill-color": "#ffffff",
-        "fill-opacity": 0.16 * getLayerOpacity(staticLayers.find((layer) => layer.id === "estado")),
+        "fill-opacity": 0,
       },
     });
 
@@ -1415,9 +1651,9 @@ import {
       type: "line",
       source: "estado-source",
       paint: {
-        "line-color": "#f5f0e5",
-        "line-width": 3,
-        "line-opacity": getLayerOpacity(staticLayers.find((layer) => layer.id === "estado")),
+        "line-color": "#10212B",
+        "line-width": ["interpolate", ["linear"], ["zoom"], 6, 4, 10, 5, 14, 6],
+        "line-opacity": 0.44 * getLayerOpacity(staticLayers.find((layer) => layer.id === "estado")),
       },
     });
 
@@ -1426,9 +1662,9 @@ import {
       type: "line",
       source: "estado-source",
       paint: {
-        "line-color": "#ffffff",
-        "line-width": ["interpolate", ["linear"], ["zoom"], 6, 4, 10, 7, 14, 10],
-        "line-opacity": 0.92,
+        "line-color": "#10212B",
+        "line-width": ["interpolate", ["linear"], ["zoom"], 6, 5, 10, 7, 14, 9],
+        "line-opacity": 0.86 * getLayerOpacity(staticLayers.find((layer) => layer.id === "estado")),
       },
     });
 
@@ -1437,9 +1673,9 @@ import {
       type: "line",
       source: "estado-source",
       paint: {
-        "line-color": "#7A203A",
-        "line-width": ["interpolate", ["linear"], ["zoom"], 6, 2.2, 10, 4, 14, 6],
-        "line-opacity": 0.98,
+        "line-color": "#00E5FF",
+        "line-width": ["interpolate", ["linear"], ["zoom"], 6, 2.2, 10, 3.6, 14, 5],
+        "line-opacity": 1 * getLayerOpacity(staticLayers.find((layer) => layer.id === "estado")),
       },
     });
 
@@ -1471,9 +1707,10 @@ import {
   }
 
   function restoreStateBoundaryHighlight() {
+    const visible = staticLayers.find((layer) => layer.id === "estado")?.visible !== false;
     ["estado-highlight-halo", "estado-highlight"].forEach((layerId) => {
       if (!map.getLayer(layerId)) return;
-      safeSetLayoutProperty(layerId, "visibility", "visible");
+      safeSetLayoutProperty(layerId, "visibility", visible ? "visible" : "none");
       try {
         map.moveLayer(layerId);
       } catch (error) {
@@ -1554,6 +1791,8 @@ import {
     if (layerId === "estado") {
       safeSetLayoutProperty("estado", "visibility", visible ? "visible" : "none");
       safeSetLayoutProperty("estado-fill", "visibility", visible ? "visible" : "none");
+      safeSetLayoutProperty("estado-highlight-halo", "visibility", visible ? "visible" : "none");
+      safeSetLayoutProperty("estado-highlight", "visibility", visible ? "visible" : "none");
     }
     if (layerId === "municipios") {
       safeSetLayoutProperty("municipios", "visibility", visible ? "visible" : "none");
@@ -1667,6 +1906,12 @@ import {
     }
     if (state.activeTool === "point") {
       createManualPointLayer(event.lngLat);
+      return;
+    }
+
+    const thematicHit = getTopThematicPopupHit(event);
+    if (thematicHit) {
+      showThematicPopup(thematicHit, event.lngLat);
     }
   }
 
@@ -1745,7 +1990,9 @@ import {
       addUserLayerToMap(layer);
       state.renderedLayers.set(layer.id, true);
     } else {
-      previewLayer(layer);
+      previewLayer(layer).catch((error) => {
+        console.error("No se pudo activar la vista previa del punto capturado.", error);
+      });
     }
 
     captureVisibleSnapshot();
@@ -1780,30 +2027,148 @@ import {
 
     state.userLayers.forEach((layer) => {
       if (layer.visible !== false && canSeeLayer(layer)) {
-        addUserLayerToMap(layer);
-        state.renderedLayers.set(layer.id, true);
+        if (canRenderLayerFromCachedResources(layer)) {
+          addUserLayerToMap(layer);
+          state.renderedLayers.set(layer.id, true);
+        }
       } else {
         removeLayerBundle(layer.id);
         state.renderedLayers.delete(layer.id);
       }
     });
+    rebuildActiveLayerStack();
 
     if (state.previewLayerId) {
       const previewLayer = state.userLayers.find((layer) => layer.id === state.previewLayerId);
       if (previewLayer && canSeeLayer(previewLayer)) {
-        addUserLayerToMap(previewLayer);
-        state.renderedLayers.set(previewLayer.id, true);
+        if (canRenderLayerFromCachedResources(previewLayer)) {
+          addUserLayerToMap(previewLayer);
+          state.renderedLayers.set(previewLayer.id, true);
+        }
       }
     }
     restoreStateBoundaryHighlight();
   }
 
-  function addUserLayerToMap(layer) {
-    if (layer.sourceKind === "image") {
-      addImageLayerToMap(layer);
-      return;
+  function canRenderLayerFromCachedResources(layer) {
+    if (!layer) return false;
+    if (isImageBackedLayer(layer) && getLayerGroundOverlays(layer).length) return true;
+    if (layer.data) return true;
+    return !layer.processedGeojsonUrl;
+  }
+
+  function resetThematicRuntimeState(options = {}) {
+    state.userLayers.forEach((layer) => {
+      layer.visible = false;
+      layer.isLoading = false;
+      setUserLayerLayoutVisibility(layer, false);
+      if (options.removeRenderedLayers !== false) {
+        removeLayerBundle(layer.id);
+        state.renderedLayers.delete(layer.id);
+      }
+    });
+    state.pendingLayerLoads.clear();
+    state.activeLayerStack = [];
+    state.previewLayerId = null;
+    closeActiveInfoPopup();
+    closeFloatingLegend({ renderCatalog: false });
+  }
+
+  function rebuildActiveLayerStack() {
+    const visibleLayerIds = state.userLayers
+      .filter((layer) => isThematicQueryableLayer(layer))
+      .map((layer) => layer.id);
+    state.activeLayerStack = state.activeLayerStack
+      .filter((layerId) => visibleLayerIds.includes(layerId));
+    visibleLayerIds.forEach((layerId) => {
+      if (!state.activeLayerStack.includes(layerId)) {
+        state.activeLayerStack.push(layerId);
+      }
+    });
+    closePopupIfOwnerUnavailable();
+    closeLegendIfLayerUnavailable();
+  }
+
+  function isThematicQueryableLayer(layer) {
+    return Boolean(
+      layer &&
+      layer.visible !== false &&
+      canSeeLayer(layer) &&
+      layer.id !== state.previewLayerId
+    );
+  }
+
+  function activateLayerInStack(layerId) {
+    state.activeLayerStack = state.activeLayerStack.filter((id) => id !== layerId);
+    const layer = state.userLayers.find((item) => item.id === layerId);
+    if (isThematicQueryableLayer(layer)) {
+      state.activeLayerStack.push(layerId);
     }
-    addGeoJsonLayerToMap(layer);
+  }
+
+  function deactivateLayerInStack(layerId) {
+    state.activeLayerStack = state.activeLayerStack.filter((id) => id !== layerId);
+  }
+
+  async function ensureLayerResourcesLoaded(layer) {
+    if (!layer || layer.data || !layer.processedGeojsonUrl) return layer;
+    if (state.pendingLayerLoads.has(layer.id)) {
+      return state.pendingLayerLoads.get(layer.id);
+    }
+
+    const loadPromise = loadProcessedGeoJsonForLayer(layer)
+      .finally(() => {
+        state.pendingLayerLoads.delete(layer.id);
+        layer.isLoading = false;
+        renderLayerCatalog(elements.layerSearch.value.trim().toLowerCase());
+      });
+
+    state.pendingLayerLoads.set(layer.id, loadPromise);
+    layer.isLoading = true;
+    renderLayerCatalog(elements.layerSearch.value.trim().toLowerCase());
+    return loadPromise;
+  }
+
+  async function loadProcessedGeoJsonForLayer(layer) {
+    const response = await fetch(layer.processedGeojsonUrl);
+    if (!response.ok) {
+      throw new Error("No se pudo descargar el GeoJSON procesado del backend.");
+    }
+
+    const normalizedRemote = normalizeBackendProcessedGeoJson(
+      ensureFeatureCollection(await response.json()),
+      getBackendRecordLikeFromLayer(layer)
+    );
+    layer.data = normalizedRemote.geojson;
+    layer.symbology = normalizedRemote.symbology;
+    if (!isImageBackedLayer(layer) || !layer.legend || layer.legend.type !== "raster") {
+      layer.legend = normalizedRemote.legend || layer.legend;
+    }
+    console.info("GeoJSON diferido visualizado correctamente", layer.title);
+    return layer;
+  }
+
+  function getBackendRecordLikeFromLayer(layer) {
+    return {
+      id: layer.backendLayerId || layer.id,
+      title: layer.title,
+      sourceType: layer.fileType,
+      resourceType: layer.resourceType,
+      status: layer.status,
+      municipality: layer.municipality,
+      processedGeojsonUrl: layer.processedGeojsonUrl,
+      metadata: layer.metadata || null,
+      rasterLegend: layer.legend?.type === "raster" ? layer.legend : layer.metadata?.rasterLegend || null,
+    };
+  }
+
+  function addUserLayerToMap(layer) {
+    if (isImageBackedLayer(layer)) {
+      addImageLayerToMap(layer);
+    }
+    if (layer.data) {
+      addGeoJsonLayerToMap(layer);
+    }
   }
 
   function addGeoJsonLayerToMap(layer) {
@@ -1817,65 +2182,78 @@ import {
     const fillColorExpression = layer.symbology?.fillColorExpression || ["coalesce", ["get", "__styleFill"], defaultFillColor];
     const lineColorExpression = layer.symbology?.lineColorExpression || ["coalesce", ["get", "__styleLine"], defaultLineColor];
     const pointColorExpression = layer.symbology?.pointColorExpression || ["coalesce", ["get", "__styleIcon"], defaultPointColor];
+    const styleOpacityPaintValue = getLayerStyleOpacityPaintValue(layer);
+    const geometryTypes = getLayerGeometryTypes(layer);
+    const hasPolygons = hasAnyGeometryType(geometryTypes, ["Polygon", "MultiPolygon"]);
+    const hasLines = hasAnyGeometryType(geometryTypes, ["LineString", "MultiLineString"]);
+    const hasPoints = hasAnyGeometryType(geometryTypes, ["Point", "MultiPoint"]);
+    const interactiveLayerIds = [];
 
     upsertGeoJsonSource(sourceId, layer.data);
 
-    addLayerIfMissing({
-      id: fillId,
-      type: "fill",
-      source: sourceId,
-      filter: [
-        "any",
-        ["==", ["geometry-type"], "Polygon"],
-        ["==", ["geometry-type"], "MultiPolygon"],
-      ],
-      paint: {
-        "fill-color": fillColorExpression,
-        "fill-opacity": 1 * getLayerOpacity(layer),
-      },
-    });
+    if (hasPolygons) {
+      addLayerIfMissing({
+        id: fillId,
+        type: "fill",
+        source: sourceId,
+        filter: [
+          "any",
+          ["==", ["geometry-type"], "Polygon"],
+          ["==", ["geometry-type"], "MultiPolygon"],
+        ],
+        paint: {
+          "fill-color": fillColorExpression,
+          "fill-opacity": styleOpacityPaintValue,
+        },
+      });
+      interactiveLayerIds.push(fillId);
+    }
 
-    addLayerIfMissing({
-      id: lineId,
-      type: "line",
-      source: sourceId,
-      filter: [
-        "any",
-        ["==", ["geometry-type"], "LineString"],
-        ["==", ["geometry-type"], "MultiLineString"],
-        ["==", ["geometry-type"], "Polygon"],
-        ["==", ["geometry-type"], "MultiPolygon"],
-      ],
-      paint: {
-        "line-color": lineColorExpression,
-        "line-width": ["coalesce", ["to-number", ["get", "__styleWidth"]], 2.4],
-        "line-opacity": getLayerOpacity(layer),
-      },
-    });
+    if (hasLines || hasPolygons) {
+      addLayerIfMissing({
+        id: lineId,
+        type: "line",
+        source: sourceId,
+        filter: [
+          "any",
+          ["==", ["geometry-type"], "LineString"],
+          ["==", ["geometry-type"], "MultiLineString"],
+          ["==", ["geometry-type"], "Polygon"],
+          ["==", ["geometry-type"], "MultiPolygon"],
+        ],
+        paint: {
+          "line-color": lineColorExpression,
+          "line-width": ["coalesce", ["to-number", ["get", "__styleWidth"]], 2.4],
+          "line-opacity": styleOpacityPaintValue,
+        },
+      });
+      interactiveLayerIds.push(lineId);
+    }
 
-    addLayerIfMissing({
-      id: pointId,
-      type: "circle",
-      source: sourceId,
-      filter: [
-        "any",
-        ["==", ["geometry-type"], "Point"],
-        ["==", ["geometry-type"], "MultiPoint"],
-      ],
-      paint: {
-        "circle-color": pointColorExpression,
-        "circle-radius": 6,
-        "circle-stroke-color": "#ffffff",
-        "circle-stroke-width": 1.8,
-        "circle-opacity": getLayerOpacity(layer),
-        "circle-stroke-opacity": getLayerOpacity(layer),
-      },
-    });
+    if (hasPoints) {
+      addLayerIfMissing({
+        id: pointId,
+        type: "circle",
+        source: sourceId,
+        filter: [
+          "any",
+          ["==", ["geometry-type"], "Point"],
+          ["==", ["geometry-type"], "MultiPoint"],
+        ],
+        paint: {
+          "circle-color": pointColorExpression,
+          "circle-radius": 6,
+          "circle-stroke-color": "#ffffff",
+          "circle-stroke-width": 1.8,
+          "circle-opacity": getLayerOpacity(layer),
+          "circle-stroke-opacity": getLayerOpacity(layer),
+        },
+      });
+      interactiveLayerIds.push(pointId);
+    }
 
-    layer.interactiveLayerIds = [pointId, lineId, fillId];
-    bindVectorPopup(pointId, layer);
-    bindVectorPopup(lineId, layer);
-    bindVectorPopup(fillId, layer);
+    layer.interactiveLayerIds = interactiveLayerIds;
+    interactiveLayerIds.forEach((layerId) => bindVectorPopup(layerId, layer));
     applyUserLayerOpacityToMap(layer);
     if (layer.backendLayerId && layer.processedGeojsonUrl) {
       console.info("GeoJSON visualizado correctamente", layer.title);
@@ -1883,28 +2261,81 @@ import {
   }
 
   function addImageLayerToMap(layer) {
-    const sourceId = `source-${layer.id}`;
-    const rasterId = `${layer.id}-raster`;
+    const overlays = getLayerGroundOverlays(layer);
+    layer.imageLayerIds = [];
+    layer.imageSourceIds = [];
 
-    if (!map.getSource(sourceId)) {
-      map.addSource(sourceId, {
-        type: "image",
-        url: layer.imageUrl,
-        coordinates: layer.coordinates,
+    overlays.forEach((overlay, index) => {
+      const suffix = overlays.length === 1 ? "raster" : `raster-${index + 1}`;
+      const sourceId = `source-${layer.id}-${suffix}`;
+      const rasterId = `${layer.id}-${suffix}`;
+
+      if (!map.getSource(sourceId)) {
+        map.addSource(sourceId, {
+          type: "image",
+          url: overlay.imageUrl,
+          coordinates: overlay.coordinates,
+        });
+      }
+
+      addLayerIfMissing({
+        id: rasterId,
+        type: "raster",
+        source: sourceId,
+        paint: {
+          "raster-opacity": getLayerOpacity(layer),
+          "raster-fade-duration": 0,
+        },
       });
-    }
 
-    addLayerIfMissing({
-      id: rasterId,
-      type: "raster",
-      source: sourceId,
-      paint: {
-        "raster-opacity": getLayerOpacity(layer),
-        "raster-fade-duration": 0,
-      },
+      layer.imageSourceIds.push(sourceId);
+      layer.imageLayerIds.push(rasterId);
     });
 
     applyUserLayerOpacityToMap(layer);
+  }
+
+  function isImageBackedLayer(layer) {
+    return layer.sourceKind === "image" || layer.sourceKind === "ground-overlay" || layer.sourceKind === "mixed";
+  }
+
+  function getLayerGroundOverlays(layer) {
+    if (Array.isArray(layer.groundOverlays) && layer.groundOverlays.length) {
+      return layer.groundOverlays.filter((overlay) => overlay.imageUrl && Array.isArray(overlay.coordinates));
+    }
+    if (layer.imageUrl && Array.isArray(layer.coordinates)) {
+      return [{
+        id: "raster",
+        imageUrl: layer.imageUrl,
+        coordinates: layer.coordinates,
+      }];
+    }
+    return [];
+  }
+
+  function revokeLayerObjectUrls(layer) {
+    getLayerGroundOverlays(layer).forEach((overlay) => {
+      if (overlay.revokeUrl && overlay.imageUrl?.startsWith("blob:")) {
+        URL.revokeObjectURL(overlay.imageUrl);
+      }
+    });
+    if (layer.imageUrl?.startsWith("blob:") && !layer.groundOverlays?.length) {
+      URL.revokeObjectURL(layer.imageUrl);
+    }
+  }
+
+  function getLayerGeometryTypes(layer) {
+    if (layer.__geometryTypes) return layer.__geometryTypes;
+    layer.__geometryTypes = new Set(
+      (layer?.data?.features || [])
+        .map((feature) => feature?.geometry?.type)
+        .filter(Boolean)
+    );
+    return layer.__geometryTypes;
+  }
+
+  function hasAnyGeometryType(geometryTypes, candidates) {
+    return candidates.some((type) => geometryTypes.has(type));
   }
 
   function applyUserLayerOpacityToMap(layer) {
@@ -1912,13 +2343,15 @@ import {
     const fillId = `${layer.id}-fill`;
     const lineId = `${layer.id}-line`;
     const pointId = `${layer.id}-point`;
-    const rasterId = `${layer.id}-raster`;
+    const rasterIds = layer.imageLayerIds?.length ? layer.imageLayerIds : [`${layer.id}-raster`];
 
-    safeSetPaintProperty(fillId, "fill-opacity", 1 * opacity);
-    safeSetPaintProperty(lineId, "line-opacity", opacity);
+    const styleOpacityPaintValue = getLayerStyleOpacityPaintValue(layer);
+
+    safeSetPaintProperty(fillId, "fill-opacity", styleOpacityPaintValue);
+    safeSetPaintProperty(lineId, "line-opacity", styleOpacityPaintValue);
     safeSetPaintProperty(pointId, "circle-opacity", opacity);
     safeSetPaintProperty(pointId, "circle-stroke-opacity", opacity);
-    safeSetPaintProperty(rasterId, "raster-opacity", opacity);
+    rasterIds.forEach((rasterId) => safeSetPaintProperty(rasterId, "raster-opacity", opacity));
   }
 
   function applyStaticLayerOpacity(layerId) {
@@ -1927,8 +2360,10 @@ import {
     const opacity = getLayerOpacity(layer);
 
     if (layerId === "estado") {
-      safeSetPaintProperty("estado-fill", "fill-opacity", 0.16 * opacity);
-      safeSetPaintProperty("estado", "line-opacity", opacity);
+      safeSetPaintProperty("estado-fill", "fill-opacity", 0);
+      safeSetPaintProperty("estado", "line-opacity", 0.44 * opacity);
+      safeSetPaintProperty("estado-highlight-halo", "line-opacity", 0.86 * opacity);
+      safeSetPaintProperty("estado-highlight", "line-opacity", opacity);
       return;
     }
 
@@ -1938,21 +2373,23 @@ import {
     }
   }
 
-  function previewLayer(layer) {
+  async function previewLayer(layer) {
     clearPreviewLayer();
     state.previewLayerId = layer.id;
     layer.visible = true;
+    await ensureLayerResourcesLoaded(layer);
     addUserLayerToMap(layer);
     state.renderedLayers.set(layer.id, true);
     fitLayer(layer);
     captureVisibleSnapshot();
+    openFloatingLegendForLayer(layer.id, { renderCatalog: false });
     renderLayerCatalog(elements.layerSearch.value.trim().toLowerCase());
   }
 
-  function previewLayerById(layerId) {
+  async function previewLayerById(layerId) {
     const layer = state.userLayers.find((item) => item.id === layerId);
     if (!layer) return;
-    previewLayer(layer);
+    await previewLayer(layer);
     const isReviewPreview = !isPublishedStatus(layer.status);
     updateInfoPanel({
       title: layer.title,
@@ -1991,7 +2428,7 @@ import {
     });
   }
 
-  function toggleLayerVisibility(layerId, visible) {
+  async function toggleLayerVisibility(layerId, visible) {
     const staticLayer = staticLayers.find((layer) => layer.id === layerId);
     const userLayer = state.userLayers.find((layer) => layer.id === layerId);
 
@@ -2005,13 +2442,31 @@ import {
     if (userLayer) {
       userLayer.visible = visible;
       if (visible) {
-        if (canSeeLayer(userLayer) || userLayer.id === state.previewLayerId) {
+        try {
+          await ensureLayerResourcesLoaded(userLayer);
+        } catch (error) {
+          userLayer.visible = false;
+          syncLayerCatalogItemState(layerId, false);
+          captureVisibleSnapshot();
+          saveUserLayers();
+          updateInfoPanel({
+            title: "No se pudo cargar la capa",
+            description: error.message || "La capa no pudo descargarse. Intenta activarla nuevamente.",
+          });
+          throw error;
+        }
+        if (!state.renderedLayers.has(userLayer.id) && (canSeeLayer(userLayer) || userLayer.id === state.previewLayerId)) {
           addUserLayerToMap(userLayer);
           state.renderedLayers.set(userLayer.id, true);
         }
+        setUserLayerLayoutVisibility(userLayer, true);
+        activateLayerInStack(userLayer.id);
+        openFloatingLegendForLayer(userLayer.id, { renderCatalog: false });
       } else {
-        removeLayerBundle(userLayer.id);
-        state.renderedLayers.delete(userLayer.id);
+        setUserLayerLayoutVisibility(userLayer, false);
+        deactivateLayerInStack(userLayer.id);
+        closePopupForLayer(userLayer.id);
+        syncFloatingLegendAfterLayerDeactivation(userLayer.id);
       }
       saveUserLayers();
     }
@@ -2019,8 +2474,8 @@ import {
     captureVisibleSnapshot();
     syncLayerCatalogItemState(layerId, visible);
 
-    if (state.selectedLayerId === layerId) {
-      renderSelectedLayerLegend(staticLayer || userLayer);
+    if (state.activeLegendLayerId) {
+      renderLayerCatalog(elements.layerSearch.value.trim().toLowerCase());
     }
   }
 
@@ -2033,22 +2488,53 @@ import {
     item.classList.toggle("is-hidden-layer", !visible);
   }
 
-  function updateLayerOpacity(layerId, percentage) {
+  function updateLayerOpacity(layerId, percentage, options = {}) {
     const opacity = clampLayerOpacity(Number(percentage) / 100);
     const staticLayer = staticLayers.find((layer) => layer.id === layerId);
     const userLayer = state.userLayers.find((layer) => layer.id === layerId);
 
     if (staticLayer) {
+      if (staticLayer.opacity === opacity && options.persist === false) return;
       staticLayer.opacity = opacity;
-      applyStaticLayerOpacity(layerId);
+      scheduleLayerOpacityUpdate(layerId, () => applyStaticLayerOpacity(layerId));
     }
 
     if (userLayer) {
+      if (userLayer.opacity === opacity && options.persist === false) return;
       userLayer.opacity = opacity;
-      applyUserLayerOpacityToMap(userLayer);
+      scheduleLayerOpacityUpdate(layerId, () => applyUserLayerOpacityToMap(userLayer));
     }
 
-    saveUserLayers();
+    if (options.persist !== false) {
+      saveUserLayers();
+    }
+  }
+
+  function scheduleLayerOpacityUpdate(layerId, callback) {
+    if (state.pendingOpacityFrames.has(layerId)) {
+      cancelAnimationFrame(state.pendingOpacityFrames.get(layerId));
+    }
+
+    const frameId = requestAnimationFrame(() => {
+      state.pendingOpacityFrames.delete(layerId);
+      callback();
+    });
+    state.pendingOpacityFrames.set(layerId, frameId);
+  }
+
+  function setUserLayerLayoutVisibility(layer, visible) {
+    const visibility = visible ? "visible" : "none";
+    const layerIds = [
+      `${layer.id}-point`,
+      `${layer.id}-line`,
+      `${layer.id}-fill`,
+      `${layer.id}-raster`,
+      ...(layer.imageLayerIds || []),
+    ];
+
+    layerIds.forEach((mapLayerId) => {
+      safeSetLayoutProperty(mapLayerId, "visibility", visibility);
+    });
   }
 
   async function approveLayer(layerId) {
@@ -2066,7 +2552,7 @@ import {
     try {
       setSystemStatus("Aprobando capa", `Se esta validando ${layer.title} en backend.`);
       await approveLayerRequest(state.session.token, layer.backendLayerId);
-      await syncLayersFromBackend();
+      await syncLayersFromBackend({ preserveSessionVisibility: false });
       setSystemStatus("Capa aprobada", `${layer.title} quedo lista para publicacion.`);
       updateInfoPanel({
         title: layer.title,
@@ -2096,6 +2582,11 @@ import {
 
       removeLayerBundle(layer.id);
       state.renderedLayers.delete(layer.id);
+      deactivateLayerInStack(layer.id);
+      closePopupForLayer(layer.id);
+      if (state.activeLegendLayerId === layer.id) {
+        closeFloatingLegend();
+      }
       if (state.previewLayerId === layer.id) {
         state.previewLayerId = null;
       }
@@ -2170,6 +2661,7 @@ import {
 
     map.on("click", "municipios-hit", (event) => {
       if (state.activeTool) return;
+      if (state.activeInfoPopup) return;
       const feature = event.features && event.features[0];
       if (!feature) return;
 
@@ -2208,32 +2700,6 @@ import {
     map[`__bound_${layerId}`] = true;
     console.info("IDs de las capas registradas para el clic:", layerMeta.interactiveLayerIds || [layerId]);
 
-    map.on("click", layerId, (event) => {
-      if (state.activeTool) return;
-      const feature = getClickedVectorFeature(event, layerMeta);
-      const props = (feature && feature.properties) || {};
-      console.info("Propiedades de una Feature seleccionada:", props);
-      const cleanedAttributes = cleanFeatureAttributes(props);
-      const mainAttribute = findMainFeatureAttribute(cleanedAttributes);
-
-      updateInfoPanel({
-        title: layerMeta.title,
-        description: layerMeta.description,
-        extra: [
-          mainAttribute ? `${mainAttribute.label}: ${mainAttribute.value}` : null,
-          ...buildLayerCatalogLines(layerMeta),
-        ],
-        attributes: cleanedAttributes,
-        legend: layerMeta.legend,
-      });
-
-      // Popup de atributos: usa los properties reales de la entidad clickeada.
-      new maplibregl.Popup({ closeButton: true, closeOnClick: true })
-        .setLngLat(event.lngLat)
-        .setHTML(buildFeaturePopup(layerMeta.title, props))
-        .addTo(map);
-    });
-
     map.on("mouseenter", layerId, () => {
       map.getCanvas().style.cursor = "pointer";
     });
@@ -2241,6 +2707,140 @@ import {
     map.on("mouseleave", layerId, () => {
       map.getCanvas().style.cursor = "";
     });
+  }
+
+  function getTopThematicPopupHit(event) {
+    const stack = [...state.activeLayerStack].reverse();
+    for (const layerId of stack) {
+      const layer = state.userLayers.find((item) => item.id === layerId);
+      if (!isThematicQueryableLayer(layer)) continue;
+
+      const vectorHit = getVectorPopupHitForLayer(layer, event);
+      if (vectorHit) return vectorHit;
+
+      const rasterHit = getRasterPopupHitForLayer(layer, event.lngLat);
+      if (rasterHit) return rasterHit;
+    }
+    return null;
+  }
+
+  function getVectorPopupHitForLayer(layer, event) {
+    const layerIds = (layer.interactiveLayerIds || []).filter((layerId) => {
+      return map.getLayer(layerId) && map.getLayoutProperty(layerId, "visibility") !== "none";
+    });
+    if (!layerIds.length) return null;
+    const features = map.queryRenderedFeatures(event.point, { layers: layerIds });
+    const feature = features.find((item) => hasPopupProperties(item.properties));
+    if (!feature) return null;
+    return {
+      kind: "vector",
+      layer,
+      feature,
+      mapLayerId: feature.layer?.id || layerIds[0],
+    };
+  }
+
+  function getRasterPopupHitForLayer(layer, lngLat) {
+    if (!isImageBackedLayer(layer)) return null;
+    const candidates = getLayerGroundOverlays(layer)
+      .map((overlay, index) => ({
+        layer,
+        overlay,
+        rasterLayerId: layer.imageLayerIds?.[index] || `${layer.id}-${getLayerGroundOverlays(layer).length === 1 ? "raster" : `raster-${index + 1}`}`,
+      }))
+      .filter((candidate) => {
+        return map.getLayer(candidate.rasterLayerId) &&
+          map.getLayoutProperty(candidate.rasterLayerId, "visibility") !== "none";
+      });
+    if (!candidates.length) return null;
+    const hit = pickTopGroundOverlayHit(candidates, lngLat, getMapLayerOrder());
+    return hit ? {
+      kind: "ground-overlay",
+      layer: hit.layer,
+      overlay: hit.overlay,
+      mapLayerId: hit.rasterLayerId,
+    } : null;
+  }
+
+  function showThematicPopup(hit, lngLat) {
+    if (hit.kind === "vector") {
+      showVectorFeaturePopup(hit, lngLat);
+      return;
+    }
+    showGroundOverlayPopup(hit, lngLat);
+  }
+
+  function showVectorFeaturePopup(hit, lngLat) {
+    const { layer, feature, mapLayerId } = hit;
+    const props = feature.properties || {};
+    if (!hasPopupProperties(props)) return;
+    console.info("Propiedades de una Feature seleccionada:", props);
+    const cleanedAttributes = cleanFeatureAttributes(props);
+    const mainAttribute = findMainFeatureAttribute(cleanedAttributes);
+    const info = {
+      title: layer.title,
+      description: layer.description,
+      extra: [
+        mainAttribute ? `${mainAttribute.label}: ${mainAttribute.value}` : null,
+        ...buildLayerCatalogLines(layer),
+      ],
+      attributes: cleanedAttributes,
+      legend: layer.legend,
+    };
+
+    openInfoPopup({
+      ownerLayerId: layer.id,
+      resourceType: isImageBackedLayer(layer) ? "mixed" : "vector",
+      mapLayerId,
+      coordinate: lngLat,
+      html: buildFeaturePopup(layer.title, props),
+      info,
+    });
+  }
+
+  function openInfoPopup({ ownerLayerId, resourceType, mapLayerId, overlayId = null, coordinate, html, info }) {
+    closeActiveInfoPopup();
+    updateInfoPanel(info);
+    const popup = new maplibregl.Popup({ closeButton: true, closeOnClick: true })
+      .setLngLat(coordinate)
+      .setHTML(html)
+      .addTo(map);
+    const owner = {
+      ownerLayerId,
+      resourceType,
+      mapLayerId,
+      overlayId,
+      coordinate: [coordinate.lng, coordinate.lat],
+    };
+    state.activeInfoPopup = { popup, owner };
+    popup.on("close", () => {
+      if (state.activeInfoPopup?.popup === popup) {
+        state.activeInfoPopup = null;
+      }
+    });
+  }
+
+  function closeActiveInfoPopup() {
+    const active = state.activeInfoPopup;
+    state.activeInfoPopup = null;
+    if (active?.popup && typeof active.popup.remove === "function") {
+      active.popup.remove();
+    }
+  }
+
+  function closePopupForLayer(layerId) {
+    if (state.activeInfoPopup?.owner?.ownerLayerId === layerId) {
+      closeActiveInfoPopup();
+    }
+  }
+
+  function closePopupIfOwnerUnavailable() {
+    const ownerLayerId = state.activeInfoPopup?.owner?.ownerLayerId;
+    if (!ownerLayerId) return;
+    const layer = state.userLayers.find((item) => item.id === ownerLayerId);
+    if (!isThematicQueryableLayer(layer)) {
+      closeActiveInfoPopup();
+    }
   }
 
   function updateInfoPanel(info) {
@@ -2282,6 +2882,104 @@ import {
         ${items}
       </div>
     `;
+  }
+
+  function showGroundOverlayPopup(hit, lngLat) {
+    const { layer, overlay, mapLayerId } = hit;
+    openInfoPopup({
+      ownerLayerId: layer.id,
+      resourceType: layer.data?.features?.length ? "mixed" : "ground-overlay",
+      mapLayerId,
+      overlayId: overlay?.id || overlay?.name || null,
+      coordinate: lngLat,
+      html: buildGroundOverlayPopup(layer),
+      info: buildGroundOverlayInfo(layer),
+    });
+  }
+
+  function buildGroundOverlayInfo(layer) {
+    return {
+      title: layer.title,
+      description: layer.description || "Imagen raster georreferenciada disponible para consulta territorial.",
+      extra: getGroundOverlayInfoLines(layer).map(({ label, value }) => `${label}: ${value}`),
+      legend: getLayerSymbology(layer),
+    };
+  }
+
+  function buildGroundOverlayPopup(layer) {
+    const rows = getGroundOverlayInfoLines(layer)
+      .map(({ label, value }) => `
+        <tr>
+          <td>${escapeHtml(label)}</td>
+          <td>${escapeHtml(String(value))}</td>
+        </tr>
+      `)
+      .join("");
+    const legend = renderLayerLegend(getLayerSymbology(layer));
+
+    return `
+      <section class="feature-popup">
+        <header class="feature-popup__header">
+          <strong>${escapeHtml(layer.title || "Capa raster")}</strong>
+          <span class="feature-popup__highlight">Imagen raster georreferenciada</span>
+        </header>
+        <div class="feature-popup__body">
+          ${rows ? `<table class="feature-popup__table">${rows}</table>` : ""}
+          ${legend}
+          <p class="feature-popup__empty">${escapeHtml(GROUND_OVERLAY_NOTICE)}</p>
+        </div>
+      </section>
+    `;
+  }
+
+  function getGroundOverlayInfoLines(layer) {
+    return buildGroundOverlayInfoLines(layer, {
+      categoryTitle: getLayerCategoryTitle(layer),
+      formatDate: formatCatalogDate,
+      isUsableValue: isUsablePopupValue,
+    });
+  }
+
+  function getLayerCategoryTitle(layer) {
+    const category = resolveLayerCategory(layer);
+    return thematicLayerGroups.find((group) => group.id === category)?.title || "";
+  }
+
+  function getTopVectorPopupFeature(event) {
+    const layerIds = state.userLayers
+      .filter((layer) => layer.visible !== false && canSeeLayer(layer))
+      .flatMap((layer) => layer.interactiveLayerIds || [])
+      .filter((layerId) => map.getLayer(layerId));
+
+    if (!layerIds.length) return null;
+    const features = map.queryRenderedFeatures(event.point, { layers: layerIds });
+    return features.find((feature) => hasPopupProperties(feature.properties)) || null;
+  }
+
+  function getTopGroundOverlayHit(lngLat) {
+    const layerOrder = getMapLayerOrder();
+    return pickTopGroundOverlayHit(getVisibleGroundOverlayCandidates(), lngLat, layerOrder);
+  }
+
+  function getVisibleGroundOverlayCandidates() {
+    return [...state.userLayers, ...state.uploadDraft.previewLayers]
+      .filter((layer) => isGroundOverlayQueryableLayer(layer))
+      .flatMap((layer) => getLayerGroundOverlays(layer).map((overlay, index) => ({
+        layer,
+        overlay,
+        rasterLayerId: layer.imageLayerIds?.[index] || `${layer.id}-${getLayerGroundOverlays(layer).length === 1 ? "raster" : `raster-${index + 1}`}`,
+      })))
+      .filter((candidate) => map.getLayer(candidate.rasterLayerId));
+  }
+
+  function isGroundOverlayQueryableLayer(layer) {
+    if (!layer || layer.visible === false || !isImageBackedLayer(layer)) return false;
+    if (state.userLayers.includes(layer) && !canSeeLayer(layer)) return false;
+    return getLayerOpacity(layer) > 0 && getLayerGroundOverlays(layer).length > 0;
+  }
+
+  function getMapLayerOrder() {
+    return new Map((map.getStyle()?.layers || []).map((layer, index) => [layer.id, index]));
   }
 
   function getLegendSwatchStyle(item) {
@@ -2671,6 +3369,7 @@ import {
           throw new Error("La API no devolvio una sesion valida.");
         }
         clearPreviewStateOnRoleChange();
+        resetThematicRuntimeState();
         state.session = mapBackendSession(response);
       } catch (backendError) {
         const demoUser = findDemoUser(email, password);
@@ -2678,13 +3377,14 @@ import {
           throw backendError;
         }
         clearPreviewStateOnRoleChange();
+        resetThematicRuntimeState();
         state.session = createDemoSession(demoUser);
         mode = "demo";
       }
 
       saveSession();
       renderSession();
-      await syncLayersFromBackend();
+      await syncLayersFromBackend({ preserveSessionVisibility: false });
       elements.loginFeedback.textContent = "";
       elements.loginEmail.value = "";
       elements.loginPassword.value = "";
@@ -2774,6 +3474,7 @@ import {
     state.uploadDraft.previewVisible = false;
     state.uploadDraft.category = elements.uploadLayerCategory?.value || "geologicos";
     state.uploadDraft.minimized = false;
+    state.uploadDraft.rasterLegendItems = [];
     if (elements.uploadLayerFeedback) elements.uploadLayerFeedback.textContent = "";
     clearUploadMetadataForm();
     syncUploadDraftUi();
@@ -2923,6 +3624,7 @@ import {
         layer.description = uploadMetadata.description || layer.description;
         layer.municipality = uploadMetadata.municipality || layer.municipality;
         layer.metadata = buildLayerMetadata(uploadMetadata, layer);
+        layer.legend = buildRasterLegendFromDraft() || layer.legend;
         layer.status = state.session.role === "admin" ? "approved" : "pending_review";
         return layer;
       });
@@ -2944,6 +3646,7 @@ import {
   function clearUploadDraftPreview() {
     state.uploadDraft.previewLayers.forEach((layer) => {
       removeLayerBundle(layer.id);
+      revokeLayerObjectUrls(layer);
     });
     state.uploadDraft.previewLayers = [];
     state.uploadDraft.previewVisible = false;
@@ -2976,7 +3679,7 @@ import {
 
     try {
       state.isUploading = true;
-      elements.uploadLayerFeedback.textContent = "Guardando capa para revision...";
+      elements.uploadLayerFeedback.textContent = "Procesando capa; esta operacion puede tardar varios minutos.";
 
       const uploadResult = await uploadFilesToBackend(state.uploadDraft.files, {
         category: state.uploadDraft.category,
@@ -2991,11 +3694,55 @@ import {
       }
     } catch (error) {
       console.error(error);
-      elements.uploadLayerFeedback.textContent =
-        error.message || "No se pudo subir la capa para revision.";
+      elements.uploadLayerFeedback.textContent = await buildUploadErrorMessage(error);
     } finally {
       state.isUploading = false;
       syncUploadDraftUi();
+    }
+  }
+
+  async function buildUploadErrorMessage(error) {
+    const savedLayer = await findRecentlySavedUploadDraftLayer();
+    if (savedLayer) {
+      await syncLayersFromBackend({ preserveSessionVisibility: false });
+      return `La conexion se interrumpio, pero el backend registro la capa "${savedLayer.title}". Revisa el catalogo administrativo antes de reintentar.`;
+    }
+
+    if (error?.name === "TimeoutError" || error?.code === "TimeoutError") {
+      return "La carga excedio el tiempo de espera del visor. No se encontro una capa registrada con esos datos; puedes intentar nuevamente.";
+    }
+
+    if (error?.name === "AbortError" || error?.code === "AbortError") {
+      return "La carga fue cancelada antes de completarse. No se encontro una capa registrada con esos datos; puedes intentar nuevamente.";
+    }
+
+    if (error?.status) {
+      return error.message || "El backend rechazo la carga de la capa.";
+    }
+
+    return error?.message || "No se pudo subir la capa para revision.";
+  }
+
+  async function findRecentlySavedUploadDraftLayer() {
+    if (!state.session.token) return null;
+    const metadata = collectUploadMetadata();
+    const files = state.uploadDraft.files || [];
+    const expectedTitle = metadata.title || files[0]?.name?.replace(/\.[^.]+$/u, "");
+    const fileNames = new Set(files.map((file) => file.name));
+    if (!expectedTitle && !fileNames.size) return null;
+
+    try {
+      const records = state.session.role === "admin"
+        ? await listAdminLayersRequest(state.session.token)
+        : await listMyLayersRequest(state.session.token);
+      return records.find((record) => {
+        const titleMatches = expectedTitle && normalizeAttributeKey(record.title) === normalizeAttributeKey(expectedTitle);
+        const fileMatches = (record.files || []).some((file) => fileNames.has(file.originalName));
+        return titleMatches || fileMatches;
+      }) || null;
+    } catch (lookupError) {
+      console.warn("No se pudo verificar si la capa quedo registrada despues del fallo de carga.", lookupError);
+      return null;
     }
   }
 
@@ -3021,6 +3768,7 @@ import {
       updatedAt: elements.uploadLayerUpdatedAt?.value || "",
       scaleOrResolution: elements.uploadLayerScale?.value.trim() || "",
       crs: elements.uploadLayerCrs?.value.trim() || "",
+      rasterLegend: buildRasterLegendFromDraft(),
     };
   }
 
@@ -3037,6 +3785,59 @@ import {
     ].forEach((field) => {
       if (field) field.value = "";
     });
+    renderRasterLegendEditor();
+  }
+
+  function renderRasterLegendEditor() {
+    if (!elements.rasterLegendList) return;
+    elements.rasterLegendList.innerHTML = state.uploadDraft.rasterLegendItems.length
+      ? state.uploadDraft.rasterLegendItems
+          .map((item, index) => `
+            <div class="raster-legend-item" data-raster-legend-index="${index}">
+              <input type="color" value="${escapeHtml(item.color || "#7a203a")}" data-raster-legend-color="${index}" aria-label="Color de leyenda raster" />
+              <input type="text" maxlength="80" value="${escapeHtml(item.label || "")}" data-raster-legend-label="${index}" placeholder="Etiqueta oficial" />
+              <button class="icon-button icon-button--small" type="button" data-raster-legend-remove="${index}" aria-label="Eliminar elemento">x</button>
+            </div>
+          `)
+          .join("")
+      : `<p class="empty-state">Sin leyenda manual. Se mostrara simbologia incorporada en la imagen.</p>`;
+
+    elements.rasterLegendList.querySelectorAll("[data-raster-legend-label]").forEach((input) => {
+      input.addEventListener("input", () => {
+        const item = state.uploadDraft.rasterLegendItems[Number(input.dataset.rasterLegendLabel)];
+        if (item) item.label = input.value;
+      });
+    });
+    elements.rasterLegendList.querySelectorAll("[data-raster-legend-color]").forEach((input) => {
+      input.addEventListener("input", () => {
+        const item = state.uploadDraft.rasterLegendItems[Number(input.dataset.rasterLegendColor)];
+        if (item) item.color = input.value;
+      });
+    });
+    elements.rasterLegendList.querySelectorAll("[data-raster-legend-remove]").forEach((button) => {
+      button.addEventListener("click", () => {
+        state.uploadDraft.rasterLegendItems.splice(Number(button.dataset.rasterLegendRemove), 1);
+        renderRasterLegendEditor();
+      });
+    });
+  }
+
+  function buildRasterLegendFromDraft() {
+    const classes = state.uploadDraft.rasterLegendItems
+      .map((item, index) => ({
+        label: String(item.label || "").trim(),
+        color: /^#[0-9a-f]{6}$/i.test(item.color || "") ? item.color.toLowerCase() : "#7a203a",
+        order: index,
+      }))
+      .filter((item) => item.label);
+
+    return classes.length
+      ? {
+          type: "raster",
+          field: "Simbologia raster",
+          classes,
+        }
+      : null;
   }
 
   function buildLayerMetadata(metadata = {}, layer = {}) {
@@ -3055,14 +3856,23 @@ import {
       geometryType: geometrySummary.geometryType || layer.fileType || "",
       featureCount: geometrySummary.featureCount,
       coverage,
+      rasterLegend: metadata.rasterLegend || layer.legend || null,
     };
   }
 
   function summarizeLayerGeometry(layer) {
-    if (layer.sourceKind === "image") {
+    if (layer.sourceKind === "image" || layer.sourceKind === "ground-overlay") {
       return {
-        geometryType: "Raster",
-        featureCount: null,
+        geometryType: "GroundOverlay raster",
+        featureCount: 0,
+      };
+    }
+
+    if (layer.sourceKind === "mixed") {
+      const vectorSummary = summarizeLayerGeometry({ ...layer, sourceKind: "geojson" });
+      return {
+        geometryType: `${vectorSummary.geometryType || "Vector"} + GroundOverlay raster`,
+        featureCount: vectorSummary.featureCount,
       };
     }
 
@@ -3087,6 +3897,12 @@ import {
   }
 
   function getUploadDraftLayerSummary(layer) {
+    if (layer.sourceKind === "ground-overlay") {
+      return "Capa raster georreferenciada (GroundOverlay)";
+    }
+    if (layer.sourceKind === "mixed") {
+      return "Capa mixta vectorial y GroundOverlay";
+    }
     if (layer.type === "raster" || layer.fileType === "tif" || layer.fileType === "tiff") {
       return "Raster GeoTIFF";
     }
@@ -3411,9 +4227,11 @@ import {
   }
 
   function fitLayer(layer) {
-    if (layer.sourceKind === "image") {
+    if (isImageBackedLayer(layer) && getLayerGroundOverlays(layer).length) {
       const bounds = new maplibregl.LngLatBounds();
-      layer.coordinates.forEach((coordinate) => bounds.extend(coordinate));
+      getLayerGroundOverlays(layer).forEach((overlay) => {
+        overlay.coordinates.forEach((coordinate) => bounds.extend(coordinate));
+      });
       map.fitBounds(bounds, { padding: 30, maxZoom: 12 });
       return;
     }
@@ -3478,14 +4296,24 @@ import {
 
   function safeSetLayoutProperty(layerId, property, value) {
     if (!map.getLayer(layerId)) return false;
+    const currentValue = map.getLayoutProperty(layerId, property);
+    if (currentValue === value || (property === "visibility" && value === "visible" && currentValue === undefined)) {
+      return false;
+    }
     map.setLayoutProperty(layerId, property, value);
     return true;
   }
 
   function safeSetPaintProperty(layerId, property, value) {
     if (!map.getLayer(layerId)) return false;
+    if (paintValuesMatch(map.getPaintProperty(layerId, property), value)) return false;
     map.setPaintProperty(layerId, property, value);
     return true;
+  }
+
+  function paintValuesMatch(currentValue, nextValue) {
+    if (currentValue === nextValue) return true;
+    return JSON.stringify(currentValue) === JSON.stringify(nextValue);
   }
 
   function safeMoveLayer(layerId, beforeId) {
@@ -3573,14 +4401,22 @@ import {
   }
 
   function removeLayerBundle(layerId) {
-    [`${layerId}-point`, `${layerId}-line`, `${layerId}-fill`, `${layerId}-raster`].forEach((id) => {
+    const layer = state.userLayers.find((item) => item.id === layerId) || state.uploadDraft.previewLayers.find((item) => item.id === layerId);
+    [
+      `${layerId}-point`,
+      `${layerId}-line`,
+      `${layerId}-fill`,
+      `${layerId}-raster`,
+      ...(layer?.imageLayerIds || []),
+    ].forEach((id) => {
       if (map.getLayer(id)) map.removeLayer(id);
     });
 
-    const sourceId = `source-${layerId}`;
-    if (map.getSource(sourceId)) {
-      map.removeSource(sourceId);
-    }
+    [`source-${layerId}`, `source-${layerId}-raster`, ...(layer?.imageSourceIds || [])].forEach((sourceId) => {
+      if (map.getSource(sourceId)) {
+        map.removeSource(sourceId);
+      }
+    });
   }
 
   async function createLayersFromFiles(files) {
@@ -3629,23 +4465,51 @@ import {
 
   async function createKmlLayer(file) {
     const extension = getExtension(file.name);
-    const text = extension === "kmz" ? await readKmz(file) : await file.text();
-    const geojson = parseKml(text);
+    const analysis = await analyzeGeospatialFile(file);
+    const text = analysis.kmlText || (extension === "kmz" ? await readKmz(file) : await file.text());
+    const geojson = analysis.vector.geometryCount ? parseKml(text) : { type: "FeatureCollection", features: [] };
+    const groundOverlays = createGroundOverlayObjectUrls(analysis.groundOverlays);
 
-    if (!geojson.features.length) {
-      throw new Error("El archivo no contiene geometria utilizable.");
+    if (!geojson.features.length && !groundOverlays.length) {
+      const detail = analysis.errors?.length ? ` ${analysis.errors.join(" ")}` : "";
+      throw new Error(`El archivo no contiene geometria vectorial ni una imagen georreferenciada valida.${detail}`);
     }
+
+    const sourceKind = geojson.features.length && groundOverlays.length
+      ? "mixed"
+      : groundOverlays.length
+        ? "ground-overlay"
+        : "geojson";
 
     return createUserLayer({
       title: file.name.replace(/\.(kml|kmz)$/i, ""),
       fileType: extension,
-      sourceKind: "geojson",
-      data: geojson,
-      description: "Capa cargada desde archivo vectorial para consulta del atlas.",
+      sourceKind,
+      resourceType: analysis.kind,
+      data: geojson.features.length ? geojson : null,
+      groundOverlays,
+      imageUrl: groundOverlays[0]?.imageUrl || null,
+      coordinates: groundOverlays[0]?.coordinates || null,
+      description: groundOverlays.length
+        ? "Capa raster georreferenciada (GroundOverlay) cargada para consulta del atlas."
+        : "Capa cargada desde archivo vectorial para consulta del atlas.",
       download: await buildDownloadBundle([file]),
-      lineColor: geojson.meta.lineColor,
-      fillColor: geojson.meta.fillColor,
-      iconColor: geojson.meta.iconColor,
+      lineColor: geojson.meta?.lineColor || null,
+      fillColor: geojson.meta?.fillColor || null,
+      iconColor: geojson.meta?.iconColor || null,
+      metadata: {
+        geospatialDiagnostics: {
+          type: analysis.kind,
+          selectedKml: analysis.selectedKml || analysis.sourceName || "",
+          geometryCount: analysis.vector.geometryCount,
+          geometryTypes: analysis.vector.geometryTypes,
+          groundOverlayCount: analysis.groundOverlays.length,
+          internalImages: analysis.internalImages || [],
+          bbox: analysis.bbox,
+          warnings: analysis.warnings || [],
+          errors: analysis.errors || [],
+        },
+      },
     });
   }
 
@@ -3833,6 +4697,7 @@ import {
       createdAt: new Date().toISOString(),
       fileType: config.fileType,
       sourceKind: config.sourceKind,
+      resourceType: config.resourceType || config.sourceKind,
       opacity: clampLayerOpacity(config.opacity ?? 1),
       color: pickLayerColor(state.userLayers.length),
       lineColor: config.lineColor || null,
@@ -3841,6 +4706,7 @@ import {
       data: config.data || null,
       imageUrl: config.imageUrl || null,
       coordinates: config.coordinates || null,
+      groundOverlays: config.groundOverlays || [],
       download: config.download || null,
       metadata: config.metadata || null,
       symbology: config.symbology || null,
@@ -4316,7 +5182,7 @@ import {
       .map((layer) => ({
         layerKey: layer.backendLayerId || layer.id,
         backendLayerId: layer.backendLayerId || null,
-        visible: state.renderedLayers.has(layer.id),
+        visible: Boolean(layer.visible),
         opacity: clampLayerOpacity(layer.opacity ?? 1),
       }));
 
@@ -4361,6 +5227,7 @@ import {
 
   function logout() {
     clearPreviewStateOnRoleChange();
+    resetThematicRuntimeState();
     state.session = createVisitorSession();
     saveSession();
     renderSession();
@@ -4458,7 +5325,7 @@ import {
         `${layer.title} esta cambiando su estado de visibilidad.`
       );
       await setPublishStateRequest(state.session.token, layer.backendLayerId, nextStatus);
-      await syncLayersFromBackend();
+      await syncLayersFromBackend({ preserveSessionVisibility: false });
       setSystemStatus(
         nextStatus === "published" ? "Capa publicada" : "Capa despublicada",
         `${layer.title} actualizo su estado correctamente.`
@@ -4495,7 +5362,7 @@ import {
     try {
       setSystemStatus("Rechazando capa", `${layer.title} sera devuelta con observaciones.`);
       await rejectLayerRequest(state.session.token, layer.backendLayerId, reason);
-      await syncLayersFromBackend();
+      await syncLayersFromBackend({ preserveSessionVisibility: false });
       setSystemStatus("Capa rechazada", `${layer.title} se actualizo con el motivo de rechazo.`);
       updateInfoPanel({
         title: "Capa rechazada",
@@ -4523,10 +5390,11 @@ import {
       await waitForMapStyle();
     }
 
-    await syncLayersFromBackend();
+    await syncLayersFromBackend({ preserveSessionVisibility: false });
   }
 
-  async function syncLayersFromBackend() {
+  async function syncLayersFromBackend(options = {}) {
+    const preserveSessionVisibility = options.preserveSessionVisibility !== false;
     if (state.remoteSyncInProgress) return;
     if (!map.isStyleLoaded()) {
       await waitForMapStyle();
@@ -4577,10 +5445,9 @@ import {
 
       const remoteLayers = hydratedLayers.map((layer) => {
         const preference = persistedPreferences.get(layer.backendLayerId || layer.id);
-        const visible =
-          previousVisibility.get(layer.backendLayerId || layer.id) ??
-          preference?.visible ??
-          isPublishedStatus(layer.status);
+        const visible = preserveSessionVisibility
+          ? previousVisibility.get(layer.backendLayerId || layer.id) === true
+          : false;
         return {
           ...layer,
           visible,
@@ -4592,7 +5459,6 @@ import {
       staticLayers.forEach((layer) => {
         const preference = persistedPreferences.get(layer.id);
         if (preference) {
-          layer.visible = preference.visible;
           layer.opacity = clampLayerOpacity(preference.opacity ?? layer.opacity ?? 1);
         }
       });
@@ -4736,14 +5602,14 @@ import {
         files
       );
 
-      await syncLayersFromBackend();
+      await syncLayersFromBackend({ preserveSessionVisibility: false });
 
       const hydrated = state.userLayers.find((layer) => layer.backendLayerId === createdLayer.id);
       if (hydrated) {
         if (isPublishedStatus(hydrated.status)) {
           fitLayer(hydrated);
         } else {
-          previewLayer(hydrated);
+          await previewLayer(hydrated);
         }
       }
 
@@ -4765,7 +5631,7 @@ import {
     }
 
     const localLayers = state.uploadDraft.previewLayers.length
-      ? state.uploadDraft.previewLayers.map((layer) => ({ ...layer }))
+      ? state.uploadDraft.previewLayers.map((layer) => cloneLayerForLocalPersistence(layer))
       : (await createLayersFromFiles(files)).map((layer) => ({ ...layer }));
 
     localLayers.forEach((layer) => {
@@ -4789,7 +5655,7 @@ import {
         state.renderedLayers.set(localLayers[0].id, true);
         fitLayer(localLayers[0]);
       } else {
-        previewLayer(localLayers[0]);
+        await previewLayer(localLayers[0]);
       }
     }
 
@@ -4818,8 +5684,17 @@ import {
     const category = extractCategoryFromRecord(record);
     let hydratedLayer = null;
 
-    if (record.isVisualizable && record.processedGeojsonUrl) {
-      hydratedLayer = await createProcessedGeoJsonLayerFromBackend(record);
+    const resourceType = record.resourceType || record.metadata?.properties?.resourceType || "vector";
+    if ((resourceType === "ground-overlay" || resourceType === "mixed") && record.groundOverlays?.length) {
+      hydratedLayer = createGroundOverlayLayerFromBackend(record);
+      if (resourceType === "mixed" && record.processedGeojsonUrl) {
+        hydratedLayer.processedGeojsonUrl = record.processedGeojsonUrl;
+        hydratedLayer.isVectorDataDeferred = true;
+        hydratedLayer.symbology = getPersistedVectorSymbology(record);
+        hydratedLayer.legend = record.rasterLegend || hydratedLayer.legend || getPersistedVectorLegend(record);
+      }
+    } else if (record.isVisualizable && record.processedGeojsonUrl) {
+      hydratedLayer = createDeferredProcessedGeoJsonLayerFromBackend(record);
     } else if (sourceType === "geojson") {
       hydratedLayer = await createGeoJsonLayerFromRemoteRecord(record, remoteFiles[0]);
     } else if (sourceType === "kml" || sourceType === "kmz") {
@@ -4851,6 +5726,8 @@ import {
       publishedAt: record.publishedAt || null,
       fileType: sourceType,
       isVisualizable: Boolean(record.isVisualizable || record.processedGeojsonUrl),
+      resourceType,
+      groundOverlays: record.groundOverlays || hydratedLayer.groundOverlays || [],
       processedGeojsonUrl: record.processedGeojsonUrl || null,
       processingStatus: record.processingStatus || record.metadata?.properties?.processingStatus || null,
       metadata: normalizeBackendLayerMetadata(record, hydratedLayer),
@@ -4882,13 +5759,44 @@ import {
       createdAt: record.createdAt || "",
       publishedAt: record.publishedAt || "",
       processingStatus: record.processingStatus || properties.processingStatus || "",
+      resourceType: record.resourceType || properties.resourceType || hydratedLayer.resourceType || "vector",
       processedGeojsonUrl: record.processedGeojsonUrl || properties.processedGeojsonUrl || "",
+      groundOverlays: record.groundOverlays || properties.groundOverlays || hydratedLayer.groundOverlays || [],
+      rasterLegend: record.rasterLegend || properties.rasterLegend || hydratedLayer.legend || null,
       isVisualizable: Boolean(record.isVisualizable || properties.isVisualizable),
       properties: {
         ...properties,
         coverage: properties.coverage || record.municipality || hydratedLayer.municipality,
       },
     };
+  }
+
+  function createDeferredProcessedGeoJsonLayerFromBackend(record) {
+    return createUserLayer({
+      title: record.title,
+      category: extractCategoryFromRecord(record),
+      fileType: record.sourceType || "geojson",
+      sourceKind: "geojson",
+      resourceType: record.resourceType || "vector",
+      data: null,
+      description: record.description || "Capa publicada desde el backend institucional.",
+      backendLayerId: record.id,
+      createdById: record.createdBy?.id || null,
+      municipality: record.municipality || "Cobertura estatal",
+      status: record.status,
+      metadata: record.metadata || null,
+      processedGeojsonUrl: record.processedGeojsonUrl,
+      symbology: getPersistedVectorSymbology(record),
+      legend: getPersistedVectorLegend(record),
+    });
+  }
+
+  function getPersistedVectorSymbology(record) {
+    return record.symbology || record.metadata?.symbology || record.metadata?.properties?.symbology || null;
+  }
+
+  function getPersistedVectorLegend(record) {
+    return record.vectorLegend || record.legend || record.metadata?.vectorLegend || record.metadata?.properties?.vectorLegend || record.metadata?.properties?.legend || null;
   }
 
   async function createProcessedGeoJsonLayerFromBackend(record) {
@@ -4914,6 +5822,64 @@ import {
       metadata: record.metadata || null,
       symbology: normalizedRemote.symbology,
       legend: normalizedRemote.legend,
+    });
+  }
+
+  function cloneLayerForLocalPersistence(layer) {
+    (layer.groundOverlays || []).forEach((overlay) => {
+      overlay.revokeUrl = false;
+    });
+    return {
+      ...layer,
+      groundOverlays: (layer.groundOverlays || []).map((overlay) => ({
+        ...overlay,
+        revokeUrl: true,
+      })),
+    };
+  }
+
+  function createGroundOverlayLayerFromBackend(record) {
+    const overlays = (record.groundOverlays || [])
+      .map((overlay, index) => ({
+        id: overlay.id || `ground-overlay-${index + 1}`,
+        name: overlay.name || `GroundOverlay ${index + 1}`,
+        imageUrl: overlay.imageUrl,
+        coordinates: overlay.coordinates,
+        bounds: overlay.bounds,
+        bbox: overlay.bbox,
+        rotation: overlay.rotation || 0,
+        drawOrder: overlay.drawOrder ?? index,
+      }))
+      .filter((overlay) => overlay.imageUrl && Array.isArray(overlay.coordinates));
+
+    if (!overlays.length) {
+      throw new Error("La capa GroundOverlay no contiene imagenes georreferenciadas validas.");
+    }
+
+    return createUserLayer({
+      title: record.title,
+      category: extractCategoryFromRecord(record),
+      fileType: record.sourceType || "kmz",
+      sourceKind: record.resourceType === "mixed" ? "mixed" : "ground-overlay",
+      resourceType: record.resourceType || "ground-overlay",
+      groundOverlays: overlays,
+      imageUrl: overlays[0].imageUrl,
+      coordinates: overlays[0].coordinates,
+      description: record.description || "Capa raster georreferenciada publicada desde el backend institucional.",
+      backendLayerId: record.id,
+      createdById: record.createdBy?.id || null,
+      municipality: record.municipality || "Cobertura estatal",
+      status: record.status,
+      metadata: record.metadata || null,
+      legend: record.rasterLegend || {
+        type: "raster",
+        field: "Simbologia raster",
+        classes: [{
+          label: GROUND_OVERLAY_FALLBACK_LEGEND_LABEL,
+          color: "transparent",
+          outlineColor: "rgba(70, 36, 49, 0.35)",
+        }],
+      },
     });
   }
 
@@ -4944,20 +5910,36 @@ import {
       ...feature,
       properties: applyExistingRemoteStyle(feature.properties || {}, record),
     }));
+    const existingStyleIsUsable = hasUsefulExistingStyle(featuresWithExistingStyle);
     const styleField = chooseBackendStyleFieldSafe(featuresWithExistingStyle);
-    const symbology = buildRemoteLayerSymbology(featuresWithExistingStyle, styleField, record);
+    const symbology = buildRemoteLayerSymbology(featuresWithExistingStyle, styleField, record, { existingStyleIsUsable });
 
     return {
       geojson: {
         ...geojson,
         features: featuresWithExistingStyle.map((feature) => ({
           ...feature,
-          properties: applyBackendFeatureStyle(feature.properties || {}, symbology),
+          properties: applyBackendFeatureStyle(feature.properties || {}, symbology, { preserveExistingStyle: existingStyleIsUsable }),
         })),
       },
       symbology,
       legend: symbology?.legend || null,
     };
+  }
+
+  function hasUsefulExistingStyle(features) {
+    const fills = getUniqueStyleValues(features, "__styleFill").filter((value) => parseRemoteColorValue(value));
+    if (fills.length > 1) return true;
+    if (!fills.length) return false;
+
+    const styleField = chooseBackendStyleFieldSafe(features);
+    const thematicValues = styleField ? getUniqueSafeStyleValues(features, styleField.field) : [];
+    if (thematicValues.length > 1) {
+      console.info("Estilo persistido colapsado; se usara campo tematico como respaldo:", styleField.field);
+      return false;
+    }
+
+    return true;
   }
 
   function normalizeBackendFeatureProperties(properties) {
@@ -5041,11 +6023,16 @@ import {
   function getIntensityFillColor(value) {
     const normalized = normalizeAttributeKey(value).replace(/\s+/g, " ").trim();
     const colors = {
-      "muy bajo": "#166534",
-      bajo: "#22c55e",
-      medio: "#facc15",
-      alto: "#f97316",
-      "muy alto": "#dc2626",
+      "muy bajo": "#006100",
+      "muy baja": "#006100",
+      bajo: "#7aab00",
+      baja: "#7aab00",
+      medio: "#ffff00",
+      media: "#ffff00",
+      alto: "#ff9900",
+      alta: "#ff9900",
+      "muy alto": "#ff2200",
+      "muy alta": "#ff2200",
     };
     return colors[normalized] || null;
   }
@@ -5186,8 +6173,13 @@ import {
       .map((value) => String(value).trim());
   }
 
-  function applyBackendFeatureStyle(properties, styleField) {
+  function applyBackendFeatureStyle(properties, styleField, options = {}) {
     if (styleField?.type === "continuous") {
+      return properties;
+    }
+
+    if (options.preserveExistingStyle && properties.__styleFill) {
+      console.info("Se conserva __styleFill:", properties.__styleFill);
       return properties;
     }
 
@@ -5233,22 +6225,22 @@ import {
 
   function getTextCategoryColor(value) {
     const normalized = normalizeAttributeKey(value).replace(/\s+/g, " ").trim();
-    if (normalized.includes("muy bajo")) return "#166534";
-    if (normalized.includes("muy alto")) return "#dc2626";
-    if (normalized.includes("bajo")) return "#22c55e";
-    if (normalized.includes("medio")) return "#facc15";
-    if (normalized.includes("alto")) return "#f97316";
+    if (normalized.includes("muy bajo") || normalized.includes("muy baja")) return "#006100";
+    if (normalized.includes("muy alto") || normalized.includes("muy alta")) return "#ff2200";
+    if (normalized.includes("bajo") || normalized.includes("baja")) return "#7aab00";
+    if (normalized.includes("medio") || normalized.includes("media")) return "#ffff00";
+    if (normalized.includes("alto") || normalized.includes("alta")) return "#ff9900";
     return null;
   }
 
   function getNumericCategoryColor(value) {
     const numeric = Number(String(value).replace(",", ".").trim());
     if (!Number.isFinite(numeric)) return null;
-    if (numeric >= 0 && numeric <= 0.2) return "#166534";
-    if (numeric > 0.2 && numeric <= 0.4) return "#22c55e";
-    if (numeric > 0.4 && numeric <= 0.6) return "#facc15";
-    if (numeric > 0.6 && numeric <= 0.8) return "#f97316";
-    if (numeric > 0.8 && numeric <= 1) return "#dc2626";
+    if (numeric >= 0 && numeric <= 0.2) return "#006100";
+    if (numeric > 0.2 && numeric <= 0.4) return "#7aab00";
+    if (numeric > 0.4 && numeric <= 0.6) return "#ffff00";
+    if (numeric > 0.6 && numeric <= 0.8) return "#ff9900";
+    if (numeric > 0.8 && numeric <= 1) return "#ff2200";
     return null;
   }
 
@@ -5329,7 +6321,26 @@ import {
       .map((value) => String(value).trim());
   }
 
-  function buildRemoteLayerSymbology(features, styleField, record = null) {
+  function buildRemoteLayerSymbology(features, styleField, record = null, options = {}) {
+    if (options.existingStyleIsUsable) {
+      return {
+        type: "kml-preserved",
+        field: "__styleFill",
+        legend: {
+          type: "categorical",
+          field: "Estilo KML",
+          classes: buildPreservedStyleClasses(features, styleField?.field || null),
+        },
+        diagnostics: {
+          layerName: record?.title || "Capa remota",
+          field: "__styleFill",
+          type: "estilo KML preservado",
+          featureCount: features.length,
+          uniqueCount: getUniqueStyleValues(features, "__styleFill").length,
+        },
+      };
+    }
+
     if (!styleField?.field) return null;
 
     const analysis = analyzeStyleField(features, styleField.field);
