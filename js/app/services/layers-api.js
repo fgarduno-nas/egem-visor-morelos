@@ -1,13 +1,22 @@
 import { runtimeConfig } from "../config/runtime-config.js";
 import { invalidateCache, request } from "./http-client.js";
 
+export const LAYER_UPLOAD_TIMEOUT_MS = 5 * 60 * 1000;
+
 export async function listPublicLayersRequest() {
   const payload = await request("/layers/public", {
     cacheTtlMs: runtimeConfig.publicLayerCacheTtlMs,
     cacheKey: "GET:/layers/public",
   });
 
-  return payload?.data ?? [];
+  if (!Array.isArray(payload?.data)) {
+    const error = new Error("La API devolvio una respuesta de capas incompleta.");
+    error.code = "INVALID_LAYER_RESPONSE";
+    error.payload = payload;
+    throw error;
+  }
+
+  return payload.data;
 }
 
 export async function listPendingLayersRequest(token) {
@@ -50,6 +59,7 @@ export async function uploadLayerRequest(token, metadata, files) {
   formData.append("updatedAt", metadata.updatedAt || "");
   formData.append("scaleOrResolution", metadata.scaleOrResolution || "");
   formData.append("crs", metadata.crs || "");
+  formData.append("rasterLegend", metadata.rasterLegend ? JSON.stringify(metadata.rasterLegend.classes || []) : "");
 
   (metadata.tags || []).forEach((tag) => formData.append("tags", tag));
   files.forEach((file) => formData.append("files", file));
@@ -58,6 +68,7 @@ export async function uploadLayerRequest(token, metadata, files) {
     method: "POST",
     token,
     body: formData,
+    timeoutMs: LAYER_UPLOAD_TIMEOUT_MS,
     retries: 0,
   });
 

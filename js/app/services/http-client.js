@@ -53,7 +53,10 @@ export async function request(pathname, options = {}) {
   }
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  const timeoutId = setTimeout(() => {
+    const error = new DOMException(`La solicitud excedio el tiempo limite de ${Math.round(timeoutMs / 1000)} segundos.`, "TimeoutError");
+    controller.abort(error);
+  }, timeoutMs);
 
   const run = async () => {
     let lastError = null;
@@ -90,7 +93,7 @@ export async function request(pathname, options = {}) {
       } catch (error) {
         lastError = error;
         if (!shouldRetry(error, attempt, retries)) {
-          throw error;
+          throw normalizeRequestError(error, timeoutMs);
         }
 
         await sleep(runtimeConfig.retryDelayMs * (attempt + 1));
@@ -110,6 +113,21 @@ export async function request(pathname, options = {}) {
   }
 
   return promise;
+}
+
+function normalizeRequestError(error, timeoutMs) {
+  if (error?.name === "TimeoutError" || error?.name === "AbortError") {
+    const normalized = new Error(
+      error?.name === "TimeoutError"
+        ? `La solicitud excedio el tiempo limite de ${Math.round(timeoutMs / 1000)} segundos.`
+        : "La solicitud fue cancelada antes de completarse."
+    );
+    normalized.name = error.name === "TimeoutError" ? "TimeoutError" : "AbortError";
+    normalized.code = normalized.name;
+    return normalized;
+  }
+
+  return error;
 }
 
 export function invalidateCache(prefix = "") {

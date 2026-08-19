@@ -16,6 +16,8 @@ import {
 import { getRequestMetadata } from "../../shared/utils/request-metadata.js";
 import { processUploadedLayer } from "./layer-processing.service.js";
 
+const vectorLegendPreviewCache = new Map();
+
 export async function uploadLayer({ body, files, actor, req }) {
   if (!files?.length) {
     throw new AppError("Debes adjuntar al menos un archivo.", 400);
@@ -27,6 +29,7 @@ export async function uploadLayer({ body, files, actor, req }) {
   const status =
     actor.role === ROLE_CODES.ADMIN ? LAYER_STATUS.APPROVED : LAYER_STATUS.PENDING_REVIEW;
   const institutionalMetadata = buildInstitutionalMetadata(body, files, sourceType);
+  const rasterLegend = parseRasterLegend(body.rasterLegend);
 
   const created = await prisma.layer.create({
     data: {
@@ -78,16 +81,21 @@ export async function uploadLayer({ body, files, actor, req }) {
           crs: processing.crs ?? created.metadata?.crs,
           preview: processing.isVisualizable
             ? {
-                type: "geojson",
+                type: processing.resourceType || "vector",
                 url: processing.processedGeojsonUrl,
+                groundOverlays: processing.groundOverlays,
               }
             : null,
           properties: {
             ...(created.metadata?.properties ?? {}),
+            resourceType: processing.resourceType,
             processingStatus: processing.processingStatus,
             processingMessage: processing.processingMessage,
             processedGeojsonPath: processing.processedGeojsonPath,
             processedGeojsonUrl: processing.processedGeojsonUrl,
+            groundOverlays: processing.groundOverlays,
+            geospatialDiagnostics: processing.diagnostics,
+            rasterLegend,
             isVisualizable: processing.isVisualizable,
             originalFileNames: processing.originalFileNames,
           },
@@ -391,6 +399,7 @@ export async function deleteLayer(id, actor, req) {
 
 function mapLayer(layer) {
   const metadataProperties = layer.metadata?.properties ?? {};
+  const vectorLegend = metadataProperties.vectorLegend ?? buildVectorLegendPreview(metadataProperties);
   return {
     id: layer.id,
     title: layer.title,
@@ -406,7 +415,11 @@ function mapLayer(layer) {
     createdAt: layer.createdAt,
     updatedAt: layer.updatedAt,
     processingStatus: metadataProperties.processingStatus ?? "pending",
+    resourceType: metadataProperties.resourceType ?? inferResourceTypeFromProperties(metadataProperties),
     processedGeojsonUrl: metadataProperties.processedGeojsonUrl ?? null,
+    groundOverlays: metadataProperties.groundOverlays ?? [],
+    rasterLegend: metadataProperties.rasterLegend ?? null,
+    vectorLegend,
     isVisualizable: Boolean(metadataProperties.isVisualizable),
     createdBy: layer.createdBy
       ? {
@@ -428,7 +441,10 @@ function mapLayer(layer) {
     metadata: layer.metadata
       ? {
           ...layer.metadata,
-          properties: metadataProperties,
+          properties: {
+            ...metadataProperties,
+            vectorLegend,
+          },
         }
       : null,
     approvals:
@@ -470,9 +486,186 @@ function buildInstitutionalMetadata(body, files, sourceType) {
       coverage: normalizeOptionalText(body.municipality),
       originalFileNames: uploadedFileNames,
       supportedFormatsNote:
-        "GeoJSON se visualiza directamente; KML, KMZ y Shapefile ZIP se procesan a GeoJSON cuando GDAL/ogr2ogr esta disponible. GeoTIFF queda registrado para procesamiento raster posterior.",
+        "GeoJSON se visualiza directamente; KML/KMZ se analiza por contenido real y puede procesarse como vector, GroundOverlay raster o mixto. Shapefile ZIP se procesa a GeoJSON cuando GDAL/ogr2ogr esta disponible. GeoTIFF queda registrado para procesamiento raster posterior.",
     },
   };
+}
+
+function parseRasterLegend(value) {
+  if (!value) return null;
+  try {
+    const parsed = typeof value === "string" ? JSON.parse(value) : value;
+    if (!Array.isArray(parsed)) return null;
+    const classes = parsed
+      .map((item, index) => ({
+        label: normalizeOptionalText(item?.label),
+        color: normalizeHexColor(item?.color),
+        order: Number.isFinite(Number(item?.order)) ? Number(item.order) : index,
+      }))
+      .filter((item) => item.label && item.color)
+      .sort((a, b) => a.order - b.order)
+      .slice(0, 24);
+    return classes.length
+      ? {
+          type: "raster",
+          field: "Simbologia raster",
+          classes,
+        }
+      : null;
+  } catch (_error) {
+    return null;
+  }
+}
+
+function buildVectorLegendPreview(properties = {}) {
+  if (properties.resourceType === "ground-overlay") return null;
+  const processedGeojsonPath = resolveProcessedGeojsonPath(properties.processedGeojsonPath);
+  if (!processedGeojsonPath || !fs.existsSync(processedGeojsonPath)) return null;
+
+  try {
+    const stats = fs.statSync(processedGeojsonPath);
+    const cacheKey = `${processedGeojsonPath}:${stats.mtimeMs}:${stats.size}`;
+    if (vectorLegendPreviewCache.has(cacheKey)) {
+      return vectorLegendPreviewCache.get(cacheKey);
+    }
+
+    const raw = fs.readFileSync(processedGeojsonPath, "utf8");
+    const parsed = JSON.parse(raw);
+    const features = Array.isArray(parsed.features) ? parsed.features : [];
+    const classesByColor = new Map();
+
+    features.forEach((feature) => {
+      const featureProperties = feature?.properties || {};
+      const label = getVectorLegendPreviewLabel(featureProperties);
+      const color = getInstitutionalPreviewColor(label) || normalizeHexColor(featureProperties.__styleFill);
+      if (!color) return;
+      if (!classesByColor.has(color)) {
+        classesByColor.set(color, {
+          color,
+          labels: new Map(),
+          order: getVectorLegendPreviewOrder(label),
+        });
+      }
+      const entry = classesByColor.get(color);
+      entry.labels.set(label, (entry.labels.get(label) || 0) + 1);
+      entry.order = Math.min(entry.order, getVectorLegendPreviewOrder(label));
+    });
+
+    const classes = [...classesByColor.values()]
+      .map((entry) => ({
+        label: [...entry.labels.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || "Simbolo de la capa",
+        color: entry.color,
+        outlineColor: "#f0f0f0",
+        order: entry.order,
+      }))
+      .sort((a, b) => a.order - b.order || a.label.localeCompare(b.label, "es"))
+      .slice(0, 24);
+
+    const legend = classes.length > 1
+      ? {
+          type: "categorical",
+          field: getVectorLegendPreviewField(classes),
+          classes,
+        }
+      : null;
+    vectorLegendPreviewCache.clear();
+    vectorLegendPreviewCache.set(cacheKey, legend);
+    return legend;
+  } catch (error) {
+    console.warn("No se pudo construir la leyenda vectorial de catalogo.", error.message);
+    return null;
+  }
+}
+
+function resolveProcessedGeojsonPath(value) {
+  const rawPath = normalizeOptionalText(value);
+  if (!rawPath) return null;
+  if (path.isAbsolute(rawPath)) return rawPath;
+  const candidates = [
+    path.resolve(process.cwd(), rawPath),
+    path.resolve(process.cwd(), "..", rawPath),
+  ];
+  return candidates.find((candidate) => fs.existsSync(candidate)) || candidates[0];
+}
+
+function getInstitutionalPreviewColor(label) {
+  const normalized = String(label || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+  const colors = {
+    "muy baja": "#006100",
+    "muy bajo": "#006100",
+    baja: "#7aab00",
+    bajo: "#7aab00",
+    media: "#ffff00",
+    medio: "#ffff00",
+    alta: "#ff9900",
+    alto: "#ff9900",
+    "muy alta": "#ff2200",
+    "muy alto": "#ff2200",
+  };
+  return colors[normalized] || null;
+}
+
+function getVectorLegendPreviewLabel(properties = {}) {
+  const candidates = [
+    properties.Intensidad,
+    properties.intensidad,
+    properties.Nivel,
+    properties.nivel,
+    properties.Clase,
+    properties.clase,
+    getHtmlDescriptionAttribute(properties.Description || properties.description, "Intensidad"),
+    properties.Name,
+    properties.name,
+  ];
+  const value = candidates.find((candidate) => normalizeOptionalText(candidate));
+  return normalizeOptionalText(value) || "Simbolo de la capa";
+}
+
+function getHtmlDescriptionAttribute(description, fieldName) {
+  const html = normalizeOptionalText(description);
+  if (!html) return null;
+  const escapedField = fieldName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(`<td[^>]*>\\s*${escapedField}\\s*<\\/td>\\s*<td[^>]*>\\s*([^<]+)\\s*<\\/td>`, "iu");
+  const match = pattern.exec(html);
+  return match?.[1] ? normalizeOptionalText(match[1]) : null;
+}
+
+function getVectorLegendPreviewOrder(label) {
+  const normalized = String(label || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+  const order = new Map([
+    ["muy baja", 1],
+    ["muy bajo", 1],
+    ["baja", 2],
+    ["bajo", 2],
+    ["media", 3],
+    ["medio", 3],
+    ["alta", 4],
+    ["alto", 4],
+    ["muy alta", 5],
+    ["muy alto", 5],
+  ]);
+  return order.get(normalized) ?? 100;
+}
+
+function getVectorLegendPreviewField(classes) {
+  return classes.some((item) => getVectorLegendPreviewOrder(item.label) < 100)
+    ? "Intensidad"
+    : "Estilo";
+}
+
+function normalizeHexColor(value) {
+  const normalized = String(value || "").trim();
+  return /^#[0-9a-f]{6}$/i.test(normalized) ? normalized.toLowerCase() : null;
+}
+
+function inferResourceTypeFromProperties(properties) {
+  if (Array.isArray(properties.groundOverlays) && properties.groundOverlays.length && properties.processedGeojsonUrl) {
+    return "mixed";
+  }
+  if (Array.isArray(properties.groundOverlays) && properties.groundOverlays.length) {
+    return "ground-overlay";
+  }
+  return "vector";
 }
 
 function summarizeGeoJsonUpload(file, sourceType) {
