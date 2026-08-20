@@ -45,7 +45,7 @@
           <p class="brand-short">Atlas Morelos</p>
           <h1>Atlas del Estado de Morelos</h1>
           <p class="subtitle">
-            Plataforma institucional de consulta clara para Proteccion Civil estatal y municipal.
+            Plataforma institucional de consulta clara para Protección Civil estatal y municipal.
           </p>
         </div>
       </div>
@@ -57,35 +57,42 @@
           </span>
           <span class="topbar-collapse-toggle__label">Comprimir</span>
         </button>
-        <button class="ghost-button hidden" id="open-user-admin" type="button">Usuarios</button>
-        <button class="ghost-button hidden" id="logout-session" type="button">Cerrar sesion</button>
-        <button class="ghost-button" id="toggle-sidebar" type="button">Panel</button>
-        <button class="ghost-button" id="open-help" type="button">Guia rapida</button>
-        <button class="primary-button" id="open-login" type="button">Acceso</button>
-      </div>
-
-      <div class="topbar-compact-actions">
         <span class="topbar-session-chip hidden" id="topbar-session-chip">Visitante</span>
         <button
-          class="ghost-button ghost-button--icon topbar-menu-toggle"
+          class="primary-button ghost-button--icon topbar-menu-toggle"
           id="toggle-compact-menu"
           type="button"
           aria-expanded="false"
-          title="Abrir menu institucional"
+          aria-controls="topbar-compact-menu"
+          aria-haspopup="menu"
+          aria-label="Abrir menú institucional"
+          title="Abrir menú institucional"
         >
           <span class="ghost-button__icon" aria-hidden="true">
             <svg viewBox="0 0 24 24"><path d="M4 7h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/></svg>
           </span>
-          <span class="topbar-menu-toggle__label">Menu</span>
+          <span class="topbar-menu-toggle__label">Menú</span>
         </button>
       </div>
 
-      <div class="topbar-compact-menu" id="topbar-compact-menu" hidden>
-        <button class="menu-action" id="compact-open-user-admin" type="button">Usuarios</button>
-        <button class="menu-action" id="compact-logout-session" type="button">Cerrar sesion</button>
-        <button class="menu-action" id="compact-toggle-sidebar" type="button">Panel lateral</button>
-        <button class="menu-action" id="compact-open-help" type="button">Guia rapida</button>
-        <button class="menu-action" id="compact-open-login" type="button">Acceso</button>
+      <div class="topbar-compact-menu" id="topbar-compact-menu" role="menu" aria-label="Acciones del visor" hidden>
+        <p class="topbar-menu-group-label">Navegación y consulta</p>
+        <button class="menu-action" id="toggle-sidebar" type="button" role="menuitem">Panel lateral</button>
+        <button
+          class="menu-action"
+          id="compact-open-territorial-query"
+          type="button"
+          role="menuitem"
+          aria-controls="territorial-query-modal"
+        >
+          Consulta rápida territorial
+        </button>
+        <p class="topbar-menu-group-label">Ayuda e información</p>
+        <button class="menu-action" id="open-help" type="button" role="menuitem">Guía rápida</button>
+        <p class="topbar-menu-group-label">Administración y sesión</p>
+        <button class="menu-action hidden" id="open-user-admin" type="button" role="menuitem">Usuarios</button>
+        <button class="menu-action hidden" id="logout-session" type="button" role="menuitem">Cerrar sesión</button>
+        <button class="menu-action" id="open-login" type="button" role="menuitem">Acceso</button>
       </div>
     </header>
 
@@ -94,55 +101,22 @@
         <div class="control-panel-mobile-bar">
           <div class="control-panel-mobile-copy">
             <p class="section-kicker">Panel operativo</p>
-            <strong>Capas e informacion</strong>
+            <strong>Capas e información</strong>
           </div>
           <button class="ghost-button" id="collapse-mobile-panel" type="button">Minimizar panel</button>
         </div>
 
         <div class="panel-quicknav" id="panel-quicknav">
-          <button class="panel-quicknav__button" type="button" data-panel-target="summary-panel">Resumen</button>
           <button class="panel-quicknav__button" type="button" data-panel-target="layers-panel">Capas</button>
           <button class="panel-quicknav__button" type="button" data-panel-target="info-panel-section">Info</button>
         </div>
-
-        <details class="panel-card panel-accordion panel-accordion--hero" id="summary-panel" open>
-          <summary class="panel-summary">
-            <div class="panel-heading-block">
-              <p class="section-kicker">Resumen</p>
-              <div class="hero-title">
-                <span class="hero-badge">Visor activo</span>
-                <h2>Consulta rapida del territorio</h2>
-              </div>
-            </div>
-            <span class="panel-summary__chevron" aria-hidden="true"></span>
-          </summary>
-          <div class="panel-content">
-            <p>
-              El mapa queda al centro y las capas se entienden por fenomeno, municipio y estatus.
-            </p>
-            <div class="hero-grid">
-              <article>
-                <strong id="session-role-label">Visitante</strong>
-                <span>Rol actual</span>
-              </article>
-              <article>
-                <strong id="published-count">0</strong>
-                <span>Capas tematicas disponibles</span>
-              </article>
-              <article>
-                <strong id="pending-count">0</strong>
-                <span>Capas en revision</span>
-              </article>
-            </div>
-          </div>
-        </details>
 
         <details class="panel-card panel-accordion" id="layers-panel" open>
           <summary class="panel-summary">
             <div class="section-heading">
               <div>
                 <p class="section-kicker">Capas</p>
-                <h3>Fenomenos y limites</h3>
+                <h3>Fenómenos y límites</h3>
               </div>
             </div>
             <span class="panel-summary__chevron" aria-hidden="true"></span>
@@ -150,7 +124,7 @@
           <div class="panel-content">
             <label class="search-box">
               <span>Buscar capa</span>
-              <input id="layer-search" type="search" placeholder="Ej. inundacion, Cuernavaca" />
+              <input id="layer-search" type="search" placeholder="Ej. inundación, Cuernavaca" />
             </label>
 
             <p class="layer-catalog-notice hidden" id="layer-catalog-notice"></p>
@@ -162,8 +136,8 @@
           <summary class="panel-summary">
             <div class="section-heading">
               <div>
-                <p class="section-kicker">Informacion</p>
-                <h3>Detalle de la seleccion</h3>
+                <p class="section-kicker">Información</p>
+                <h3>Detalle de la selección</h3>
               </div>
             </div>
             <span class="panel-summary__chevron" aria-hidden="true"></span>
@@ -183,7 +157,7 @@
             <div class="section-heading">
               <div>
                 <p class="section-kicker">Fuentes</p>
-                <h3>Creditos institucionales</h3>
+                <h3>Créditos institucionales</h3>
               </div>
             </div>
             <span class="panel-summary__chevron" aria-hidden="true"></span>
@@ -194,8 +168,8 @@
                 Plataforma orientada a la consulta operativa del Atlas del Estado de Morelos.
               </p>
               <ul class="credits-list">
-                <li>Coordinacion Estatal de Proteccion Civil Morelos</li>
-                <li>Universidad Autonoma del Estado de Morelos</li>
+                <li>Coordinación Estatal de Protección Civil Morelos</li>
+                <li>Universidad Autónoma del Estado de Morelos</li>
               </ul>
             </div>
           </div>
@@ -217,10 +191,10 @@
                 class="toolbar-button toolbar-button--basemap"
                 id="toolbar-basemap"
                 type="button"
-                aria-label="Elegir fondo cartografico"
+                aria-label="Elegir fondo cartográfico"
                 aria-expanded="false"
                 aria-controls="basemap-flyout"
-                title="Fondos cartograficos"
+                title="Fondos cartográficos"
               >
                 <span class="toolbar-icon">
                   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5 9 3l6 2.5 5-2.5v15l-5 2.5L9 19l-5 2.5v-15zm6-.05v11.74l4 1.66V7.1l-4-1.66zm-2 .05L6 6.5v11.74l2-1V5.5zm8 1.5v11.74l2-1V6.5l-2 .5z"/></svg>
@@ -228,7 +202,7 @@
               </button>
               <div class="basemap-flyout" id="basemap-flyout" hidden>
                 <div class="basemap-flyout__header">
-                  <strong>Fondos cartograficos</strong>
+                  <strong>Fondos cartográficos</strong>
                   <button class="icon-button" id="close-basemap-flyout" type="button" aria-label="Cerrar">x</button>
                 </div>
                 <div class="basemap-list basemap-list--flyout" id="basemap-flyout-list"></div>
@@ -306,14 +280,20 @@
             </button>
           </div>
           <p class="toolbar-note" id="upload-permission-note">
-            Inicia sesion como administrador o director para cargar capas.
+            Inicia sesión como administrador o director para cargar capas.
           </p>
         </div>
 
         <div class="map-overlay map-overlay--bottom-left">
           <div class="floating-card">
-            <p class="overlay-label">Coordenadas</p>
-            <strong id="statusbar">Lon: -99.10000 | Lat: 18.75000</strong>
+            <p class="overlay-label">
+              Coordenadas geográficas
+              <span>WGS 84 / EPSG:4326</span>
+            </p>
+            <strong class="coordinate-readout" id="statusbar" aria-live="polite">
+              <span><span class="coordinate-readout__label">Longitud:</span> <span id="statusbar-lon">-99.10000</span></span>
+              <span><span class="coordinate-readout__label">Latitud:</span> <span id="statusbar-lat">18.75000</span></span>
+            </strong>
           </div>
         </div>
 
@@ -329,7 +309,7 @@
       <div class="modal-header">
         <div>
           <p class="section-kicker">Carga de capas</p>
-          <h2>Subir capa para revision</h2>
+          <h2>Subir capa para revisión</h2>
         </div>
         <div class="modal-header-actions">
           <button class="icon-button" id="minimize-upload-layer" type="button" aria-label="Minimizar">-</button>
@@ -338,7 +318,7 @@
       </div>
 
       <p class="modal-copy">
-        Selecciona una sola capa, indica el fenomeno tematico, revisa su vista previa y despues enviala para revision administrativa.
+        Selecciona una sola capa, indica el fenómeno temático, revisa su vista previa y después envíala para revisión administrativa.
       </p>
 
       <div class="upload-draft-grid">
@@ -348,31 +328,31 @@
             Seleccionar archivo
           </button>
           <div class="upload-selected-files" id="upload-selected-files">
-            <p class="empty-state">Aun no has seleccionado archivos.</p>
+            <p class="empty-state">Aún no has seleccionado archivos.</p>
           </div>
         </section>
 
         <section class="user-admin-block">
-          <h3>Clasificacion</h3>
+          <h3>Clasificación</h3>
           <label class="form-field">
-            <span>Fenomeno</span>
+            <span>Fenómeno</span>
             <select id="upload-layer-category" required>
-              <option value="geologicos">Geologicos</option>
-              <option value="hidrometeorologicos">Hidrometeorologicos</option>
-              <option value="quimicos-tecnologicos">Quimicos - Tecnologicos</option>
-              <option value="sanitario-ecologico">Sanitario - Ecologico</option>
+              <option value="geologicos">Geológicos</option>
+              <option value="hidrometeorologicos">Hidrometeorológicos</option>
+              <option value="quimicos-tecnologicos">Químicos - Tecnológicos</option>
+              <option value="sanitario-ecologico">Sanitario - Ecológico</option>
               <option value="socio-organizativo">Socio - Organizativo</option>
-              <option value="astronomicos">Astronomicos</option>
+              <option value="astronomicos">Astronómicos</option>
             </select>
           </label>
 
           <label class="form-field">
             <span>Nombre de la capa</span>
-            <input id="upload-layer-title" type="text" maxlength="180" placeholder="Se toma del archivo si se deja vacio" />
+            <input id="upload-layer-title" type="text" maxlength="180" placeholder="Se toma del archivo si se deja vacío" />
           </label>
 
           <label class="form-field">
-            <span>Descripcion</span>
+            <span>Descripción</span>
             <textarea id="upload-layer-description" maxlength="2000" rows="3" placeholder="Describe el contenido y uso institucional de la capa"></textarea>
           </label>
 
@@ -423,7 +403,7 @@
               Vista previa
             </button>
             <span class="upload-preview-state" id="upload-preview-state">
-              La capa se visualiza automaticamente al seleccionar el archivo.
+              La capa se visualiza automáticamente al seleccionar el archivo.
             </span>
           </div>
         </section>
@@ -476,7 +456,7 @@
       </div>
 
       <p class="modal-copy">
-        El acceso ya esta preparado para consumir el backend institucional. La consulta publica sigue abierta sin inicio de sesion.
+        El acceso ya está preparado para consumir el backend institucional. La consulta pública sigue abierta sin inicio de sesión.
       </p>
 
       <div class="demo-users">
@@ -525,7 +505,7 @@
 
       <div class="modal-actions">
         <button class="ghost-button" id="continue-visitor" type="button">Entrar como visitante</button>
-        <button class="primary-button" type="submit">Iniciar sesion</button>
+        <button class="primary-button" type="submit">Iniciar sesión</button>
       </div>
     </form>
   </dialog>
@@ -535,16 +515,16 @@
       <div class="modal-header">
         <div>
           <p class="section-kicker">Consulta territorial</p>
-          <h2>Que ya resuelve este visor</h2>
+          <h2>Qué ya resuelve este visor</h2>
         </div>
         <button class="icon-button" id="close-help" type="button" aria-label="Cerrar">x</button>
       </div>
 
       <div class="help-grid">
         <article>
-          <strong>Consulta mas simple</strong>
+          <strong>Consulta más simple</strong>
           <p>
-            El mapa es protagonista y el panel lateral se reduce a base map, capas y detalle.
+            El mapa es protagonista y el panel lateral se reduce a mapa base, capas y detalle.
           </p>
         </article>
         <article>
@@ -562,8 +542,37 @@
         <article>
           <strong>Siguiente etapa</strong>
           <p>
-            El siguiente paso es conectar este frontend a la infraestructura definitiva de produccion y cerrar el menu tematico de capas.
+            El siguiente paso es conectar este frontend a la infraestructura definitiva de producción y cerrar el menú temático de capas.
           </p>
+        </article>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog class="modal modal--territorial-query" id="territorial-query-modal">
+    <div class="modal-card modal-card--territorial-query">
+      <div class="modal-header">
+        <div>
+          <p class="section-kicker">Consulta territorial</p>
+          <h2>Consulta rápida territorial</h2>
+        </div>
+        <button class="icon-button" id="close-territorial-query" type="button" aria-label="Cerrar">x</button>
+      </div>
+      <p class="modal-copy">
+        El mapa queda al centro y las capas se entienden por fenómeno, municipio y estatus.
+      </p>
+      <div class="hero-grid hero-grid--territorial-query">
+        <article>
+          <strong id="session-role-label">Visitante</strong>
+          <span>Rol actual</span>
+        </article>
+        <article>
+          <strong id="published-count">0</strong>
+          <span>Capas temáticas disponibles</span>
+        </article>
+        <article>
+          <strong id="pending-count">0</strong>
+          <span>Capas en revisión</span>
         </article>
       </div>
     </div>

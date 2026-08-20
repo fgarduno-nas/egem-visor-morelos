@@ -27,6 +27,12 @@ import {
   isInstitutionalHazardField,
 } from "./app/utils/remote-style-utils.js";
 import {
+  buildSemanticLegendFromFeatures,
+  buildTechnicalStyleFallbackLegend,
+  isTechnicalStyleField,
+  normalizePublishedVectorLegend,
+} from "./app/utils/remote-legend-utils.js";
+import {
   analyzeGeospatialFile,
   createGroundOverlayObjectUrls,
 } from "./app/utils/geospatial-importer.js";
@@ -58,7 +64,7 @@ import {
 
   const roleCapabilities = {
     admin: "Puede revisar, aprobar, visualizar y descargar capas cargadas.",
-    director: "Puede cargar capas para revision y consultar sus propias cargas.",
+    director: "Puede cargar capas para revisión y consultar sus propias cargas.",
     visitante: "Solo puede consultar capas ya publicadas.",
   };
 
@@ -225,8 +231,8 @@ import {
   const staticLayers = [
     {
       id: "estado",
-      title: "Limite estatal",
-      group: "Limites",
+      title: "Límite estatal",
+      group: "Límites",
       category: "limites",
       status: "published",
       sourceKind: "static",
@@ -237,13 +243,13 @@ import {
     {
       id: "municipios",
       title: "Municipios",
-      group: "Limites",
+      group: "Límites",
       category: "limites",
       status: "published",
       sourceKind: "static",
       visible: true,
       opacity: 1,
-      description: "Division municipal para consulta operativa.",
+      description: "División municipal para consulta operativa.",
     },
   ];
 
@@ -343,6 +349,8 @@ import {
     layerSearch: document.getElementById("layer-search"),
     infoPanel: document.getElementById("info-panel"),
     statusbar: document.getElementById("statusbar"),
+    statusbarLon: document.getElementById("statusbar-lon"),
+    statusbarLat: document.getElementById("statusbar-lat"),
     sessionRoleLabel: document.getElementById("session-role-label"),
     publishedCount: document.getElementById("published-count"),
     pendingCount: document.getElementById("pending-count"),
@@ -415,16 +423,14 @@ import {
     toolbarAddPoint: document.getElementById("toolbar-add-point"),
     toolbarFocusMorelos: document.getElementById("focus-morelos-menu"),
     toolbarClearMeasure: document.getElementById("toolbar-clear-measure"),
-    compactOpenUserAdmin: document.getElementById("compact-open-user-admin"),
-    compactLogoutSession: document.getElementById("compact-logout-session"),
-    compactToggleSidebar: document.getElementById("compact-toggle-sidebar"),
-    compactOpenHelp: document.getElementById("compact-open-help"),
-    compactOpenLogin: document.getElementById("compact-open-login"),
+    compactOpenTerritorialQuery: document.getElementById("compact-open-territorial-query"),
+    territorialQueryModal: document.getElementById("territorial-query-modal"),
+    closeTerritorialQuery: document.getElementById("close-territorial-query"),
   };
 
   map.on("mousemove", (event) => {
-    elements.statusbar.textContent =
-      `Lon: ${event.lngLat.lng.toFixed(5)} | Lat: ${event.lngLat.lat.toFixed(5)}`;
+    elements.statusbarLon.textContent = event.lngLat.lng.toFixed(5);
+    elements.statusbarLat.textContent = event.lngLat.lat.toFixed(5);
   });
 
   map.on("error", (event) => {
@@ -480,7 +486,10 @@ import {
     elements.toolbarClearMeasure.addEventListener("click", clearMeasurement);
     elements.toolbarBasemap?.addEventListener("click", toggleBasemapFlyout);
     elements.closeBasemapFlyout?.addEventListener("click", closeBasemapFlyout);
-    document.getElementById("toggle-sidebar").addEventListener("click", toggleSidebar);
+    document.getElementById("toggle-sidebar").addEventListener("click", () => {
+      toggleSidebar();
+      closeCompactMenu();
+    });
     elements.reopenSidebar.addEventListener("click", toggleSidebar);
     elements.collapseMobilePanel?.addEventListener("click", toggleSidebar);
     elements.topbarBrandToggle?.addEventListener("click", toggleTopbar);
@@ -561,9 +570,11 @@ import {
         closeFloatingLegend({ restoreFocus: true });
       }
       if (event.key === "Escape" && state.compactMenuOpen) {
-        closeCompactMenu();
+        closeCompactMenu({ restoreFocus: true });
       }
     });
+
+    elements.topbarCompactMenu?.addEventListener("keydown", handleCompactMenuKeydown);
 
     elements.panelQuicknav?.querySelectorAll("[data-panel-target]").forEach((button) => {
       button.addEventListener("click", () => scrollPanelToSection(button.dataset.panelTarget));
@@ -628,23 +639,14 @@ import {
       elements.userAdminModal.showModal();
     });
 
-    elements.compactOpenLogin?.addEventListener("click", () => {
-      document.getElementById("open-login").click();
+    elements.compactOpenTerritorialQuery?.addEventListener("click", openTerritorialQuery);
+    elements.closeTerritorialQuery?.addEventListener("click", closeTerritorialQuery);
+    elements.territorialQueryModal?.addEventListener("click", (event) => {
+      if (event.target === elements.territorialQueryModal) {
+        closeTerritorialQuery();
+      }
     });
-    elements.compactOpenHelp?.addEventListener("click", () => {
-      document.getElementById("open-help").click();
-    });
-    elements.compactToggleSidebar?.addEventListener("click", () => {
-      document.getElementById("toggle-sidebar").click();
-      closeCompactMenu();
-    });
-    elements.compactOpenUserAdmin?.addEventListener("click", () => {
-      elements.openUserAdmin.click();
-    });
-    elements.compactLogoutSession?.addEventListener("click", () => {
-      elements.logoutSession.click();
-    });
-
+    elements.territorialQueryModal?.addEventListener("close", restoreViewerFocus);
     elements.closeUserAdmin.addEventListener("click", () => {
       elements.newUserPassword.type = "password";
       syncPasswordToggleButton(elements.newUserPassword, elements.toggleNewUserPassword);
@@ -711,7 +713,7 @@ import {
         updateInfoPanel({
           title: "No se pudo procesar el archivo",
           description:
-            "El archivo cargado no contiene geometria compatible, esta dañado o requiere una estructura diferente.",
+            "El archivo cargado no contiene geometría compatible, está dañado o requiere una estructura diferente.",
         });
       } finally {
         state.isUploading = false;
@@ -1340,13 +1342,13 @@ import {
 
   function getLayerCatalogNoticeMessage() {
     if (state.backendStatus.state === "unavailable") {
-      return "Las capas tematicas no estan disponibles temporalmente. El mapa base y los limites territoriales continuan operativos.";
+      return "Las capas temáticas no están disponibles temporalmente. El mapa base y los límites territoriales continúan operativos.";
     }
     if (state.backendStatus.state === "empty") {
-      return "Por el momento no hay capas tematicas publicadas.";
+      return "Por el momento no hay capas temáticas publicadas.";
     }
     if (state.backendStatus.state === "http-error" || state.backendStatus.state === "invalid") {
-      return "Las capas tematicas no pudieron consultarse temporalmente. El mapa base y los limites territoriales continuan operativos.";
+      return "Las capas temáticas no pudieron consultarse temporalmente. El mapa base y los límites territoriales continúan operativos.";
     }
     return "";
   }
@@ -1408,7 +1410,7 @@ import {
 
   function renderFloatingLegend(layer) {
     if (!elements.mapLegendFloat) return;
-    const categoryTitle = getLayerCategoryTitle(layer) || "Capa tematica";
+    const categoryTitle = getLayerCategoryTitle(layer) || "Capa temática";
     const content = renderFloatingLegendContent(layer);
     elements.mapLegendFloat.hidden = false;
     elements.mapLegendFloat.innerHTML = `
@@ -1417,10 +1419,10 @@ import {
           <p class="section-kicker">${escapeHtml(categoryTitle)}</p>
           <strong>${escapeHtml(layer.title)}</strong>
         </div>
-        <button class="icon-button icon-button--small" type="button" data-close-floating-legend aria-label="Cerrar simbologia">x</button>
+        <button class="icon-button icon-button--small" type="button" data-close-floating-legend aria-label="Cerrar simbología">x</button>
       </div>
       <div class="map-legend-float__body">
-        ${content || `<p class="empty-state">Esta capa no tiene simbologia disponible.</p>`}
+        ${content || `<p class="empty-state">Esta capa no tiene simbología disponible.</p>`}
       </div>
     `;
   }
@@ -1525,7 +1527,8 @@ import {
       };
     }
 
-    if (layer.legend?.type === "continuous" && Array.isArray(layer.legend.classes)) {
+    if (layer.legend?.type && layer.legend.type !== "raster" && Array.isArray(layer.legend.classes)) {
+      if (layer.legend.type !== "continuous") return layer.legend;
       return normalizeLayerLegend(layer.legend, layer);
     }
 
@@ -1543,7 +1546,10 @@ import {
       return buildSingleStyleLegend(layer);
     }
 
-    const styleField = layer.symbology?.field || chooseLegendField(features);
+    const persistedStyleField = layer.symbology?.field && !isTechnicalStyleField(layer.symbology.field)
+      ? layer.symbology.field
+      : null;
+    const styleField = persistedStyleField || chooseLegendField(features);
     const values = styleField ? getFeatureFieldValues(features, styleField) : [];
     if (styleField && isInstitutionalHazardField(styleField)) {
       const hazardLegend = buildInstitutionalHazardLegend(values);
@@ -1558,6 +1564,9 @@ import {
         classes: styleClasses,
       };
     }
+
+    const technicalFallbackLegend = buildTechnicalStyleFallbackLegend(features);
+    if (technicalFallbackLegend) return technicalFallbackLegend;
 
     return buildSingleStyleLegend(layer);
   }
@@ -1595,7 +1604,7 @@ import {
     features.forEach((feature) => {
       const properties = feature.properties || {};
       const label =
-        (styleField && getPropertyValueByAlias(properties, [styleField])) ||
+        (styleField && !isTechnicalStyleField(styleField) && getPropertyValueByAlias(properties, [styleField])) ||
         getPropertyValueByAlias(properties, ["name", "Name", "NOMBRE"]) ||
         "Estilo de la capa";
       const color =
@@ -1604,7 +1613,7 @@ import {
         properties.__styleIcon ||
         getStyleColorForValue(label, { uniqueCount: 2 });
       if (!isUsablePopupValue(label) || !color) return;
-      const normalizedLabel = getInstitutionalHazardLabel(label) || String(label).trim();
+      const normalizedLabel = String(label).trim();
       if (!classes.has(normalizedLabel)) {
         classes.set(normalizedLabel, {
           label: normalizedLabel,
@@ -1714,7 +1723,7 @@ import {
       try {
         map.moveLayer(layerId);
       } catch (error) {
-        console.warn("No se pudo reposicionar el limite estatal resaltado:", error);
+        console.warn("No se pudo reposicionar el límite estatal resaltado:", error);
       }
     });
   }
@@ -2003,8 +2012,8 @@ import {
       title: layer.title,
       description:
         layer.status === "published"
-          ? "El punto se agrego como nueva capa publicada."
-          : "El punto se agrego como nueva capa pendiente de aprobacion. Si te equivocaste, puedes eliminarlo desde el listado de capas.",
+          ? "El punto se agregó como nueva capa publicada."
+          : "El punto se agregó como nueva capa pendiente de aprobación. Si te equivocaste, puedes eliminarlo desde el listado de capas.",
       extra: [
         `Longitud: ${lngLat.lng.toFixed(6)}`,
         `Latitud: ${lngLat.lat.toFixed(6)}`,
@@ -2159,6 +2168,7 @@ import {
       processedGeojsonUrl: layer.processedGeojsonUrl,
       metadata: layer.metadata || null,
       rasterLegend: layer.legend?.type === "raster" ? layer.legend : layer.metadata?.rasterLegend || null,
+      vectorLegend: layer.legend?.type && layer.legend.type !== "raster" ? layer.legend : layer.metadata?.properties?.vectorLegend || null,
     };
   }
 
@@ -2394,8 +2404,8 @@ import {
     updateInfoPanel({
       title: layer.title,
       description: isReviewPreview
-        ? "Vista previa activada para revisar la capa antes de su aprobacion."
-        : "Capa visualizada correctamente desde el catalogo institucional.",
+        ? "Vista previa activada para revisar la capa antes de su aprobación."
+        : "Capa visualizada correctamente desde el catálogo institucional.",
       extra: [
         `Formato: ${layer.fileType.toUpperCase()}`,
         `Municipio: ${layer.municipality}`,
@@ -2541,30 +2551,30 @@ import {
     const layer = state.userLayers.find((item) => item.id === layerId);
     if (!layer) return;
     if (!layer.backendLayerId || !state.session.token) {
-      setSystemStatus("Backend no disponible", "La aprobacion requiere una sesion administradora conectada al backend.");
+      setSystemStatus("Backend no disponible", "La aprobación requiere una sesión administradora conectada al backend.");
       updateInfoPanel({
         title: "No se puede aprobar en modo local",
-        description: "Inicia sesion contra el backend institucional como Administrador para aprobar capas.",
+        description: "Inicia sesión contra el backend institucional como Administrador para aprobar capas.",
       });
       return;
     }
 
     try {
-      setSystemStatus("Aprobando capa", `Se esta validando ${layer.title} en backend.`);
+      setSystemStatus("Aprobando capa", `Se está validando ${layer.title} en backend.`);
       await approveLayerRequest(state.session.token, layer.backendLayerId);
       await syncLayersFromBackend({ preserveSessionVisibility: false });
-      setSystemStatus("Capa aprobada", `${layer.title} quedo lista para publicacion.`);
+      setSystemStatus("Capa aprobada", `${layer.title} quedó lista para publicación.`);
       updateInfoPanel({
         title: layer.title,
-        description: "La capa fue aprobada y quedo lista para publicacion.",
+        description: "La capa fue aprobada y quedó lista para publicación.",
         extra: [`Municipio: ${layer.municipality}`, `Aprobo: ${state.session.name}`],
       });
     } catch (error) {
       console.error(error);
-      setSystemStatus("Error de aprobacion", error?.payload?.message || error.message || "La aprobacion fallo.");
+      setSystemStatus("Error de aprobación", error?.payload?.message || error.message || "La aprobación falló.");
       updateInfoPanel({
         title: "No se pudo aprobar la capa",
-        description: error?.payload?.message || error.message || "La aprobacion fallo.",
+        description: error?.payload?.message || error.message || "La aprobación falló.",
       });
     }
   }
@@ -2607,7 +2617,7 @@ import {
       console.error(error);
       updateInfoPanel({
         title: "No se pudo eliminar la capa",
-        description: error?.payload?.message || error.message || "La operacion fallo.",
+        description: error?.payload?.message || error.message || "La operación falló.",
       });
     }
   }
@@ -2676,7 +2686,7 @@ import {
       updateInfoPanel({
         title: name,
         description: "Municipio seleccionado para referencia territorial dentro del atlas.",
-        extra: ["Tipo: Limite municipal", "Uso recomendado: ubicar fenomenos y capas locales"],
+        extra: ["Tipo: Límite municipal", "Uso recomendado: ubicar fenómenos y capas locales"],
         attributes: props,
       });
 
@@ -3001,7 +3011,7 @@ import {
 
     return [
       `Nombre: ${layer.title || "Sin nombre"}`,
-      `Descripcion: ${layer.description || "Sin descripcion"}`,
+      `Descripción: ${layer.description || "Sin descripción"}`,
       `Municipio/cobertura: ${properties.coverage || metadata.coverage || layer.municipality || "Sin especificar"}`,
       `Fuente: ${properties.source || metadata.source || "Sin especificar"}`,
       `Dependencia responsable: ${properties.responsibleAgency || metadata.responsibleAgency || "Sin especificar"}`,
@@ -3136,8 +3146,8 @@ import {
       "visualizable",
       "is visualizable",
       "processing status",
-      "estado de operacion",
-      "operacion",
+      "estado de operación",
+      "operación",
       "estado del sistema",
       "referencia",
       "reference",
@@ -3193,12 +3203,10 @@ import {
     elements.logoutSession.classList.toggle("hidden", !state.session.isAuthenticated);
     elements.topbarSessionChip.classList.toggle("hidden", !state.topbarCollapsed);
     elements.topbarSessionChip.textContent = roleLabel;
-    elements.compactOpenUserAdmin?.classList.toggle("hidden", state.session.role !== "admin");
-    elements.compactLogoutSession?.classList.toggle("hidden", !state.session.isAuthenticated);
-    elements.compactOpenLogin?.classList.toggle("hidden", state.session.isAuthenticated);
+    document.getElementById("open-login")?.classList.toggle("hidden", state.session.isAuthenticated);
     elements.uploadPermissionNote.textContent = canUpload()
-      ? "Puedes subir capas vectoriales, raster y Shapefile en ZIP desde este menu."
-      : "La medicion es publica. Para subir capas o crear puntos inicia sesion como administrador o director.";
+      ? "Puedes subir capas vectoriales, raster y Shapefile en ZIP desde este menú."
+      : "La medición es pública. Para subir capas o crear puntos inicia sesión como administrador o director.";
     updateToolbarState();
     syncSidebarState();
   }
@@ -3227,9 +3235,6 @@ import {
     const icon = elements.toggleTopbar.querySelector("svg path");
     if (icon) {
       icon.setAttribute("d", collapsed ? "M7 14l5-5 5 5z" : "M7 10l5 5 5-5z");
-    }
-    if (!collapsed) {
-      closeCompactMenu();
     }
   }
 
@@ -3260,22 +3265,73 @@ import {
   }
 
   function toggleCompactMenu() {
-    if (!state.topbarCollapsed) return;
+    if (state.compactMenuOpen) {
+      closeCompactMenu({ restoreFocus: true });
+      return;
+    }
     state.compactMenuOpen = !state.compactMenuOpen;
     if (elements.topbarCompactMenu) {
       elements.topbarCompactMenu.hidden = !state.compactMenuOpen;
       elements.topbarCompactMenu.classList.toggle("is-open", state.compactMenuOpen);
     }
     elements.toggleCompactMenu?.setAttribute("aria-expanded", String(state.compactMenuOpen));
+    window.requestAnimationFrame(() => {
+      getVisibleCompactMenuItems()[0]?.focus();
+    });
   }
 
-  function closeCompactMenu() {
+  function closeCompactMenu(options = {}) {
     state.compactMenuOpen = false;
     if (elements.topbarCompactMenu) {
       elements.topbarCompactMenu.hidden = true;
       elements.topbarCompactMenu.classList.remove("is-open");
     }
     elements.toggleCompactMenu?.setAttribute("aria-expanded", "false");
+    if (options.restoreFocus) {
+      elements.toggleCompactMenu?.focus();
+    }
+  }
+
+  function getVisibleCompactMenuItems() {
+    if (!elements.topbarCompactMenu) return [];
+    return [...elements.topbarCompactMenu.querySelectorAll(".menu-action")]
+      .filter((item) => !item.hidden && !item.classList.contains("hidden") && !item.disabled);
+  }
+
+  function handleCompactMenuKeydown(event) {
+    const items = getVisibleCompactMenuItems();
+    if (!items.length) return;
+    const currentIndex = Math.max(0, items.indexOf(document.activeElement));
+    let nextIndex = currentIndex;
+
+    if (event.key === "ArrowDown") {
+      nextIndex = (currentIndex + 1) % items.length;
+    } else if (event.key === "ArrowUp") {
+      nextIndex = (currentIndex - 1 + items.length) % items.length;
+    } else if (event.key === "Home") {
+      nextIndex = 0;
+    } else if (event.key === "End") {
+      nextIndex = items.length - 1;
+    } else {
+      return;
+    }
+
+    event.preventDefault();
+    items[nextIndex].focus();
+  }
+
+  function openTerritorialQuery() {
+    closeCompactMenu();
+    elements.territorialQueryModal?.showModal();
+    window.requestAnimationFrame(() => {
+      elements.closeTerritorialQuery?.focus();
+    });
+  }
+
+  function closeTerritorialQuery() {
+    if (elements.territorialQueryModal?.open) {
+      elements.territorialQueryModal.close();
+    }
   }
 
   function applyTopbarMode(collapsed, options = {}) {
@@ -3337,7 +3393,7 @@ import {
       return;
     }
     document.exitFullscreen?.().catch(() => {});
-    setSystemStatus("Vista normal", "El visor regreso a la vista integrada del tablero.");
+    setSystemStatus("Vista normal", "El visor regresó a la vista integrada del tablero.");
   }
 
   function rotateMapBy(delta) {
@@ -3366,7 +3422,7 @@ import {
       try {
         const response = await loginRequest(email, password);
         if (!response?.accessToken || !response?.user) {
-          throw new Error("La API no devolvio una sesion valida.");
+          throw new Error("La API no devolvió una sesión válida.");
         }
         clearPreviewStateOnRoleChange();
         resetThematicRuntimeState();
@@ -3393,18 +3449,18 @@ import {
       elements.loginModal.close();
 
       updateInfoPanel({
-        title: `Sesion iniciada como ${roleLabels[state.session.role]}`,
+        title: `Sesión iniciada como ${roleLabels[state.session.role]}`,
         description: roleCapabilities[state.session.role],
         extra: [
           `Responsable: ${state.session.name}`,
           `Ambito: ${state.session.municipality}`,
-          mode === "backend" ? "Backend institucional conectado." : "Sesion iniciada en modo demo local.",
+          mode === "backend" ? "Backend institucional conectado." : "Sesión iniciada en modo demo local.",
         ],
       });
     } catch (error) {
       console.error(error);
       elements.loginFeedback.textContent =
-        error?.payload?.message || error.message || "No se pudo iniciar sesion contra el backend o las credenciales demo.";
+        error?.payload?.message || error.message || "No se pudo iniciar sesión contra el backend o las credenciales demo.";
     }
   }
 
@@ -3489,7 +3545,7 @@ import {
     elements.uploadLayerFeedback.textContent = "";
     if (files.length > 1) {
       elements.uploadLayerFeedback.textContent =
-        "Solo se permite una capa por carga. Se tomara unicamente el primer archivo seleccionado.";
+        "Solo se permite una capa por carga. Se tomará únicamente el primer archivo seleccionado.";
     }
     syncUploadDraftUi();
     if (state.uploadDraft.files.length) {
@@ -3501,7 +3557,7 @@ import {
     if (!elements.uploadSelectedFiles) return;
 
     if (!state.uploadDraft.files.length) {
-      elements.uploadSelectedFiles.innerHTML = '<p class="empty-state">Aun no has seleccionado archivos.</p>';
+      elements.uploadSelectedFiles.innerHTML = '<p class="empty-state">Aún no has seleccionado archivos.</p>';
     } else if (state.uploadDraft.previewLayers.length) {
       elements.uploadSelectedFiles.innerHTML = state.uploadDraft.previewLayers
         .map(
@@ -3570,8 +3626,8 @@ import {
 
     if (elements.uploadPreviewState) {
       elements.uploadPreviewState.textContent = state.uploadDraft.previewVisible
-        ? "La capa se esta visualizando en el mapa."
-        : "La capa se visualizara automaticamente al seleccionarla.";
+        ? "La capa se está visualizando en el mapa."
+        : "La capa se visualizará automáticamente al seleccionarla.";
     }
 
     elements.triggerUpload?.classList.toggle("has-draft", state.uploadDraft.files.length > 0);
@@ -3587,12 +3643,12 @@ import {
             </article>
           `)
           .join("")
-      : '<p class="empty-state">Aun no has seleccionado archivos.</p>';
+      : '<p class="empty-state">Aún no has seleccionado archivos.</p>';
 
     elements.uploadPreviewToggle.classList.toggle("is-active", state.uploadDraft.previewVisible);
     elements.uploadPreviewToggle.textContent = state.uploadDraft.previewVisible
-      ? "Ocultar visualizacion"
-      : "Ojo de visualizacion";
+      ? "Ocultar visualización"
+      : "Ojo de visualización";
     elements.uploadPreviewState.textContent = state.uploadDraft.previewVisible
       ? "Vista previa activa en el mapa"
       : "Vista previa inactiva";
@@ -3679,7 +3735,7 @@ import {
 
     try {
       state.isUploading = true;
-      elements.uploadLayerFeedback.textContent = "Procesando capa; esta operacion puede tardar varios minutos.";
+      elements.uploadLayerFeedback.textContent = "Procesando capa; esta operación puede tardar varios minutos.";
 
       const uploadResult = await uploadFilesToBackend(state.uploadDraft.files, {
         category: state.uploadDraft.category,
@@ -3705,7 +3761,7 @@ import {
     const savedLayer = await findRecentlySavedUploadDraftLayer();
     if (savedLayer) {
       await syncLayersFromBackend({ preserveSessionVisibility: false });
-      return `La conexion se interrumpio, pero el backend registro la capa "${savedLayer.title}". Revisa el catalogo administrativo antes de reintentar.`;
+      return `La conexión se interrumpió, pero el backend registró la capa "${savedLayer.title}". Revisa el catálogo administrativo antes de reintentar.`;
     }
 
     if (error?.name === "TimeoutError" || error?.code === "TimeoutError") {
@@ -3717,10 +3773,10 @@ import {
     }
 
     if (error?.status) {
-      return error.message || "El backend rechazo la carga de la capa.";
+      return error.message || "El backend rechazó la carga de la capa.";
     }
 
-    return error?.message || "No se pudo subir la capa para revision.";
+    return error?.message || "No se pudo subir la capa para revisión.";
   }
 
   async function findRecentlySavedUploadDraftLayer() {
@@ -3741,7 +3797,7 @@ import {
         return titleMatches || fileMatches;
       }) || null;
     } catch (lookupError) {
-      console.warn("No se pudo verificar si la capa quedo registrada despues del fallo de carga.", lookupError);
+      console.warn("No se pudo verificar si la capa quedó registrada después del fallo de carga.", lookupError);
       return null;
     }
   }
@@ -3800,7 +3856,7 @@ import {
             </div>
           `)
           .join("")
-      : `<p class="empty-state">Sin leyenda manual. Se mostrara simbologia incorporada en la imagen.</p>`;
+        : `<p class="empty-state">Sin leyenda manual. Se mostrará simbología incorporada en la imagen.</p>`;
 
     elements.rasterLegendList.querySelectorAll("[data-raster-legend-label]").forEach((input) => {
       input.addEventListener("input", () => {
@@ -3891,7 +3947,7 @@ import {
     );
 
     return {
-      geometryType: geometryTypes.size ? [...geometryTypes].join(", ") : "Sin geometria",
+      geometryType: geometryTypes.size ? [...geometryTypes].join(", ") : "Sin geometría",
       featureCount: features.length,
     };
   }
@@ -3966,7 +4022,7 @@ import {
             </article>
           `)
           .join("")
-      : '<div class="empty-state">Aun no hay usuarios creados desde el panel de administracion.</div>';
+      : '<div class="empty-state">Aún no hay usuarios creados desde el panel de administración.</div>';
 
     elements.userAdminList.querySelectorAll("[data-reset-user-password]").forEach((button) => {
       button.addEventListener("click", () => resetManagedUserPassword(button.dataset.resetUserPassword));
@@ -4018,7 +4074,7 @@ import {
     }
 
     if (role === "director" && !morelosMunicipalities.includes(municipality)) {
-      elements.userAdminFeedback.textContent = "Selecciona un municipio valido de la lista.";
+      elements.userAdminFeedback.textContent = "Selecciona un municipio válido de la lista.";
       return;
     }
 
@@ -4061,8 +4117,8 @@ import {
       updateInfoPanel({
         title: "Usuario registrado",
         description: state.session.token
-          ? "La cuenta ya puede iniciar sesion desde el boton Acceso."
-          : "La cuenta demo ya puede iniciar sesion localmente desde el boton Acceso.",
+          ? "La cuenta ya puede iniciar sesión desde el botón Acceso."
+          : "La cuenta demo ya puede iniciar sesión localmente desde el botón Acceso.",
         extra: [
           `Correo: ${email}`,
           `Rol: ${roleLabels[role]}`,
@@ -4142,7 +4198,7 @@ import {
 
       await renderUserAdminPanel();
       elements.userAdminFeedback.textContent =
-        `${user.email} quedo ${nextStatus ? "activo" : "inactivo"}.`;
+        `${user.email} quedó ${nextStatus ? "activo" : "inactivo"}.`;
     } catch (error) {
       console.error(error);
       elements.userAdminFeedback.textContent =
@@ -4203,14 +4259,14 @@ import {
     if (!state.staticData.estado) {
       updateInfoPanel({
         title: "Vista estatal no disponible",
-        description: "Aun no se cargan los limites base de Morelos para centrar el mapa.",
+        description: "Aún no se cargan los límites base de Morelos para centrar el mapa.",
       });
       return;
     }
     fitGeoJSON(state.staticData.estado, { padding: 42, maxZoom: 9.4 });
     updateInfoPanel({
       title: "Vista centrada en Morelos",
-      description: "El mapa se reajusto a la extension del estado.",
+      description: "El mapa se reajustó a la extensión del estado.",
     });
   }
 
@@ -4221,8 +4277,8 @@ import {
       duration: 600,
     });
     updateInfoPanel({
-      title: "Orientacion restablecida",
-      description: "El visor regreso a su orientacion norte.",
+      title: "Orientación restablecida",
+      description: "El visor regresó a su orientación norte.",
     });
   }
 
@@ -4448,7 +4504,7 @@ import {
     }
 
     if (extensions.includes("rar")) {
-      throw new Error("Por ahora el visor web admite archivos comprimidos ZIP para shapefile. RAR no esta habilitado en este prototipo.");
+      throw new Error("Por ahora el visor web admite archivos comprimidos ZIP para shapefile. RAR no está habilitado en este prototipo.");
     }
 
     if (files.length > 1 && extensions.every((extension) => singleUploadExtensions.includes(extension))) {
@@ -4472,7 +4528,7 @@ import {
 
     if (!geojson.features.length && !groundOverlays.length) {
       const detail = analysis.errors?.length ? ` ${analysis.errors.join(" ")}` : "";
-      throw new Error(`El archivo no contiene geometria vectorial ni una imagen georreferenciada valida.${detail}`);
+      throw new Error(`El archivo no contiene geometría vectorial ni una imagen georreferenciada válida.${detail}`);
     }
 
     const sourceKind = geojson.features.length && groundOverlays.length
@@ -4571,7 +4627,7 @@ import {
 
     if (!isLikelyLngLatBbox(bbox)) {
       throw new Error(
-        "El GeoTIFF debe estar reproyectado a EPSG:4326/WGS84 o Web Mercator compatible antes de cargarlo. El visor web aun no reproyecta raster en el frontend; prepara el archivo en QGIS/GDAL o procesa la reproyeccion desde backend."
+        "El GeoTIFF debe estar reproyectado a EPSG:4326/WGS84 o Web Mercator compatible antes de cargarlo. El visor web aún no reproyecta raster en el frontend; prepara el archivo en QGIS/GDAL o procesa la reproyección desde backend."
       );
     }
 
@@ -4589,7 +4645,7 @@ import {
       sourceKind: "image",
       imageUrl,
       coordinates,
-      description: "Raster GeoTIFF cargado para visualizacion territorial.",
+      description: "Raster GeoTIFF cargado para visualización territorial.",
       download: await buildDownloadBundle([file]),
     });
   }
@@ -4719,12 +4775,12 @@ import {
     try {
       parsed = JSON.parse(await file.text());
     } catch (_error) {
-      throw new Error("El archivo GeoJSON no contiene JSON valido.");
+      throw new Error("El archivo GeoJSON no contiene JSON válido.");
     }
 
     const geojson = ensureFeatureCollection(parsed);
     if (!geojson.features.length) {
-      throw new Error("El GeoJSON no contiene entidades con geometria utilizable.");
+      throw new Error("El GeoJSON no contiene entidades con geometría utilizable.");
     }
 
     return createUserLayer({
@@ -4954,7 +5010,7 @@ import {
 
   function ensureFeatureCollection(data) {
     if (!data || typeof data !== "object") {
-      throw new Error("El GeoJSON esta vacio o no tiene estructura valida.");
+      throw new Error("El GeoJSON está vacío o no tiene estructura válida.");
     }
 
     const supportedGeometryTypes = new Set([
@@ -4981,7 +5037,7 @@ import {
 
     if (data.type === "FeatureCollection") {
       if (!Array.isArray(data.features)) {
-        throw new Error("El GeoJSON FeatureCollection no contiene un arreglo features valido.");
+        throw new Error("El GeoJSON FeatureCollection no contiene un arreglo features válido.");
       }
       return {
         type: "FeatureCollection",
@@ -4999,7 +5055,7 @@ import {
 
     if (supportedGeometryTypes.has(data.type)) {
       if (!hasUsableCoordinates(data.coordinates)) {
-        throw new Error(`La geometria ${data.type} no contiene coordenadas validas.`);
+        throw new Error(`La geometría ${data.type} no contiene coordenadas válidas.`);
       }
       return {
         type: "FeatureCollection",
@@ -5020,7 +5076,7 @@ import {
       };
     }
 
-    throw new Error("El GeoJSON debe ser FeatureCollection, Feature o una geometria valida.");
+    throw new Error("El GeoJSON debe ser FeatureCollection, Feature o una geometría válida.");
   }
 
   function hasUsableCoordinates(coordinates) {
@@ -5127,7 +5183,7 @@ import {
       const session = JSON.parse(localStorage.getItem(STORAGE_KEYS.session));
       if (session && session.role) return session;
     } catch (error) {
-      console.warn("No se pudo leer la sesion almacenada.", error);
+      console.warn("No se pudo leer la sesión almacenada.", error);
     }
 
     return createVisitorSession();
@@ -5192,7 +5248,7 @@ import {
   function createVisitorSession() {
     return {
       role: "visitante",
-      name: "Consulta publica",
+      name: "Consulta pública",
       municipality: "General",
       email: null,
       userId: null,
@@ -5232,8 +5288,8 @@ import {
     saveSession();
     renderSession();
     updateInfoPanel({
-      title: "Sesion cerrada",
-      description: "Regresaste al modo de consulta publica del visor.",
+      title: "Sesión cerrada",
+      description: "Regresaste al modo de consulta pública del visor.",
     });
   }
 
@@ -5309,10 +5365,10 @@ import {
     const layer = state.userLayers.find((item) => item.id === layerId);
     if (!layer) return;
     if (!layer.backendLayerId || !state.session.token) {
-      setSystemStatus("Backend no disponible", "La publicacion requiere una sesion administradora conectada al backend.");
+      setSystemStatus("Backend no disponible", "La publicación requiere una sesión administradora conectada al backend.");
       updateInfoPanel({
         title: "No se puede publicar en modo local",
-        description: "Inicia sesion contra el backend institucional como Administrador para publicar o despublicar capas.",
+        description: "Inicia sesión contra el backend institucional como Administrador para publicar o despublicar capas.",
       });
       return;
     }
@@ -5321,25 +5377,25 @@ import {
 
     try {
       setSystemStatus(
-        nextStatus === "published" ? "Publicando capa" : "Retirando publicacion",
-        `${layer.title} esta cambiando su estado de visibilidad.`
+        nextStatus === "published" ? "Publicando capa" : "Retirando publicación",
+        `${layer.title} está cambiando su estado de visibilidad.`
       );
       await setPublishStateRequest(state.session.token, layer.backendLayerId, nextStatus);
       await syncLayersFromBackend({ preserveSessionVisibility: false });
       setSystemStatus(
         nextStatus === "published" ? "Capa publicada" : "Capa despublicada",
-        `${layer.title} actualizo su estado correctamente.`
+        `${layer.title} actualizó su estado correctamente.`
       );
       updateInfoPanel({
         title: nextStatus === "published" ? "Capa publicada" : "Capa despublicada",
-        description: `${layer.title} actualizo su estado de publicacion.`,
+        description: `${layer.title} actualizó su estado de publicación.`,
       });
     } catch (error) {
       console.error(error);
-      setSystemStatus("Error de publicacion", error?.payload?.message || error.message || "La operacion fallo.");
+      setSystemStatus("Error de publicación", error?.payload?.message || error.message || "La operación falló.");
       updateInfoPanel({
-        title: "No se pudo actualizar la publicacion",
-        description: error?.payload?.message || error.message || "La operacion fallo.",
+        title: "No se pudo actualizar la publicación",
+        description: error?.payload?.message || error.message || "La operación falló.",
       });
     }
   }
@@ -5348,42 +5404,42 @@ import {
     const layer = state.userLayers.find((item) => item.id === layerId);
     if (!layer) return;
     if (!layer.backendLayerId || !state.session.token) {
-      setSystemStatus("Backend no disponible", "El rechazo requiere una sesion administradora conectada al backend.");
+      setSystemStatus("Backend no disponible", "El rechazo requiere una sesión administradora conectada al backend.");
       updateInfoPanel({
         title: "No se puede rechazar en modo local",
-        description: "Inicia sesion contra el backend institucional como Administrador para rechazar capas.",
+        description: "Inicia sesión contra el backend institucional como Administrador para rechazar capas.",
       });
       return;
     }
 
-    const reason = window.prompt("Indica brevemente el motivo del rechazo:", "No cumple criterios de publicacion.");
+    const reason = window.prompt("Indica brevemente el motivo del rechazo:", "No cumple criterios de publicación.");
     if (!reason) return;
 
     try {
-      setSystemStatus("Rechazando capa", `${layer.title} sera devuelta con observaciones.`);
+      setSystemStatus("Rechazando capa", `${layer.title} será devuelta con observaciones.`);
       await rejectLayerRequest(state.session.token, layer.backendLayerId, reason);
       await syncLayersFromBackend({ preserveSessionVisibility: false });
-      setSystemStatus("Capa rechazada", `${layer.title} se actualizo con el motivo de rechazo.`);
+      setSystemStatus("Capa rechazada", `${layer.title} se actualizó con el motivo de rechazo.`);
       updateInfoPanel({
         title: "Capa rechazada",
-        description: `${layer.title} fue rechazada y se registro el motivo en backend.`,
+        description: `${layer.title} fue rechazada y se registró el motivo en backend.`,
         extra: [`Motivo: ${reason}`],
       });
     } catch (error) {
       console.error(error);
-      setSystemStatus("Error de rechazo", error?.payload?.message || error.message || "La operacion fallo.");
+      setSystemStatus("Error de rechazo", error?.payload?.message || error.message || "La operación falló.");
       updateInfoPanel({
         title: "No se pudo rechazar la capa",
-        description: error?.payload?.message || error.message || "La operacion fallo.",
+        description: error?.payload?.message || error.message || "La operación falló.",
       });
     }
   }
 
   async function initializeRemoteState() {
-    setSystemStatus("Sincronizando visor", "Se esta conectando el visualizador con el backend institucional.");
+    setSystemStatus("Sincronizando visor", "Se está conectando el visualizador con el backend institucional.");
     updateInfoPanel({
       title: "Inicializando visor",
-      description: "Se esta preparando la consulta de capas tematicas.",
+      description: "Se está preparando la consulta de capas temáticas.",
     });
 
     if (!map.isStyleLoaded()) {
@@ -5403,10 +5459,10 @@ import {
 
     state.remoteSyncInProgress = true;
     try {
-      setSystemStatus("Actualizando capas", "Se esta consultando el catalogo remoto.");
+      setSystemStatus("Actualizando capas", "Se está consultando el catálogo remoto.");
       const publicLayers = await listPublicLayersRequest();
       if (!Array.isArray(publicLayers)) {
-        const invalidError = new Error("La API devolvio una respuesta de capas incompleta.");
+        const invalidError = new Error("La API devolvió una respuesta de capas incompleta.");
         invalidError.code = "INVALID_LAYER_RESPONSE";
         throw invalidError;
       }
@@ -5474,13 +5530,13 @@ import {
 
       if (!hydratedLayers.length) {
         updateInfoPanel({
-          title: "Sin capas tematicas publicadas",
-          description: "Por el momento no hay capas tematicas publicadas.",
+          title: "Sin capas temáticas publicadas",
+          description: "Por el momento no hay capas temáticas publicadas.",
         });
       }
     } catch (error) {
       const diagnosis = classifyBackendSyncError(error);
-      console.warn("Diagnostico tecnico de sincronizacion de capas:", diagnosis, error);
+      console.warn("Diagnóstico técnico de sincronización de capas:", diagnosis, error);
       state.backendStatus.reachable = false;
       state.backendStatus.lastError = error.message;
       state.backendStatus.state = diagnosis.state;
@@ -5500,10 +5556,10 @@ import {
     if (error?.code === "INVALID_LAYER_RESPONSE") {
       return {
         state: "invalid",
-        title: "Respuesta invalida",
-        publicTitle: "Capas tematicas no disponibles",
-        publicMessage: "Las capas tematicas no pudieron consultarse temporalmente. El mapa base y los limites territoriales continuan operativos.",
-        technicalSummary: "La respuesta del backend no contiene una coleccion valida de capas.",
+        title: "Respuesta inválida",
+        publicTitle: "Capas temáticas no disponibles",
+        publicMessage: "Las capas temáticas no pudieron consultarse temporalmente. El mapa base y los límites territoriales continúan operativos.",
+        technicalSummary: "La respuesta del backend no contiene una colección válida de capas.",
       };
     }
 
@@ -5511,9 +5567,9 @@ import {
       return {
         state: "http-error",
         title: "Error del backend",
-        publicTitle: "Capas tematicas no disponibles",
-        publicMessage: "Las capas tematicas no pudieron consultarse temporalmente. El mapa base y los limites territoriales continuan operativos.",
-        technicalSummary: `El backend respondio con HTTP ${error.status}.`,
+        publicTitle: "Capas temáticas no disponibles",
+        publicMessage: "Las capas temáticas no pudieron consultarse temporalmente. El mapa base y los límites territoriales continúan operativos.",
+        technicalSummary: `El backend respondió con HTTP ${error.status}.`,
       };
     }
 
@@ -5521,17 +5577,17 @@ import {
       return {
         state: "unavailable",
         title: "Backend no disponible",
-        publicTitle: "Capas tematicas no disponibles",
-        publicMessage: "Las capas tematicas no estan disponibles temporalmente. El mapa base y los limites territoriales continuan operativos.",
+        publicTitle: "Capas temáticas no disponibles",
+        publicMessage: "Las capas temáticas no están disponibles temporalmente. El mapa base y los límites territoriales continúan operativos.",
         technicalSummary: "No fue posible conectar con el backend configurado.",
       };
     }
 
     return {
       state: "http-error",
-      title: "Error de sincronizacion",
-      publicTitle: "Capas tematicas no disponibles",
-      publicMessage: "Las capas tematicas no pudieron consultarse temporalmente. El mapa base y los limites territoriales continuan operativos.",
+      title: "Error de sincronización",
+      publicTitle: "Capas temáticas no disponibles",
+      publicMessage: "Las capas temáticas no pudieron consultarse temporalmente. El mapa base y los límites territoriales continúan operativos.",
       technicalSummary: error?.message || "Error no clasificado al consultar capas.",
     };
   }
@@ -5617,11 +5673,11 @@ import {
         title: createdLayer.title,
         description:
           state.session.role === "admin"
-            ? "La capa se registro en el backend y quedo aprobada. Aun puedes publicarla desde el panel."
-            : "La capa se registro en el backend y quedo pendiente de revision administrativa.",
+            ? "La capa se registró en el backend y quedó aprobada. Aún puedes publicarla desde el panel."
+            : "La capa se registró en el backend y quedó pendiente de revisión administrativa.",
         extra: [
           `Municipio: ${createdLayer.municipality || municipality}`,
-          `Fenomeno: ${getThematicGroupTitle(category)}`,
+          `Fenómeno: ${getThematicGroupTitle(category)}`,
           `Formato principal: ${(createdLayer.sourceType || getExtension(firstFile.name)).toUpperCase()}`,
           createdLayer.metadata?.properties?.responsibleAgency
             ? `Dependencia: ${createdLayer.metadata.properties.responsibleAgency}`
@@ -5663,11 +5719,11 @@ import {
       title,
       description:
         state.session.role === "admin"
-          ? "La capa demo se guardo localmente y quedo aprobada para pruebas."
-          : "La capa demo se guardo localmente y quedo en revision administrativa.",
+          ? "La capa demo se guardó localmente y quedó aprobada para pruebas."
+          : "La capa demo se guardó localmente y quedó en revisión administrativa.",
       extra: [
         `Municipio: ${municipality}`,
-        `Fenomeno: ${getThematicGroupTitle(category)}`,
+        `Fenómeno: ${getThematicGroupTitle(category)}`,
         `Formato principal: ${getExtension(firstFile.name).toUpperCase()}`,
         institutionalMetadata.responsibleAgency ? `Dependencia: ${institutionalMetadata.responsibleAgency}` : "",
       ],
@@ -5706,7 +5762,7 @@ import {
     } else if (sourceType === "shp") {
       hydratedLayer = await createShapefileLayerFromRemoteParts(record, remoteFiles);
     } else {
-      throw new Error(`Formato remoto no soportado para visualizacion: ${sourceType}`);
+      throw new Error(`Formato remoto no soportado para visualización: ${sourceType}`);
     }
 
     return {
@@ -5763,10 +5819,12 @@ import {
       processedGeojsonUrl: record.processedGeojsonUrl || properties.processedGeojsonUrl || "",
       groundOverlays: record.groundOverlays || properties.groundOverlays || hydratedLayer.groundOverlays || [],
       rasterLegend: record.rasterLegend || properties.rasterLegend || hydratedLayer.legend || null,
+      vectorLegend: normalizePublishedVectorLegend(record) || properties.vectorLegend || null,
       isVisualizable: Boolean(record.isVisualizable || properties.isVisualizable),
       properties: {
         ...properties,
         coverage: properties.coverage || record.municipality || hydratedLayer.municipality,
+        vectorLegend: normalizePublishedVectorLegend(record) || properties.vectorLegend || null,
       },
     };
   }
@@ -5796,7 +5854,8 @@ import {
   }
 
   function getPersistedVectorLegend(record) {
-    return record.vectorLegend || record.legend || record.metadata?.vectorLegend || record.metadata?.properties?.vectorLegend || record.metadata?.properties?.legend || null;
+    const primaryVectorLegend = record && record.vectorLegend;
+    return normalizePublishedVectorLegend(primaryVectorLegend ? { ...record, vectorLegend: primaryVectorLegend } : record);
   }
 
   async function createProcessedGeoJsonLayerFromBackend(record) {
@@ -5853,7 +5912,7 @@ import {
       .filter((overlay) => overlay.imageUrl && Array.isArray(overlay.coordinates));
 
     if (!overlays.length) {
-      throw new Error("La capa GroundOverlay no contiene imagenes georreferenciadas validas.");
+      throw new Error("La capa GroundOverlay no contiene imágenes georreferenciadas válidas.");
     }
 
     return createUserLayer({
@@ -5935,7 +5994,7 @@ import {
     const styleField = chooseBackendStyleFieldSafe(features);
     const thematicValues = styleField ? getUniqueSafeStyleValues(features, styleField.field) : [];
     if (thematicValues.length > 1) {
-      console.info("Estilo persistido colapsado; se usara campo tematico como respaldo:", styleField.field);
+      console.info("Estilo persistido colapsado; se usará campo temático como respaldo:", styleField.field);
       return false;
     }
 
@@ -5948,8 +6007,8 @@ import {
     const descriptionAttributes = parseKmlDescriptionHtmlAttributes(description);
 
     if (Object.keys(descriptionAttributes).length) {
-      console.info("Descripcion HTML KML detectada");
-      console.info("Atributos KML extraidos:", descriptionAttributes);
+      console.info("Descripción HTML KML detectada");
+      console.info("Atributos KML extraídos:", descriptionAttributes);
       Object.entries(descriptionAttributes).forEach(([key, value]) => {
         if (normalized[key] === undefined || normalized[key] === null || String(normalized[key]).trim() === "") {
           normalized[key] = value;
@@ -6322,15 +6381,32 @@ import {
   }
 
   function buildRemoteLayerSymbology(features, styleField, record = null, options = {}) {
+    const publishedLegend = normalizePublishedVectorLegend(record);
+    if (publishedLegend) {
+      const symbology = {
+        type: publishedLegend.type,
+        field: publishedLegend.field,
+        legend: publishedLegend,
+        diagnostics: {
+          layerName: record?.title || "Capa remota",
+          field: publishedLegend.field,
+          type: "leyenda vectorial publicada",
+          featureCount: features.length,
+          uniqueCount: publishedLegend.classes.length,
+        },
+      };
+      console.info("Diagnóstico simbología remota:", symbology.diagnostics);
+      return symbology;
+    }
+
     if (options.existingStyleIsUsable) {
+      const preservedLegend =
+        buildSemanticLegendFromFeatures(features, styleField?.field) ||
+        buildTechnicalStyleFallbackLegend(features);
       return {
         type: "kml-preserved",
         field: "__styleFill",
-        legend: {
-          type: "categorical",
-          field: "Estilo KML",
-          classes: buildPreservedStyleClasses(features, styleField?.field || null),
-        },
+        legend: preservedLegend,
         diagnostics: {
           layerName: record?.title || "Capa remota",
           field: "__styleFill",
@@ -6341,7 +6417,7 @@ import {
       };
     }
 
-    if (!styleField?.field) return null;
+    if (!styleField?.field || isTechnicalStyleField(styleField.field)) return null;
 
     const analysis = analyzeStyleField(features, styleField.field);
     if (!analysis.validCount) return null;
@@ -6427,7 +6503,7 @@ import {
     ]);
 
     const blockedNormalized = new Set([...blockedFields].map(normalizeAttributeKey));
-    if (blockedFields.has(key) || blockedNormalized.has(normalizeAttributeKey(key)) || key.startsWith("__")) return false;
+    if (blockedFields.has(key) || blockedNormalized.has(normalizeAttributeKey(key)) || key.startsWith("__") || isTechnicalStyleField(key)) return false;
     return isSafeStyleValue(value, key);
   }
 
@@ -6456,7 +6532,8 @@ import {
       throw new Error("No se pudo descargar el GeoJSON remoto.");
     }
 
-    const geojson = ensureFeatureCollection(await response.json());
+    const normalizedRemote = normalizeBackendProcessedGeoJson(ensureFeatureCollection(await response.json()), record);
+    const geojson = normalizedRemote.geojson;
     return createUserLayer({
       title: record.title,
       category: extractCategoryFromRecord(record),
@@ -6468,6 +6545,9 @@ import {
       createdById: record.createdBy?.id || null,
       municipality: record.municipality || "Cobertura estatal",
       status: record.status,
+      metadata: record.metadata || null,
+      symbology: normalizedRemote.symbology,
+      legend: normalizedRemote.legend || getPersistedVectorLegend(record),
     });
   }
 
@@ -6485,17 +6565,22 @@ import {
       { type: "FeatureCollection", features: [] }
     );
 
+    const normalizedRemote = normalizeBackendProcessedGeoJson(merged, record);
+
     return createUserLayer({
       title: record.title,
       category: extractCategoryFromRecord(record),
       fileType: "shp",
       sourceKind: "geojson",
-      data: merged,
+      data: normalizedRemote.geojson,
       description: record.description || "Shapefile institucional publicado desde el backend.",
       backendLayerId: record.id,
       createdById: record.createdBy?.id || null,
       municipality: record.municipality || "Cobertura estatal",
       status: record.status,
+      metadata: record.metadata || null,
+      symbology: normalizedRemote.symbology,
+      legend: normalizedRemote.legend || getPersistedVectorLegend(record),
     });
   }
 

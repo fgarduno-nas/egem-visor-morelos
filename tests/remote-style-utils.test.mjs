@@ -149,8 +149,8 @@ test("la interfaz publica no renderiza textos tecnicos ni marca anterior", async
   assert.match(visibleText, /Atlas del Estado de Morelos/);
   assert.doesNotMatch(visibleText, /EGEM|Estado de operacion|Estado del sistema|Publicado|KMZ|Visualizable|Referencia/u);
   assert.doesNotMatch(visibleText, /Visualizador cartografico|Visualizador cartográfico|MapLibre GL JS/u);
-  assert.match(visibleText, /Coordinacion Estatal de Proteccion Civil Morelos/);
-  assert.match(visibleText, /Universidad Autonoma del Estado de Morelos/);
+  assert.match(visibleText, /Coordinación Estatal de Protección Civil Morelos/);
+  assert.match(visibleText, /Universidad Autónoma del Estado de Morelos/);
 });
 
 test("el aviso institucional de version de prueba se muestra en cada carga sin persistencia", async () => {
@@ -206,7 +206,7 @@ test("el selector de fondos usa un boton accesible y no duplica listeners global
   const html = await fs.readFile(path.resolve("index.html"), "utf8");
   assert.match(html, /<div class="basemap-control">\s*<button[\s\S]*id="toolbar-basemap"/);
   assert.match(html, /id="toolbar-basemap"[\s\S]*<\/button>\s*<div class="basemap-flyout" id="basemap-flyout" hidden>/);
-  assert.match(html, /aria-label="Elegir fondo cartografico"/);
+  assert.match(html, /aria-label="Elegir fondo cartográfico"/);
   assert.match(html, /id="basemap-flyout"/);
   assert.doesNotMatch(html, /id="basemap-panel"/);
   assert.doesNotMatch(html, /id="basemap-list"/);
@@ -229,6 +229,23 @@ test("el selector de fondos usa un boton accesible y no duplica listeners global
     assert.match(mapSource, new RegExp(`thumbnail: "${thumbnail}"`));
     assert.match(cssSource, new RegExp(`basemap-option__thumb--${thumbnail}`));
   });
+});
+
+test("el encabezado usa un único menú de acciones sin botones distribuidos", async () => {
+  const html = await fs.readFile(path.resolve("index.html"), "utf8");
+  const topbarActions = html.match(/<div class="topbar-actions">(?<body>[\s\S]*?)<\/div>\s*<div class="topbar-compact-menu"/u)?.groups.body || "";
+  const menu = html.match(/<div class="topbar-compact-menu"(?<body>[\s\S]*?)<\/div>/u)?.groups.body || "";
+  const menuItemIds = ["toggle-sidebar", "compact-open-territorial-query", "open-help", "open-user-admin", "logout-session", "open-login"];
+
+  assert.equal((html.match(/topbar-menu-toggle__label">Menú/g) || []).length, 1);
+  assert.doesNotMatch(html, /class="topbar-compact-actions"/);
+  assert.match(topbarActions, /id="toggle-topbar"/);
+  assert.match(topbarActions, /id="toggle-compact-menu"/);
+  menuItemIds.forEach((id) => assert.doesNotMatch(topbarActions, new RegExp(`id="${id}"`)));
+  menuItemIds.forEach((id) => assert.match(menu, new RegExp(`id="${id}"`)));
+  assert.match(menu, /Consulta rápida territorial/);
+  assert.match(mapSource, /function handleCompactMenuKeydown/);
+  assert.match(mapSource, /document\.getElementById\("open-login"\)\?\.classList\.toggle\("hidden", state\.session\.isAuthenticated\)/);
 });
 
 test("el menu de fondos queda anclado estructuralmente al boton real", () => {
@@ -334,7 +351,7 @@ test("las descripciones permanecen para datos internos pero no se insertan en la
   const renderItemSource = extractFunctionSource(mapSource, "renderLayerItem");
   const resolveCategorySource = extractFunctionSource(mapSource, "resolveLayerCategory");
 
-  ["Contorno general del estado de Morelos", "Division municipal para consulta operativa"].forEach((description) => {
+  ["Contorno general del estado de Morelos", "División municipal para consulta operativa"].forEach((description) => {
     assert.match(mapSource, new RegExp(description));
     assert.doesNotMatch(renderItemSource, new RegExp(description));
   });
@@ -370,8 +387,8 @@ test("diagnostica backend desconectado, vacio, valido e invalido con mensajes pu
   assert.match(mapSource, /state\.backendStatus\.state = hydratedLayers\.length \? "ready" : "empty"/);
   assert.match(mapSource, /state: "http-error"/);
   assert.match(mapSource, /state: "invalid"/);
-  assert.match(mapSource, /Las capas tematicas no estan disponibles temporalmente/);
-  assert.match(mapSource, /Por el momento no hay capas tematicas publicadas/);
+  assert.match(mapSource, /Las capas temáticas no están disponibles temporalmente/);
+  assert.match(mapSource, /Por el momento no hay capas temáticas publicadas/);
   assert.doesNotMatch(mapSource, /extra: \[runtimeConfig\.apiBaseUrl/);
   assert.match(layersApiSource, /INVALID_LAYER_RESPONSE/);
 });
@@ -414,14 +431,14 @@ test("la carga de capas usa timeout extendido y revisa duplicados tras cancelaci
   assert.match(layersApiSource, /LAYER_UPLOAD_TIMEOUT_MS\s*=\s*5\s*\*\s*60\s*\*\s*1000/);
   assert.match(layersApiSource, /timeoutMs:\s*LAYER_UPLOAD_TIMEOUT_MS/);
   assert.match(httpClientSource, /TimeoutError/);
-  assert.match(mapSource, /Procesando capa; esta operacion puede tardar varios minutos/);
+  assert.match(mapSource, /Procesando capa; esta operación puede tardar varios minutos/);
   assert.match(mapSource, /findRecentlySavedUploadDraftLayer/);
-  assert.match(mapSource, /Revisa el catalogo administrativo antes de reintentar/);
+  assert.match(mapSource, /Revisa el catálogo administrativo antes de reintentar/);
 });
 
 test("la reconstruccion backend no conserva estilos colapsados cuando existe campo tematico seguro", () => {
   assert.match(mapSource, /function hasUsefulExistingStyle/);
-  assert.match(mapSource, /Estilo persistido colapsado; se usara campo tematico como respaldo/);
+  assert.match(mapSource, /Estilo persistido colapsado; se usará campo temático como respaldo/);
   assert.match(mapSource, /preserveExistingStyle/);
   assert.match(mapSource, /getLayerStyleOpacityPaintValue/);
   assert.match(mapSource, /"__styleOpacity"/);
