@@ -17,7 +17,7 @@ import {
 const pngBytes = Buffer.from("89504e470d0a1a0a0000000d49484452", "hex");
 const jpgBytes = Buffer.from("ffd8ffe000104a464946", "hex");
 
-test("detecta KMZ GroundOverlay valido y extrae imagen georreferenciada", () => {
+test("detecta KMZ GroundOverlay válido y extrae imagen georreferenciada", () => {
   const filePath = writeKmz({
     "doc.kml": kmlWithOverlay({ href: "Layer0.png" }),
     "Layer0.png": pngBytes,
@@ -55,10 +55,10 @@ test("resuelve href de GroundOverlay dentro de subcarpetas", () => {
   assert.equal(analysis.groundOverlays[0].imageEntry.name, "kml/images/raster.jpg");
 });
 
-test("rechaza LatLonBox incompleto o limites invalidos", () => {
+test("rechaza LatLonBox incompleto o límites inválidos", () => {
   const incomplete = analyzeKmlText(`<kml><GroundOverlay><Icon><href>a.png</href></Icon><LatLonBox><north>1</north></LatLonBox></GroundOverlay></kml>`);
   assert.equal(incomplete.groundOverlays[0].isValid, false);
-  assert.match(incomplete.groundOverlays[0].errors.join(" "), /LatLonBox valido/);
+  assert.match(incomplete.groundOverlays[0].errors.join(" "), /LatLonBox válido/);
 
   const inverted = analyzeKmlText(kmlWithOverlay({ south: 20, north: 10 }));
   assert.equal(inverted.groundOverlays[0].isValid, false);
@@ -92,12 +92,12 @@ test("detecta multiples overlays y archivos mixtos vector raster", () => {
   assert.equal(analysis.groundOverlays.length, 2);
 });
 
-test("bloquea KMZ con exceso de entradas como proteccion zip bomb", () => {
+test("bloquea KMZ con exceso de entradas como protección zip bomb", () => {
   const entries = { "doc.kml": "<kml />" };
   for (let index = 0; index < 260; index += 1) {
     entries[`x${index}.txt`] = "x";
   }
-  assert.throws(() => analyzeKmzFile(writeKmz(entries)), /maximo de 250 entradas/);
+  assert.throws(() => analyzeKmzFile(writeKmz(entries)), /máximo de 250 entradas/);
 });
 
 test("preserva estilos KML por indice cuando ogr2ogr pierde styleUrl y los nombres se repiten", () => {

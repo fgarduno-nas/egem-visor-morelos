@@ -161,6 +161,8 @@ test("el aviso institucional de version de prueba se muestra en cada carga sin p
   const focusSource = extractFunctionSource(mapSource, "restoreViewerFocus");
 
   assert.match(html, /id="trial-notice-modal"/);
+  assert.equal((html.match(/id="trial-notice-modal"/g) || []).length, 1);
+  assert.equal((html.match(/id="territorial-query-modal"/g) || []).length, 1);
   assert.match(html, /role="dialog"/);
   assert.match(html, /aria-modal="true"/);
   assert.match(html, /aria-labelledby="trial-notice-title"/);
@@ -174,7 +176,7 @@ test("el aviso institucional de version de prueba se muestra en cada carga sin p
   assert.match(cssSource, /\.modal--trial-notice::backdrop\s*\{/);
   assert.match(cssSource, /\.modal-card--trial-notice\s*\{/);
 
-  assert.match(mapSource, /await initializeRemoteState\(\);\s*\n\s*showTrialNoticeModal\(\);/);
+  assert.match(mapSource, /map\.on\("load", async \(\) => \{[\s\S]{0,120}showTrialNoticeModal\(\);/);
   assert.match(showSource, /trialNoticeModal\.showModal\(\)/);
   assert.match(showSource, /acceptTrialNotice\?\.focus\(\)/);
   assert.match(setupSource, /acceptTrialNotice\?\.addEventListener\("click", closeTrialNoticeModal\)/);
@@ -187,6 +189,50 @@ test("el aviso institucional de version de prueba se muestra en cada carga sin p
   assert.doesNotMatch(showSource + closeSource, /localStorage|sessionStorage|cookie/);
   assert.doesNotMatch(showSource + closeSource, /toggleLayerVisibility|openFloatingLegendForLayer|closeFloatingLegend|fetch|listPublicLayersRequest|ensureLayerResourcesLoaded/);
 });
+
+test("la descripción GOES IR aclara que no representa UV ni lluvia", () => {
+  assert.match(mapSource, /Imagen infrarroja GOES realzada/);
+  assert.match(mapSource, /Referencia térmica de nubosidad y topes fríos/);
+  assert.match(mapSource, /No representa directamente lluvia ni radiación UV/);
+});
+
+test("la auditoría ortográfica no deja variantes visibles conocidas sin acento", async () => {
+  const html = await fs.readFile(path.resolve("index.html"), "utf8");
+  const weatherEnhancement = await fs.readFile(path.resolve("js/app/weather/cloud-top-enhancement.js"), "utf8");
+  const weatherLayer = await fs.readFile(path.resolve("js/app/weather/cloud-top-layer.js"), "utf8");
+  const weatherProvider = await fs.readFile(path.resolve("js/app/weather/cloud-top-provider.js"), "utf8");
+  const groundOverlay = await fs.readFile(path.resolve("js/app/utils/ground-overlay-popup-utils.js"), "utf8");
+  const visibleSources = [
+    html,
+    mapSource,
+    weatherEnhancement,
+    weatherLayer,
+    weatherProvider,
+    groundOverlay,
+  ].join("\n");
+  const forbiddenVisibleVariants = [
+    "Referencia termica de nubosidad y topes frios",
+    "Actualizacion satelital",
+    "Ultima actualizacion",
+    "Menor senal",
+    "Mayor senal IR",
+    "radiacion UV",
+    "contrasena",
+    "medicion",
+    "ubicacion.",
+  ];
+  forbiddenVisibleVariants.forEach((variant) => {
+    assert.doesNotMatch(visibleSources, new RegExp(escapeRegExp(variant)));
+  });
+  assert.match(visibleSources, /Menú/);
+  assert.match(visibleSources, /Consulta rápida territorial/);
+  assert.match(visibleSources, /Coordenadas geográficas/);
+  assert.match(visibleSources, /Última actualización/);
+});
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 test("el popup puede recuperar properties desde capas hermanas renderizadas", () => {
   assert.match(mapSource, /function getClickedVectorFeature/);
@@ -414,8 +460,11 @@ test("el frontend reconstruye GroundOverlay raster y capas mixtas sin tratarlas 
   assert.match(mapSource, /type:\s*"image"/);
   assert.match(mapSource, /"raster-opacity"/);
   assert.match(mapSource, /function revokeLayerObjectUrls/);
-  assert.match(mapSource, /GROUND_OVERLAY_FALLBACK_LEGEND_LABEL/);
-  assert.match(layersApiSource, /formData\.append\("rasterLegend"/);
+  assert.match(mapSource, /buildRasterLegendFallback/);
+  assert.match(layersApiSource, /formData\.append\("rasterLegend", metadata\.rasterLegend \? JSON\.stringify\(metadata\.rasterLegend\) : ""\)/);
+  assert.match(mapSource, /detectRasterLegendColors/);
+  assert.match(mapSource, /preloadRasterLegendColorsFromPreview/);
+  assert.match(mapSource, /extractRasterLegendColors/);
   assert.match(backendServiceSource, /resourceType:\s*metadataProperties\.resourceType/);
   assert.match(backendServiceSource, /groundOverlays:\s*metadataProperties\.groundOverlays/);
   assert.match(backendServiceSource, /rasterLegend:\s*metadataProperties\.rasterLegend/);
@@ -526,7 +575,7 @@ test("la simbologia usa un unico panel flotante independiente de visibilidad", a
   assert.doesNotMatch(renderItemSource, /layer-legend-button/);
   assert.match(floatingSource, /getVectorLayerSymbology\(layer\)/);
   assert.match(floatingSource, /getRasterLayerSymbology\(layer\)/);
-  assert.match(mapSource, /GROUND_OVERLAY_FALLBACK_LEGEND_LABEL/);
+  assert.match(mapSource, /buildRasterLegendFallback/);
   assert.match(mapSource, /function closeFloatingLegend\(options = \{\}\)/);
   assert.match(mapSource, /function openFloatingLegendForLayer\(layerId, options = \{\}\)/);
   assert.match(mapSource, /function syncFloatingLegendAfterLayerDeactivation\(layerId\)/);
@@ -618,6 +667,8 @@ test("el backend puede entregar leyenda vectorial de catalogo sin modificar la c
   assert.match(layerServiceSource, /__styleFill/);
   assert.match(layerServiceSource, /getInstitutionalPreviewColor\(label\)/);
   assert.match(layerServiceSource, /getHtmlDescriptionAttribute\(properties\.Description \|\| properties\.description, \"Intensidad\"\)/);
+  assert.match(layerServiceSource, /getHtmlDescriptionAttribute\(properties\.Description \|\| properties\.description, \"Intensid_1\"\)/);
+  assert.match(layerServiceSource, /function getDominantVectorLegendConcept\(features = \[\]\)/);
   assert.match(layerServiceSource, /"muy baja": "#006100"/);
   assert.match(layerServiceSource, /"muy alta": "#ff2200"/);
   assert.match(layerServiceSource, /vectorLegend/);

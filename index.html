@@ -21,7 +21,7 @@
   />
 
   <link rel="icon" href="data:," />
-  <link rel="stylesheet" href="css/style.css?v=ui0604" />
+  <link rel="stylesheet" href="css/style.css?v=ui0606" />
 </head>
 <body>
   <div class="app-shell" tabindex="-1">
@@ -248,7 +248,7 @@
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6l6 6h-4v6h-4v-6H6z"/></svg>
               </span>
             </button>
-            <button class="toolbar-button" id="toolbar-pitch-down" type="button" title="Reducir inclinacion">
+            <button class="toolbar-button" id="toolbar-pitch-down" type="button" title="Reducir inclinación">
               <span class="toolbar-icon">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6h4v6h4l-6 6-6-6h4z"/></svg>
               </span>
@@ -273,7 +273,7 @@
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 4 6v6c0 5 3.41 9.69 8 10 4.59-.31 8-5 8-10V6l-8-4zm0 3.18L17 7.5v4.4c0 3.53-2.16 6.93-5 7.87-2.84-.94-5-4.34-5-7.87V7.5l5-2.32zM11 8h2v4h3v2h-3v3h-2v-3H8v-2h3z"/></svg>
               </span>
             </button>
-            <button class="toolbar-button" id="toolbar-clear-measure" type="button" title="Limpiar medicion">
+            <button class="toolbar-button" id="toolbar-clear-measure" type="button" title="Limpiar medición">
               <span class="toolbar-icon">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
               </span>
@@ -339,9 +339,9 @@
             <select id="upload-layer-category" required>
               <option value="geologicos">Geológicos</option>
               <option value="hidrometeorologicos">Hidrometeorológicos</option>
-              <option value="quimicos-tecnologicos">Químicos - Tecnológicos</option>
-              <option value="sanitario-ecologico">Sanitario - Ecológico</option>
-              <option value="socio-organizativo">Socio - Organizativo</option>
+              <option value="quimicos-tecnologicos">Químicos-tecnológicos</option>
+              <option value="sanitario-ecologico">Sanitario-ecológico</option>
+              <option value="socio-organizativo">Socio-organizativo</option>
               <option value="astronomicos">Astronómicos</option>
             </select>
           </label>
@@ -369,16 +369,16 @@
 
             <label class="form-field">
               <span>Dependencia responsable</span>
-              <input id="upload-layer-agency" type="text" maxlength="180" placeholder="Dependencia o area responsable" />
+              <input id="upload-layer-agency" type="text" maxlength="180" placeholder="Dependencia o área responsable" />
             </label>
 
             <label class="form-field">
-              <span>Fecha de actualizacion</span>
+              <span>Fecha de actualización</span>
               <input id="upload-layer-updated-at" type="date" />
             </label>
 
             <label class="form-field">
-              <span>Escala o resolucion</span>
+              <span>Escala o resolución</span>
               <input id="upload-layer-scale" type="text" maxlength="120" placeholder="Ej. 1:50,000 o 10 m" />
             </label>
 
@@ -391,10 +391,19 @@
           <div class="raster-legend-editor" id="raster-legend-editor">
             <div class="raster-legend-editor__header">
               <h3>Leyenda raster</h3>
-              <button class="ghost-button upload-action-button upload-action-button--secondary" id="add-raster-legend-item" type="button">
-                Agregar elemento
-              </button>
+              <div class="raster-legend-editor__actions">
+                <button class="ghost-button upload-action-button upload-action-button--secondary" id="detect-raster-legend-colors" type="button">
+                  Precargar colores
+                </button>
+                <button class="ghost-button upload-action-button upload-action-button--secondary" id="add-raster-legend-item" type="button">
+                  Agregar elemento
+                </button>
+              </div>
             </div>
+            <label class="form-field">
+              <span>Título de leyenda</span>
+              <input id="raster-legend-title" type="text" maxlength="80" placeholder="Ej. Inestabilidad" />
+            </label>
             <div class="raster-legend-list" id="raster-legend-list"></div>
           </div>
 
@@ -487,10 +496,10 @@
       </label>
 
       <label class="form-field">
-        <span>Contrasena</span>
+        <span>Contraseña</span>
         <div class="password-input-wrap">
           <input id="login-password" type="password" placeholder="********" required />
-          <button class="password-toggle" id="toggle-login-password" type="button" aria-label="Mostrar contrasena" aria-pressed="false">
+          <button class="password-toggle" id="toggle-login-password" type="button" aria-label="Mostrar contraseña" aria-pressed="false">
             <span class="password-toggle__icon password-toggle__icon--hidden" aria-hidden="true">
               <svg viewBox="0 0 24 24"><path d="M12 5c-5.05 0-9.27 3.11-11 7 1.73 3.89 5.95 7 11 7s9.27-3.11 11-7c-1.73-3.89-5.95-7-11-7zm0 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm0-6.4A2.4 2.4 0 1 0 14.4 12 2.4 2.4 0 0 0 12 9.6z"/></svg>
             </span>
@@ -582,8 +591,8 @@
     <form class="modal-card modal-card--wide" id="user-admin-form" method="dialog">
       <div class="modal-header">
         <div>
-          <p class="section-kicker">Administracion</p>
-          <h2>Gestion de usuarios</h2>
+          <p class="section-kicker">Administración</p>
+          <h2>Gestión de usuarios</h2>
         </div>
         <button class="icon-button" id="close-user-admin" type="button" aria-label="Cerrar">x</button>
       </div>
@@ -607,10 +616,10 @@
           </label>
 
           <label class="form-field">
-            <span>Contrasena temporal</span>
+            <span>Contraseña temporal</span>
             <div class="password-input-wrap">
               <input id="new-user-password" type="password" placeholder="Temporal123!" required />
-              <button class="password-toggle" id="toggle-new-user-password" type="button" aria-label="Mostrar contrasena" aria-pressed="false">
+              <button class="password-toggle" id="toggle-new-user-password" type="button" aria-label="Mostrar contraseña" aria-pressed="false">
                 <span class="password-toggle__icon password-toggle__icon--hidden" aria-hidden="true">
                   <svg viewBox="0 0 24 24"><path d="M12 5c-5.05 0-9.27 3.11-11 7 1.73 3.89 5.95 7 11 7s9.27-3.11 11-7c-1.73-3.89-5.95-7-11-7zm0 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm0-6.4A2.4 2.4 0 1 0 14.4 12 2.4 2.4 0 0 0 12 9.6z"/></svg>
                 </span>
@@ -703,6 +712,6 @@
       retryDelayMs: 450
     };
   </script>
-  <script type="module" src="js/map.js?v=ui0604"></script>
+  <script type="module" src="js/map.js?v=ui0606"></script>
 </body>
 </html>

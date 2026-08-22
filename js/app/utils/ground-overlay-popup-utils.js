@@ -1,7 +1,7 @@
 export const GROUND_OVERLAY_NOTICE =
-  "Esta capa es una imagen georreferenciada y no contiene atributos consultables por ubicacion.";
+  "Esta capa es una imagen georreferenciada y no contiene atributos consultables por ubicación.";
 
-export const GROUND_OVERLAY_FALLBACK_LEGEND_LABEL = "Simbologia incorporada en la imagen";
+export const GROUND_OVERLAY_FALLBACK_LEGEND_LABEL = "Simbología incorporada en la imagen";
 
 export function getGroundOverlayBbox(overlay = {}) {
   if (overlay.bounds) {
@@ -55,15 +55,15 @@ export function buildGroundOverlayInfoLines(layer = {}, options = {}) {
   const formatDate = options.formatDate || ((value) => value);
   const updatedAt = getFirstUsableValue(isUsableValue, properties.updatedAt, metadata.updatedAt, layer.updatedAt);
   const lines = [
-    ["Nombre publico", layer.title],
-    ["Fenomeno", properties.phenomenon || metadata.phenomenon || options.categoryTitle],
+    ["Nombre público", layer.title],
+    ["Fenómeno", properties.phenomenon || metadata.phenomenon || options.categoryTitle],
     ["Tipo", "Imagen raster georreferenciada"],
     ["Descripcion", layer.description || properties.description || metadata.description],
     ["Municipio o cobertura", properties.coverage || metadata.coverage || layer.municipality],
     ["Fuente", properties.source || metadata.source || layer.source],
     ["Dependencia responsable", properties.responsibleAgency || metadata.responsibleAgency || layer.responsibleAgency],
-    ["Fecha de actualizacion", updatedAt ? formatDate(updatedAt) : null],
-    ["Escala o resolucion", properties.scaleOrResolution || metadata.scaleOrResolution || layer.scaleOrResolution],
+    ["Fecha de actualización", updatedAt ? formatDate(updatedAt) : null],
+    ["Escala o resolución", properties.scaleOrResolution || metadata.scaleOrResolution || layer.scaleOrResolution],
     ["Sistema de referencia", properties.crs || metadata.crs || layer.crs],
   ];
 

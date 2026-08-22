@@ -27,9 +27,12 @@ import {
   isInstitutionalHazardField,
 } from "./app/utils/remote-style-utils.js";
 import {
+  buildBestSemanticLegendFromFeatures,
+  buildRasterLegendFallback,
   buildSemanticLegendFromFeatures,
   buildTechnicalStyleFallbackLegend,
   isTechnicalStyleField,
+  normalizePublishedRasterLegend,
   normalizePublishedVectorLegend,
 } from "./app/utils/remote-legend-utils.js";
 import {
@@ -37,11 +40,29 @@ import {
   createGroundOverlayObjectUrls,
 } from "./app/utils/geospatial-importer.js";
 import {
-  GROUND_OVERLAY_FALLBACK_LEGEND_LABEL,
   GROUND_OVERLAY_NOTICE,
   buildGroundOverlayInfoLines,
   pickTopGroundOverlayHit,
 } from "./app/utils/ground-overlay-popup-utils.js";
+import {
+  CLOUD_TOP_SPEEDS,
+  CLOUD_TOP_TIME_ZONE,
+  CloudTopPlaybackController,
+  detectTemporalGaps,
+  formatFrameTime,
+  getFrameAgeStatus,
+  mergeCloudTopFrames,
+  shouldAutoPlay,
+} from "./app/weather/cloud-top-animation.js";
+import {
+  CLOUD_TOP_PROVIDER_CONFIG,
+  createCloudTopProvider,
+} from "./app/weather/cloud-top-provider.js";
+import {
+  GOES_IR_COLOR_RAMP,
+  createGoesIrFrameRenderer,
+} from "./app/weather/cloud-top-enhancement.js";
+import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
 
   const MORELOS_CENTER = [-99.07, 18.84];
   const STORAGE_KEYS = {
@@ -55,6 +76,7 @@ import {
   const MAX_MAP_PITCH = 70;
   const DEFAULT_MAP_MAX_ZOOM = 22;
   const SATELLITE_MAP_MAX_ZOOM = 20;
+  const GOES_IR_OVERLAY_OPACITY = 0.62;
 
   const roleLabels = {
     admin: "Administrador",
@@ -257,9 +279,9 @@ import {
     { id: "limites", title: "Límites" },
     { id: "geologicos", title: "Geológicos" },
     { id: "hidrometeorologicos", title: "Hidrometeorológicos" },
-    { id: "quimicos-tecnologicos", title: "Químicos - Tecnológicos" },
-    { id: "sanitario-ecologico", title: "Sanitario - Ecológico" },
-    { id: "socio-organizativo", title: "Socio - Organizativo" },
+    { id: "quimicos-tecnologicos", title: "Químicos-tecnológicos" },
+    { id: "sanitario-ecologico", title: "Sanitario-ecológico" },
+    { id: "socio-organizativo", title: "Socio-organizativo" },
     { id: "astronomicos", title: "Astronómicos" },
     { id: "otras", title: "Otras capas" },
   ];
@@ -291,6 +313,28 @@ import {
     renderedLayers: new Map(),
     pendingOpacityFrames: new Map(),
     pendingLayerLoads: new Map(),
+    cloudTop: {
+      provider: null,
+      activeProvider: null,
+      mapLayer: null,
+      playback: null,
+      frames: [],
+      metadata: null,
+      status: "idle",
+      statusMessage: "Sin iniciar",
+      abortController: null,
+      pollingTimer: null,
+      lastValidFrame: null,
+      visibleFrame: null,
+      frameRenderer: null,
+      renderToken: 0,
+      loadedFrames: [],
+      backgroundQueueRunning: false,
+      performance: {},
+      initialized: false,
+      visible: true,
+      opacity: GOES_IR_OVERLAY_OPACITY,
+    },
     selectedLayerId: null,
     activeLayerStack: [],
     activeInfoPopup: null,
@@ -310,6 +354,7 @@ import {
       previewVisible: false,
       minimized: false,
       rasterLegendItems: [],
+      rasterLegendTitle: "",
     },
   };
 
@@ -378,8 +423,10 @@ import {
     uploadLayerScale: document.getElementById("upload-layer-scale"),
     uploadLayerCrs: document.getElementById("upload-layer-crs"),
     rasterLegendEditor: document.getElementById("raster-legend-editor"),
+    rasterLegendTitle: document.getElementById("raster-legend-title"),
     rasterLegendList: document.getElementById("raster-legend-list"),
     addRasterLegendItem: document.getElementById("add-raster-legend-item"),
+    detectRasterLegendColors: document.getElementById("detect-raster-legend-colors"),
     trialNoticeModal: document.getElementById("trial-notice-modal"),
     acceptTrialNotice: document.getElementById("accept-trial-notice"),
     closeTrialNotice: document.getElementById("close-trial-notice"),
@@ -447,12 +494,17 @@ import {
   captureVisibleSnapshot();
 
   map.on("load", async () => {
+    state.cloudTop.performance.mapLoadAt = performance.now();
+    showTrialNoticeModal();
     await loadStaticData();
     restoreMapState();
     captureVisibleSnapshot();
     focusMorelos();
+    initializeCloudTopAnimation().catch((error) => {
+      console.error("No se pudo iniciar la animación de tope de nube:", error);
+      setCloudTopStatus("error", "No se pudo iniciar la capa meteorologica.");
+    });
     await initializeRemoteState();
-    showTrialNoticeModal();
   });
 
   map.on("click", (event) => {
@@ -486,6 +538,7 @@ import {
     elements.toolbarClearMeasure.addEventListener("click", clearMeasurement);
     elements.toolbarBasemap?.addEventListener("click", toggleBasemapFlyout);
     elements.closeBasemapFlyout?.addEventListener("click", closeBasemapFlyout);
+    setupCloudTopPanel();
     document.getElementById("toggle-sidebar").addEventListener("click", () => {
       toggleSidebar();
       closeCompactMenu();
@@ -607,8 +660,23 @@ import {
       state.uploadDraft.rasterLegendItems.push({
         label: "",
         color: "#7a203a",
+        value: String(state.uploadDraft.rasterLegendItems.length + 1),
+        order: state.uploadDraft.rasterLegendItems.length + 1,
       });
       renderRasterLegendEditor();
+    });
+
+    elements.detectRasterLegendColors?.addEventListener("click", async () => {
+      await preloadRasterLegendColorsFromPreview();
+    });
+
+    elements.rasterLegendTitle?.addEventListener("input", () => {
+      state.uploadDraft.rasterLegendTitle = elements.rasterLegendTitle.value;
+      state.uploadDraft.previewLayers.forEach((layer) => {
+        const rasterLegend = buildRasterLegendFromDraft();
+        layer.legend = rasterLegend || layer.legend;
+        layer.metadata = buildLayerMetadata(collectUploadMetadata(), layer);
+      });
     });
 
     elements.logoutSession.addEventListener("click", async () => {
@@ -1326,6 +1394,7 @@ import {
     window.requestAnimationFrame(() => {
       elements.acceptTrialNotice?.focus();
     });
+    state.cloudTop.performance.modalShownAt = performance.now();
   }
 
   function closeTrialNoticeModal() {
@@ -1433,7 +1502,7 @@ import {
     if (vectorLegend) {
       sections.push(`
         <section class="floating-legend-section">
-          ${isImageBackedLayer(layer) ? `<p class="info-copy"><strong>Simbologia vectorial</strong></p>` : ""}
+          ${isImageBackedLayer(layer) ? `<p class="info-copy"><strong>Simbología vectorial</strong></p>` : ""}
           ${renderLayerLegend(vectorLegend)}
         </section>
       `);
@@ -1443,7 +1512,7 @@ import {
       const rasterLegend = getRasterLayerSymbology(layer);
       sections.push(`
         <section class="floating-legend-section">
-          ${layer.data?.features?.length ? `<p class="info-copy"><strong>Simbologia raster</strong></p>` : ""}
+          ${layer.data?.features?.length ? `<p class="info-copy"><strong>Simbología raster</strong></p>` : ""}
           ${renderLayerLegend(rasterLegend)}
         </section>
       `);
@@ -1472,15 +1541,7 @@ import {
     if (layer.legend?.type === "raster" && Array.isArray(layer.legend.classes) && layer.legend.classes.length) {
       return layer.legend;
     }
-    return {
-      type: "raster",
-      field: "Simbologia raster",
-      classes: [{
-        label: GROUND_OVERLAY_FALLBACK_LEGEND_LABEL,
-        color: "transparent",
-        outlineColor: "rgba(70, 36, 49, 0.35)",
-      }],
-    };
+    return buildRasterLegendFallback();
   }
 
   function closeFloatingLegend(options = {}) {
@@ -1516,15 +1577,7 @@ import {
     }
 
     if (isImageBackedLayer(layer) && !layer.data?.features?.length) {
-      return {
-        type: "raster",
-        field: "Simbologia raster",
-        classes: [{
-          label: GROUND_OVERLAY_FALLBACK_LEGEND_LABEL,
-          color: "transparent",
-          outlineColor: "rgba(70, 36, 49, 0.35)",
-        }],
-      };
+      return buildRasterLegendFallback();
     }
 
     if (layer.legend?.type && layer.legend.type !== "raster" && Array.isArray(layer.legend.classes)) {
@@ -1781,6 +1834,340 @@ import {
     updateToolbarState();
   }
 
+  function setupCloudTopPanel() {
+    const mapStage = document.querySelector(".map-stage");
+    if (!mapStage || document.getElementById("goes-ir-indicator")) return;
+    const indicator = document.createElement("aside");
+    indicator.className = "goes-ir-indicator";
+    indicator.id = "goes-ir-indicator";
+    indicator.setAttribute("aria-live", "polite");
+    indicator.innerHTML = `
+      <div class="goes-ir-indicator__header">
+        <div>
+          <p class="section-kicker">Actualización satelital</p>
+          <strong>Imagen infrarroja GOES realzada</strong>
+        </div>
+      </div>
+      <p class="goes-ir-indicator__time" id="goes-ir-current-time">Cargando...</p>
+      <p class="goes-ir-indicator__meta" id="goes-ir-updated">Referencia térmica de nubosidad y topes fríos</p>
+      <p class="goes-ir-indicator__help">
+        Los colores representan diferencias en la señal térmica infrarroja. Los tonos asociados con temperaturas más frías pueden indicar nubes altas o topes nubosos fríos. No representa directamente lluvia ni radiación UV.
+      </p>
+      <div class="goes-ir-indicator__ramp" aria-label="Realce visual de menor a mayor señal infrarroja">
+        <span>Menor señal</span>
+        <i aria-hidden="true"></i>
+        <span>Mayor señal IR</span>
+      </div>
+      <p class="goes-ir-indicator__status" id="goes-ir-status">NOAA nowCOAST GOES IR</p>
+    `;
+    mapStage.appendChild(indicator);
+
+    elements.cloudTopPanel = indicator;
+    elements.cloudTopStatus = document.getElementById("goes-ir-status");
+    elements.cloudTopCurrentTime = document.getElementById("goes-ir-current-time");
+    elements.cloudTopUpdated = document.getElementById("goes-ir-updated");
+  }
+
+  async function initializeCloudTopAnimation() {
+    if (state.cloudTop.initialized) return;
+    state.cloudTop.initialized = true;
+    state.cloudTop.frameRenderer = createGoesIrFrameRenderer({
+      ramp: GOES_IR_COLOR_RAMP,
+      maxEntries: 96,
+      minVisiblePercent: 0.5,
+    });
+    state.cloudTop.provider = createCloudTopProvider(CLOUD_TOP_PROVIDER_CONFIG);
+    state.cloudTop.activeProvider = state.cloudTop.provider;
+    state.cloudTop.mapLayer = new CloudTopMapLayer(map, { opacity: state.cloudTop.opacity });
+    state.cloudTop.playback = new CloudTopPlaybackController({
+      frameDurationMs: CLOUD_TOP_SPEEDS.normal,
+      onFrameChange: (frame) => renderCloudTopFrame(frame),
+      onStateChange: () => renderCloudTopPanel(),
+    });
+    document.addEventListener("visibilitychange", handleCloudTopDocumentVisibility);
+    renderCloudTopPanel();
+    await ensureCloudTopFramesLoaded({ autoplay: true });
+    scheduleCloudTopPolling();
+  }
+
+  async function ensureCloudTopFramesLoaded(options = {}) {
+    const cloudTop = state.cloudTop;
+    cloudTop.abortController?.abort();
+    cloudTop.abortController = new AbortController();
+    setCloudTopStatus("loading", "Actualizando datos satelitales...");
+    const startedAt = performance.now();
+
+    try {
+      const result = await cloudTop.provider.getLatestFrames({ signal: cloudTop.abortController.signal });
+      await applyCloudTopProviderResult(result, { ...options, loadTimeMs: performance.now() - startedAt });
+    } catch (error) {
+      if (error?.name === "AbortError") return;
+      console.warn("Proveedor oficial GOES IR no disponible:", error);
+      const fallback = cloudTop.provider.fallbackProvider;
+      if (fallback && CLOUD_TOP_PROVIDER_CONFIG.enableDemoFallback) {
+        const result = await fallback.getLatestFrames();
+        await applyCloudTopProviderResult(result, { ...options, fallbackError: error, loadTimeMs: performance.now() - startedAt });
+        return;
+      }
+      cloudTop.metadata = {
+        ...(cloudTop.metadata || {}),
+        fallbackError: error.message || "Servicio no disponible",
+        loadedAt: new Date().toISOString(),
+      };
+      setCloudTopStatus("unavailable", "Datos satelitales temporalmente no disponibles.");
+      if (cloudTop.frames.length >= 2) cloudTop.playback.play();
+    }
+  }
+
+  async function applyCloudTopProviderResult(result, options = {}) {
+    const cloudTop = state.cloudTop;
+    cloudTop.activeProvider = result.isDemo ? cloudTop.provider.fallbackProvider : cloudTop.provider;
+    cloudTop.metadata = {
+      ...result,
+      loadedAt: new Date().toISOString(),
+      loadTimeMs: Math.round(options.loadTimeMs || 0),
+      fallbackError: options.fallbackError?.message || null,
+    };
+    cloudTop.frames = mergeCloudTopFrames(cloudTop.frames, result.frames, { now: Date.now() });
+    cloudTop.frames = result.frames?.length ? result.frames : cloudTop.frames;
+    const latest = cloudTop.frames[cloudTop.frames.length - 1] || null;
+    const age = getFrameAgeStatus(latest?.timestamp, {
+      thresholdMs: cloudTop.activeProvider?.staleThresholdMs || CLOUD_TOP_PROVIDER_CONFIG.staleThresholdMs,
+    });
+    const gaps = detectTemporalGaps(cloudTop.frames, cloudTop.activeProvider?.expectedIntervalMs || CLOUD_TOP_PROVIDER_CONFIG.expectedIntervalMs);
+    const status = !cloudTop.frames.length
+      ? "empty"
+      : result.isDemo
+        ? "demo"
+        : age.isStale
+          ? "stale"
+          : gaps.length
+            ? "updated-with-gaps"
+            : "updated";
+    const message = getCloudTopStatusMessage(status, age, gaps.length);
+    setCloudTopStatus(status, message);
+    cloudTop.playback.setVisible(true);
+    await startProgressiveCloudTopPlayback({ autoplay: options.autoplay !== false });
+    renderCloudTopPanel();
+  }
+
+  async function startProgressiveCloudTopPlayback(options = {}) {
+    const cloudTop = state.cloudTop;
+    const frames = cloudTop.frames || [];
+    if (!frames.length) return;
+    const latest = frames[frames.length - 1];
+    await renderCloudTopFrame(latest);
+    if (!cloudTop.performance.firstFrameVisibleAt && cloudTop.visibleFrame) {
+      cloudTop.performance.firstFrameVisibleAt = performance.now();
+    }
+
+    const seedFrames = frames.slice(Math.max(0, frames.length - 3), frames.length - 1);
+    const loadedSeed = [];
+    for (const frame of seedFrames) {
+      try {
+        loadedSeed.push(await cloudTop.frameRenderer.loadFrame(frame));
+      } catch (error) {
+        console.warn("No se pudo preparar cuadro inicial GOES IR:", error);
+      }
+    }
+    cloudTop.loadedFrames = mergeCloudTopFrames([], [...loadedSeed, cloudTop.visibleFrame].filter(Boolean), { now: Date.now() });
+    const canPlay = shouldAutoPlay({ frameCount: cloudTop.loadedFrames.length, visible: true }) && options.autoplay;
+    cloudTop.playback.setFrames(cloudTop.loadedFrames, { autoplay: canPlay });
+    if (canPlay && !cloudTop.performance.animationStartedAt) {
+      cloudTop.performance.animationStartedAt = performance.now();
+    }
+    loadCloudTopFramesInBackground();
+  }
+
+  function loadCloudTopFramesInBackground() {
+    const cloudTop = state.cloudTop;
+    if (cloudTop.backgroundQueueRunning || !cloudTop.frameRenderer) return;
+    const loaded = new Set((cloudTop.loadedFrames || []).map((frame) => frame.timestamp));
+    const queue = prioritizeCloudTopFrames(cloudTop.frames || [], cloudTop.visibleFrame)
+      .filter((frame) => !loaded.has(frame.timestamp));
+    if (!queue.length) {
+      cloudTop.performance.sequenceCompletedAt = performance.now();
+      return;
+    }
+    cloudTop.backgroundQueueRunning = true;
+    let active = 0;
+    const maxConcurrent = 2;
+    const pump = () => {
+      while (active < maxConcurrent && queue.length) {
+        const frame = queue.shift();
+        active += 1;
+        cloudTop.frameRenderer.loadFrame(frame)
+          .then((rendered) => {
+            cloudTop.loadedFrames = mergeCloudTopFrames(cloudTop.loadedFrames || [], [rendered], { now: Date.now() });
+            cloudTop.playback.setFrames(cloudTop.loadedFrames, { autoplay: false });
+            state.cloudTop.frameStats = cloudTop.frameRenderer.getStats();
+          })
+          .catch((error) => console.warn("No se pudo cargar cuadro GOES IR en segundo plano:", error))
+          .finally(() => {
+            active -= 1;
+            if (!queue.length && active === 0) {
+              cloudTop.backgroundQueueRunning = false;
+              cloudTop.performance.sequenceCompletedAt = performance.now();
+              return;
+            }
+            pump();
+          });
+      }
+    };
+    pump();
+  }
+
+  function prioritizeCloudTopFrames(frames, currentFrame) {
+    if (!frames.length) return [];
+    const currentIndex = Math.max(0, frames.findIndex((frame) => frame.timestamp === currentFrame?.timestamp));
+    const prioritized = [];
+    for (let offset = 1; offset < frames.length; offset += 1) {
+      const previous = frames[currentIndex - offset];
+      if (previous) prioritized.push(previous);
+    }
+    return prioritized;
+  }
+
+  async function renderCloudTopFrame(frame) {
+    if (!frame || !state.cloudTop.mapLayer) {
+      renderCloudTopPanel();
+      return;
+    }
+    const renderToken = (state.cloudTop.renderToken || 0) + 1;
+    state.cloudTop.renderToken = renderToken;
+    try {
+      const renderedFrame = await state.cloudTop.frameRenderer.loadFrame(frame);
+      if (renderToken !== state.cloudTop.renderToken) return;
+      await state.cloudTop.mapLayer.showFrame(renderedFrame);
+      state.cloudTop.visibleFrame = renderedFrame;
+      state.cloudTop.lastValidFrame = renderedFrame;
+      state.cloudTop.frameStats = state.cloudTop.frameRenderer.getStats();
+      globalThis.__egemCloudTopFrameStats = {
+        ...state.cloudTop.frameStats,
+        performance: state.cloudTop.performance,
+        lastFrame: {
+          timestamp: renderedFrame.timestamp,
+          sourceUrl: renderedFrame.sourceUrl,
+          assignedUrl: renderedFrame.url,
+          sourceId: state.cloudTop.mapLayer.getSourceId(state.cloudTop.mapLayer.activeBuffer),
+          layerId: state.cloudTop.mapLayer.getLayerId(state.cloudTop.mapLayer.activeBuffer),
+          opacity: state.cloudTop.opacity,
+          diagnostics: renderedFrame.diagnostics || null,
+        },
+      };
+      setCloudTopStatus("visible", "Cuadro visible.");
+      preloadNextCloudTopFrame(frame);
+      renderCloudTopPanel();
+    } catch (error) {
+      console.error("No se pudo mostrar el cuadro meteorológico:", error);
+      if (state.cloudTop.lastValidFrame) {
+        setCloudTopStatus("frame-error", "No se pudo cargar el cuadro actual; se mantiene el último válido.");
+      } else {
+        setCloudTopStatus("unavailable", "Datos satelitales temporalmente no disponibles.");
+      }
+      renderCloudTopPanel();
+    }
+  }
+
+  function preloadNextCloudTopFrame(frame) {
+    const frames = state.cloudTop.frames || [];
+    if (!frames.length || !state.cloudTop.frameRenderer) return;
+    const currentIndex = frames.findIndex((candidate) => candidate.timestamp === frame.timestamp);
+    const nextFrame = frames[(currentIndex + 1) % frames.length];
+    if (!nextFrame || nextFrame.timestamp === frame.timestamp) return;
+    state.cloudTop.frameRenderer.preloadFrame(nextFrame).then(() => {
+      state.cloudTop.frameStats = state.cloudTop.frameRenderer.getStats();
+    });
+  }
+
+  function scheduleCloudTopPolling() {
+    clearCloudTopPolling();
+    const interval = state.cloudTop.activeProvider?.pollingIntervalMs || CLOUD_TOP_PROVIDER_CONFIG.pollingIntervalMs;
+    state.cloudTop.pollingTimer = window.setTimeout(async () => {
+      state.cloudTop.pollingTimer = null;
+      if (document.visibilityState !== "hidden") {
+        await ensureCloudTopFramesLoaded({ autoplay: false }).catch((error) => console.error(error));
+      }
+      scheduleCloudTopPolling();
+    }, interval);
+  }
+
+  function clearCloudTopPolling() {
+    if (state.cloudTop.pollingTimer) {
+      window.clearTimeout(state.cloudTop.pollingTimer);
+      state.cloudTop.pollingTimer = null;
+    }
+  }
+
+  function handleCloudTopDocumentVisibility() {
+    if (document.visibilityState === "hidden") {
+      state.cloudTop.playback?.pause();
+      clearCloudTopPolling();
+      return;
+    }
+    scheduleCloudTopPolling();
+    state.cloudTop.playback?.play();
+  }
+
+  function renderCloudTopPanel() {
+    if (!elements.cloudTopPanel) return;
+    const frame = state.cloudTop.visibleFrame || state.cloudTop.lastValidFrame;
+    elements.cloudTopPanel.hidden = false;
+    elements.cloudTopCurrentTime.textContent = frame
+      ? formatFrameTime(frame.timestamp, { timeZone: CLOUD_TOP_TIME_ZONE })
+      : state.cloudTop.status === "unavailable"
+        ? "Sin cuadro visible"
+        : "Cargando...";
+    elements.cloudTopStatus.textContent = getCloudTopVisibleStatus(frame);
+    elements.cloudTopUpdated.textContent = getCloudTopUpdatedLabel(frame);
+    elements.cloudTopPanel.classList.toggle("is-demo", Boolean(state.cloudTop.metadata?.isDemo));
+    elements.cloudTopPanel.classList.toggle("is-stale", isCloudTopVisibleStale(frame) || state.cloudTop.status === "unavailable");
+  }
+
+  function getCloudTopVisibleStatus(frame) {
+    if (state.cloudTop.status === "unavailable") return "Datos satelitales temporalmente no disponibles.";
+    if (state.cloudTop.metadata?.isDemo) return "Demo local activa; no son datos reales.";
+    if (isCloudTopVisibleStale(frame)) {
+      const age = getFrameAgeStatus(frame.timestamp, {
+        thresholdMs: state.cloudTop.activeProvider?.staleThresholdMs || CLOUD_TOP_PROVIDER_CONFIG.staleThresholdMs,
+      });
+      return `Datos desactualizados (${age.label}).`;
+    }
+    return state.cloudTop.statusMessage;
+  }
+
+  function isCloudTopVisibleStale(frame) {
+    if (!frame) return false;
+    return getFrameAgeStatus(frame.timestamp, {
+      thresholdMs: state.cloudTop.activeProvider?.staleThresholdMs || CLOUD_TOP_PROVIDER_CONFIG.staleThresholdMs,
+    }).isStale;
+  }
+
+  function getCloudTopUpdatedLabel(frame) {
+    if (!frame) return "Actualización: pendiente";
+    const age = getFrameAgeStatus(frame.timestamp, {
+      thresholdMs: state.cloudTop.activeProvider?.staleThresholdMs || CLOUD_TOP_PROVIDER_CONFIG.staleThresholdMs,
+    });
+    return `Última actualización: ${formatFrameTime(frame.timestamp, { timeZone: CLOUD_TOP_TIME_ZONE })} (${age.label})`;
+  }
+
+  function getCloudTopStatusMessage(status, age, gapCount) {
+    if (status === "empty") return "Sin cuadros disponibles.";
+    if (status === "demo") return "Demo local activa; no son datos reales.";
+    if (status === "stale") return `Datos desactualizados (${age.label}).`;
+    if (status === "updated-with-gaps") return `Actualizada con ${gapCount} hueco${gapCount === 1 ? "" : "s"} temporal${gapCount === 1 ? "" : "es"}.`;
+    if (status === "loading") return "Actualizando datos satelitales...";
+    if (status === "unavailable") return "Datos satelitales temporalmente no disponibles.";
+    if (status === "visible") return "Cuadro visible.";
+    return "Actualizada.";
+  }
+
+  function setCloudTopStatus(status, message) {
+    state.cloudTop.status = status;
+    state.cloudTop.statusMessage = message;
+    renderCloudTopPanel();
+  }
+
   function applyVisibleSnapshot() {
     const staticIds = new Set(state.visibleSnapshot.staticIds || []);
     const userIds = new Set(state.visibleSnapshot.userIds || []);
@@ -1904,7 +2291,7 @@ import {
     refreshMeasurementLayers();
     updateInfoPanel({
       title: "Medicion limpiada",
-      description: "Se eliminaron los puntos y el trazo de medicion del mapa.",
+      description: "Se eliminaron los puntos y el trazo de medición del mapa.",
     });
   }
 
@@ -1938,7 +2325,7 @@ import {
       const midpoint = [(start[0] + end[0]) / 2, (start[1] + end[1]) / 2];
 
       updateInfoPanel({
-        title: "Resultado de medicion",
+        title: "Resultado de medición",
         description: `Distancia calculada: ${formatDistance(meters)}.`,
         extra: [
           `Inicio: ${start[1].toFixed(5)}, ${start[0].toFixed(5)}`,
@@ -1953,7 +2340,7 @@ import {
     } else {
       updateInfoPanel({
         title: "Primer punto registrado",
-        description: "Haz clic en el segundo punto para completar la medicion.",
+        description: "Haz clic en el segundo punto para completar la medición.",
       });
     }
   }
@@ -2881,7 +3268,7 @@ import {
           <span class="legend-swatch" style="${escapeHtml(getLegendSwatchStyle(item))}"></span>
           <div>
             <strong>${escapeHtml(item.label)}</strong>
-            ${legend.type === "continuous" ? `<p>${escapeHtml(formatLegendNumber(item.min))} - ${escapeHtml(formatLegendNumber(item.max))}</p>` : ""}
+            ${getLegendClassDescriptor(item, legend)}
           </div>
         </div>
       `)
@@ -3015,8 +3402,8 @@ import {
       `Municipio/cobertura: ${properties.coverage || metadata.coverage || layer.municipality || "Sin especificar"}`,
       `Fuente: ${properties.source || metadata.source || "Sin especificar"}`,
       `Dependencia responsable: ${properties.responsibleAgency || metadata.responsibleAgency || "Sin especificar"}`,
-      `Fecha de actualizacion: ${formatCatalogDate(properties.updatedAt || metadata.updatedAt)}`,
-      `Escala/resolucion: ${properties.scaleOrResolution || metadata.scaleOrResolution || "Sin especificar"}`,
+      `Fecha de actualización: ${formatCatalogDate(properties.updatedAt || metadata.updatedAt)}`,
+      `Escala/resolución: ${properties.scaleOrResolution || metadata.scaleOrResolution || "Sin especificar"}`,
       `Sistema de referencia: ${properties.crs || metadata.crs || "Sin especificar"}`,
     ];
   }
@@ -3374,8 +3761,8 @@ import {
   function syncPasswordToggleButton(input, button) {
     const isVisible = input.type === "text";
     button.setAttribute("aria-pressed", String(isVisible));
-    button.setAttribute("aria-label", isVisible ? "Ocultar contrasena" : "Mostrar contrasena");
-    button.setAttribute("title", isVisible ? "Ocultar contrasena" : "Mostrar contrasena");
+    button.setAttribute("aria-label", isVisible ? "Ocultar contraseña" : "Mostrar contraseña");
+    button.setAttribute("title", isVisible ? "Ocultar contraseña" : "Mostrar contraseña");
   }
 
   function queueMapResize() {
@@ -3531,6 +3918,7 @@ import {
     state.uploadDraft.category = elements.uploadLayerCategory?.value || "geologicos";
     state.uploadDraft.minimized = false;
     state.uploadDraft.rasterLegendItems = [];
+    state.uploadDraft.rasterLegendTitle = "";
     if (elements.uploadLayerFeedback) elements.uploadLayerFeedback.textContent = "";
     clearUploadMetadataForm();
     syncUploadDraftUi();
@@ -3724,12 +4112,18 @@ import {
     }
 
     if (!state.uploadDraft.category) {
-      elements.uploadLayerFeedback.textContent = "Selecciona el fenomeno donde se clasificara la capa.";
+      elements.uploadLayerFeedback.textContent = "Selecciona el fenómeno donde se clasificará la capa.";
       return;
     }
 
     if (state.isUploading) {
       elements.uploadLayerFeedback.textContent = "Ya hay una carga en proceso. Espera un momento.";
+      return;
+    }
+
+    const rasterLegendError = validateRasterLegendDraft();
+    if (rasterLegendError) {
+      elements.uploadLayerFeedback.textContent = rasterLegendError;
       return;
     }
 
@@ -3841,7 +4235,21 @@ import {
     ].forEach((field) => {
       if (field) field.value = "";
     });
+    if (elements.rasterLegendTitle) elements.rasterLegendTitle.value = "";
     renderRasterLegendEditor();
+  }
+
+  function getLegendClassDescriptor(item, legend) {
+    if (legend.type === "continuous") {
+      return `<p>${escapeHtml(formatLegendNumber(item.min))} - ${escapeHtml(formatLegendNumber(item.max))}</p>`;
+    }
+    if (item.min !== undefined && item.max !== undefined) {
+      return `<p>${escapeHtml(formatLegendNumber(item.min))} - ${escapeHtml(formatLegendNumber(item.max))}</p>`;
+    }
+    if (item.value !== null && item.value !== undefined && String(item.value).trim()) {
+      return `<p>${escapeHtml(String(item.value).trim())}</p>`;
+    }
+    return "";
   }
 
   function renderRasterLegendEditor() {
@@ -3852,6 +4260,8 @@ import {
             <div class="raster-legend-item" data-raster-legend-index="${index}">
               <input type="color" value="${escapeHtml(item.color || "#7a203a")}" data-raster-legend-color="${index}" aria-label="Color de leyenda raster" />
               <input type="text" maxlength="80" value="${escapeHtml(item.label || "")}" data-raster-legend-label="${index}" placeholder="Etiqueta oficial" />
+              <input type="text" maxlength="40" value="${escapeHtml(item.value || "")}" data-raster-legend-value="${index}" placeholder="Valor o rango" aria-label="Valor o rango asociado" />
+              <input type="number" min="1" max="99" step="1" value="${escapeHtml(String(item.order || index + 1))}" data-raster-legend-order="${index}" aria-label="Orden" />
               <button class="icon-button icon-button--small" type="button" data-raster-legend-remove="${index}" aria-label="Eliminar elemento">x</button>
             </div>
           `)
@@ -3862,6 +4272,19 @@ import {
       input.addEventListener("input", () => {
         const item = state.uploadDraft.rasterLegendItems[Number(input.dataset.rasterLegendLabel)];
         if (item) item.label = input.value;
+      });
+    });
+    elements.rasterLegendList.querySelectorAll("[data-raster-legend-value]").forEach((input) => {
+      input.addEventListener("input", () => {
+        const item = state.uploadDraft.rasterLegendItems[Number(input.dataset.rasterLegendValue)];
+        if (item) item.value = input.value;
+      });
+    });
+    elements.rasterLegendList.querySelectorAll("[data-raster-legend-order]").forEach((input) => {
+      input.addEventListener("input", () => {
+        const item = state.uploadDraft.rasterLegendItems[Number(input.dataset.rasterLegendOrder)];
+        const order = Number(input.value);
+        if (item && Number.isFinite(order)) item.order = order;
       });
     });
     elements.rasterLegendList.querySelectorAll("[data-raster-legend-color]").forEach((input) => {
@@ -3883,17 +4306,116 @@ import {
       .map((item, index) => ({
         label: String(item.label || "").trim(),
         color: /^#[0-9a-f]{6}$/i.test(item.color || "") ? item.color.toLowerCase() : "#7a203a",
-        order: index,
+        value: String(item.value || "").trim() || null,
+        order: Number.isFinite(Number(item.order)) ? Number(item.order) : index + 1,
       }))
       .filter((item) => item.label);
 
     return classes.length
       ? {
           type: "raster",
-          field: "Simbologia raster",
-          classes,
+          field: String(state.uploadDraft.rasterLegendTitle || "").trim() || "Simbología raster",
+          classes: classes.sort((a, b) => a.order - b.order),
         }
       : null;
+  }
+
+  async function preloadRasterLegendColorsFromPreview() {
+    const rasterLayer = state.uploadDraft.previewLayers.find((layer) => {
+      return layer.imageUrl || (Array.isArray(layer.groundOverlays) && layer.groundOverlays.some((overlay) => overlay.imageUrl));
+    });
+    if (!rasterLayer) {
+      elements.uploadLayerFeedback.textContent = "Primero genera la vista previa de una capa raster.";
+      return;
+    }
+
+    const imageUrl = rasterLayer.imageUrl || rasterLayer.groundOverlays?.[0]?.imageUrl;
+    const colors = await extractRasterLegendColors(imageUrl).catch((error) => {
+      console.warn("No se pudieron precargar colores raster.", error);
+      return [];
+    });
+    if (!colors.length) {
+      elements.uploadLayerFeedback.textContent = "No se detectaron colores opacos suficientes para precargar la leyenda.";
+      return;
+    }
+
+    state.uploadDraft.rasterLegendItems = colors.map((color, index) => ({
+      label: "",
+      color,
+      value: String(index + 1),
+      order: index + 1,
+    }));
+    elements.uploadLayerFeedback.textContent = "Colores reales precargados. Asigna etiquetas y valores antes de publicar.";
+    renderRasterLegendEditor();
+  }
+
+  async function extractRasterLegendColors(imageUrl) {
+    const image = await loadImageForRasterLegend(imageUrl);
+    const maxSize = 420;
+    const scale = Math.min(1, maxSize / Math.max(image.naturalWidth || image.width, image.naturalHeight || image.height));
+    const width = Math.max(1, Math.round((image.naturalWidth || image.width) * scale));
+    const height = Math.max(1, Math.round((image.naturalHeight || image.height) * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    context.drawImage(image, 0, 0, width, height);
+    const data = context.getImageData(0, 0, width, height).data;
+    const counts = new Map();
+
+    for (let index = 0; index < data.length; index += 4) {
+      const alpha = data[index + 3];
+      if (alpha < 128) continue;
+      const red = data[index];
+      const green = data[index + 1];
+      const blue = data[index + 2];
+      if (red > 248 && green > 248 && blue > 248) continue;
+      const color = rgbToHex(red, green, blue);
+      counts.set(color, (counts.get(color) || 0) + 1);
+    }
+
+    return [...counts.entries()]
+      .filter(([_color, count]) => count >= 4)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 24)
+      .map(([color]) => color);
+  }
+
+  function loadImageForRasterLegend(imageUrl) {
+    return new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = reject;
+      image.crossOrigin = "anonymous";
+      image.src = imageUrl;
+    });
+  }
+
+  function rgbToHex(red, green, blue) {
+    return `#${[red, green, blue].map((value) => value.toString(16).padStart(2, "0")).join("")}`;
+  }
+
+  function validateRasterLegendDraft() {
+    const items = state.uploadDraft.rasterLegendItems || [];
+    const hasAnyValue = items.some((item) => String(item.label || item.value || "").trim() || /^#[0-9a-f]{6}$/i.test(item.color || ""));
+    if (!hasAnyValue) return "";
+
+    const completeItems = items.filter((item) => String(item.label || "").trim());
+    if (!completeItems.length) return "La leyenda raster necesita al menos una etiqueta.";
+    if (completeItems.length !== items.length) return "Todas las clases de la leyenda raster deben tener etiqueta.";
+
+    const colors = new Set();
+    for (const item of completeItems) {
+      const color = String(item.color || "").trim().toLowerCase();
+      if (!/^#[0-9a-f]{6}$/i.test(color)) return "Cada clase de la leyenda raster necesita un color hexadecimal válido.";
+      if (colors.has(color)) return "La leyenda raster contiene colores duplicados; confirma o corrige la clasificación antes de publicar.";
+      colors.add(color);
+    }
+
+    const orders = completeItems
+      .map((item, index) => Number.isFinite(Number(item.order)) ? Number(item.order) : index + 1);
+    if (new Set(orders).size !== orders.length) return "La leyenda raster contiene órdenes duplicadas.";
+    return "";
   }
 
   function buildLayerMetadata(metadata = {}, layer = {}) {
@@ -4017,7 +4539,7 @@ import {
                 <button class="ghost-button" type="button" data-toggle-user-role="${user.id}">
                   Cambiar a ${mapBackendRole(user.role || user.backendRole) === "director" ? "Visitante" : "Alimentador"}
                 </button>
-                <button class="ghost-button" type="button" data-reset-user-password="${user.id}">Restablecer contrasena</button>
+                <button class="ghost-button" type="button" data-reset-user-password="${user.id}">Restablecer contraseña</button>
               </div>
             </article>
           `)
@@ -4141,14 +4663,14 @@ import {
     if (!user) return;
 
     const nextPassword = window.prompt(
-      `Define una nueva contrasena temporal para ${user.email}:`,
+      `Define una nueva contraseña temporal para ${user.email}:`,
       "Temporal123!"
     );
     if (!nextPassword) return;
 
     if (nextPassword.trim().length < 8) {
       elements.userAdminFeedback.textContent =
-        "La nueva contrasena temporal debe tener al menos 8 caracteres.";
+        "La nueva contraseña temporal debe tener al menos 8 caracteres.";
       return;
     }
 
@@ -4167,11 +4689,11 @@ import {
 
       await renderUserAdminPanel();
       elements.userAdminFeedback.textContent =
-        `Contrasena restablecida para ${user.email}. Comparte la nueva contrasena temporal de forma segura.`;
+        `Contraseña restablecida para ${user.email}. Comparte la nueva contraseña temporal de forma segura.`;
     } catch (error) {
       console.error(error);
       elements.userAdminFeedback.textContent =
-        error?.payload?.message || error.message || "No se pudo restablecer la contrasena del usuario.";
+        error?.payload?.message || error.message || "No se pudo restablecer la contraseña del usuario.";
     }
   }
 
@@ -5818,13 +6340,13 @@ import {
       resourceType: record.resourceType || properties.resourceType || hydratedLayer.resourceType || "vector",
       processedGeojsonUrl: record.processedGeojsonUrl || properties.processedGeojsonUrl || "",
       groundOverlays: record.groundOverlays || properties.groundOverlays || hydratedLayer.groundOverlays || [],
-      rasterLegend: record.rasterLegend || properties.rasterLegend || hydratedLayer.legend || null,
-      vectorLegend: normalizePublishedVectorLegend(record) || properties.vectorLegend || null,
+      rasterLegend: normalizePublishedRasterLegend(record) || record.rasterLegend || properties.rasterLegend || hydratedLayer.legend || null,
+      vectorLegend: normalizePublishedVectorLegend(record) || null,
       isVisualizable: Boolean(record.isVisualizable || properties.isVisualizable),
       properties: {
         ...properties,
         coverage: properties.coverage || record.municipality || hydratedLayer.municipality,
-        vectorLegend: normalizePublishedVectorLegend(record) || properties.vectorLegend || null,
+        vectorLegend: normalizePublishedVectorLegend(record) || null,
       },
     };
   }
@@ -5930,15 +6452,7 @@ import {
       municipality: record.municipality || "Cobertura estatal",
       status: record.status,
       metadata: record.metadata || null,
-      legend: record.rasterLegend || {
-        type: "raster",
-        field: "Simbologia raster",
-        classes: [{
-          label: GROUND_OVERLAY_FALLBACK_LEGEND_LABEL,
-          color: "transparent",
-          outlineColor: "rgba(70, 36, 49, 0.35)",
-        }],
-      },
+      legend: normalizePublishedRasterLegend(record) || buildRasterLegendFallback(),
     });
   }
 
@@ -6061,7 +6575,7 @@ import {
     );
     const aliases = [
       ["Municipio", ["Municipio", "Name", "name"]],
-      ["Intensidad", ["Intensidad"]],
+      ["Intensidad", ["Intensidad", "Intensid_1", "Intensidad_1", "Intensid1"]],
       ["Detalles", ["Detalles"]],
       ["Clasificación", ["Fen_Clasif", "Clasificacion", "Clasificación"]],
       ["Amenaza", ["Ame_Ampl", "Amenaza"]],
@@ -6381,7 +6895,11 @@ import {
   }
 
   function buildRemoteLayerSymbology(features, styleField, record = null, options = {}) {
-    const publishedLegend = normalizePublishedVectorLegend(record);
+    const publishedLegend = normalizePublishedVectorLegend(record, {
+      features,
+      preferredField: styleField?.field,
+      record,
+    });
     if (publishedLegend) {
       const symbology = {
         type: publishedLegend.type,
@@ -6401,6 +6919,7 @@ import {
 
     if (options.existingStyleIsUsable) {
       const preservedLegend =
+        buildBestSemanticLegendFromFeatures(features, { preferredField: styleField?.field, record }) ||
         buildSemanticLegendFromFeatures(features, styleField?.field) ||
         buildTechnicalStyleFallbackLegend(features);
       return {

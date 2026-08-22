@@ -253,11 +253,11 @@ export async function getLayerGeoJson(id) {
 
   const processedGeojsonPath = layer.metadata?.properties?.processedGeojsonPath;
   if (!processedGeojsonPath) {
-    throw new AppError("La capa aÃºn no cuenta con GeoJSON procesado para visualizaciÃ³n.", 404);
+    throw new AppError("La capa aún no cuenta con GeoJSON procesado para visualización.", 404);
   }
 
   if (!fs.existsSync(processedGeojsonPath)) {
-    throw new AppError("La capa aÃºn no cuenta con GeoJSON procesado para visualizaciÃ³n.", 404);
+    throw new AppError("La capa aún no cuenta con GeoJSON procesado para visualización.", 404);
   }
 
   try {
@@ -325,6 +325,50 @@ async function changeLayerStatus({ id, actor, req, toStatus, reason = null, desc
     },
     ipAddress: requestInfo.ipAddress,
     userAgent: requestInfo.userAgent,
+  });
+
+  return mapLayer(updated);
+}
+
+export async function updateLayerRasterLegend(id, rasterLegendPayload) {
+  const layer = await prisma.layer.findUnique({
+    where: { id },
+    include: {
+      metadata: true,
+      files: true,
+      createdBy: { include: { role: true } },
+    },
+  });
+  if (!layer || layer.isDeleted) {
+    throw new AppError("Capa no encontrada.", 404);
+  }
+
+  const rasterLegend = parseRasterLegend(rasterLegendPayload);
+  const metadataProperties = layer.metadata?.properties ?? {};
+  const updated = await prisma.layer.update({
+    where: { id },
+    data: {
+      metadata: {
+        upsert: {
+          create: {
+            properties: {
+              rasterLegend,
+            },
+          },
+          update: {
+            properties: {
+              ...metadataProperties,
+              rasterLegend,
+            },
+          },
+        },
+      },
+    },
+    include: {
+      files: true,
+      metadata: true,
+      createdBy: { include: { role: true } },
+    },
   });
 
   return mapLayer(updated);
@@ -495,24 +539,46 @@ function parseRasterLegend(value) {
   if (!value) return null;
   try {
     const parsed = typeof value === "string" ? JSON.parse(value) : value;
-    if (!Array.isArray(parsed)) return null;
-    const classes = parsed
-      .map((item, index) => ({
-        label: normalizeOptionalText(item?.label),
-        color: normalizeHexColor(item?.color),
-        order: Number.isFinite(Number(item?.order)) ? Number(item.order) : index,
-      }))
-      .filter((item) => item.label && item.color)
+    const rawClasses = Array.isArray(parsed) ? parsed : parsed?.classes || parsed?.items;
+    if (!Array.isArray(rawClasses)) return null;
+    const seenColors = new Set();
+    const seenOrders = new Set();
+    const classes = rawClasses
+      .map((item, index) => {
+        const label = normalizeOptionalText(item?.label);
+        const color = normalizeHexColor(item?.color);
+        const order = Number.isFinite(Number(item?.order)) ? Number(item.order) : index + 1;
+        if (!label || !color) {
+          throw new AppError("Cada clase de la leyenda raster debe tener etiqueta y color válido.", 400);
+        }
+        if (seenColors.has(color)) {
+          throw new AppError("La leyenda raster no puede contener colores duplicados.", 400);
+        }
+        if (seenOrders.has(order)) {
+          throw new AppError("La leyenda raster no puede contener órdenes duplicadas.", 400);
+        }
+        seenColors.add(color);
+        seenOrders.add(order);
+        return {
+          label,
+          color,
+          value: normalizeOptionalText(item?.value),
+          min: item?.min,
+          max: item?.max,
+          order,
+        };
+      })
       .sort((a, b) => a.order - b.order)
       .slice(0, 24);
     return classes.length
       ? {
           type: "raster",
-          field: "Simbologia raster",
+          field: normalizeOptionalText(parsed?.field || parsed?.title || parsed?.name) || "Simbología raster",
           classes,
         }
       : null;
   } catch (_error) {
+    if (_error instanceof AppError) throw _error;
     return null;
   }
 }
@@ -564,7 +630,7 @@ function buildVectorLegendPreview(properties = {}) {
     const legend = classes.length > 1
       ? {
           type: "categorical",
-          field: getVectorLegendPreviewField(classes),
+          field: getVectorLegendPreviewField(classes, features),
           classes,
         }
       : null;
@@ -609,11 +675,16 @@ function getVectorLegendPreviewLabel(properties = {}) {
   const candidates = [
     properties.Intensidad,
     properties.intensidad,
+    properties.Intensid_1,
+    properties.Intensidad_1,
+    properties.Peligro,
+    properties.peligro,
     properties.Nivel,
     properties.nivel,
     properties.Clase,
     properties.clase,
     getHtmlDescriptionAttribute(properties.Description || properties.description, "Intensidad"),
+    getHtmlDescriptionAttribute(properties.Description || properties.description, "Intensid_1"),
     properties.Name,
     properties.name,
   ];
@@ -647,10 +718,32 @@ function getVectorLegendPreviewOrder(label) {
   return order.get(normalized) ?? 100;
 }
 
-function getVectorLegendPreviewField(classes) {
+function getVectorLegendPreviewField(classes, features = []) {
+  const concept = getDominantVectorLegendConcept(features);
+  if (concept) return concept;
   return classes.some((item) => getVectorLegendPreviewOrder(item.label) < 100)
     ? "Intensidad"
     : "Estilo";
+}
+
+function getDominantVectorLegendConcept(features = []) {
+  const counts = new Map();
+  features.forEach((feature) => {
+    const properties = feature?.properties || {};
+    const description = properties.Description || properties.description;
+    const value =
+      normalizeOptionalText(properties.R_P_V_E_A) ||
+      normalizeOptionalText(properties.Indicador) ||
+      getHtmlDescriptionAttribute(description, "R_P_V_E_A") ||
+      getHtmlDescriptionAttribute(description, "Indicador");
+    if (!value) return;
+    const normalized = value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+    if (!["peligro", "riesgo", "susceptibilidad", "intensidad"].includes(normalized)) return;
+    counts.set(normalized, (counts.get(normalized) || 0) + 1);
+  });
+
+  const dominant = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+  return dominant ? dominant.charAt(0).toUpperCase() + dominant.slice(1) : null;
 }
 
 function normalizeHexColor(value) {

@@ -18,11 +18,13 @@ import {
   listPublicLayersController,
   publishLayerController,
   rejectLayerController,
+  updateLayerRasterLegendController,
   uploadLayerController,
 } from "./layers.controller.js";
 import {
   layerIdSchema,
   publishStateSchema,
+  rasterLegendSchema,
   rejectLayerSchema,
   uploadLayerSchema,
 } from "./layers.schemas.js";
@@ -72,6 +74,12 @@ layersRouter.patch(
   authorizeRoles(ROLE_CODES.ADMIN),
   validate(publishStateSchema),
   asyncHandler(publishLayerController)
+);
+layersRouter.patch(
+  "/:id/raster-legend",
+  authorizeRoles(ROLE_CODES.ADMIN),
+  validate(rasterLegendSchema),
+  asyncHandler(updateLayerRasterLegendController)
 );
 layersRouter.delete(
   "/:id",

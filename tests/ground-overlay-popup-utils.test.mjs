@@ -64,7 +64,7 @@ test("elige la raster superior segun el orden visual de MapLibre", () => {
   assert.equal(hit, upper);
 });
 
-test("omite campos vacios y no inventa informacion por pixel", () => {
+test("omite campos vacíos y no inventa información por píxel", () => {
   const rows = buildGroundOverlayInfoLines({
     title: "Inestabilidad de Laderas",
     description: "",
@@ -83,19 +83,19 @@ test("omite campos vacios y no inventa informacion por pixel", () => {
   });
 
   assert.deepEqual(rows, [
-    { label: "Nombre publico", value: "Inestabilidad de Laderas" },
-    { label: "Fenomeno", value: "Fenomenos Geologicos" },
+    { label: "Nombre público", value: "Inestabilidad de Laderas" },
+    { label: "Fenómeno", value: "Fenomenos Geologicos" },
     { label: "Tipo", value: "Imagen raster georreferenciada" },
     { label: "Fuente", value: "Inventario EGEM" },
-    { label: "Fecha de actualizacion", value: "12/08/2026" },
+    { label: "Fecha de actualización", value: "12/08/2026" },
     { label: "Sistema de referencia", value: "EPSG:4326" },
   ]);
   assert.equal(rows.some((row) => String(row.value).includes("muy alto")), false);
 });
 
-test("expone aviso raster y texto fallback de simbologia sin clasificar colores", () => {
-  assert.equal(GROUND_OVERLAY_NOTICE, "Esta capa es una imagen georreferenciada y no contiene atributos consultables por ubicacion.");
-  assert.equal(GROUND_OVERLAY_FALLBACK_LEGEND_LABEL, "Simbologia incorporada en la imagen");
+test("expone aviso raster y texto fallback de simbología sin clasificar colores", () => {
+  assert.equal(GROUND_OVERLAY_NOTICE, "Esta capa es una imagen georreferenciada y no contiene atributos consultables por ubicación.");
+  assert.equal(GROUND_OVERLAY_FALLBACK_LEGEND_LABEL, "Simbología incorporada en la imagen");
 });
 
 test("map.js prioriza vector, usa un solo listener global y conserva popup vectorial", async () => {
