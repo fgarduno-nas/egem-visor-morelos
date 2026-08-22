@@ -59,7 +59,7 @@ export async function uploadLayerRequest(token, metadata, files) {
   formData.append("updatedAt", metadata.updatedAt || "");
   formData.append("scaleOrResolution", metadata.scaleOrResolution || "");
   formData.append("crs", metadata.crs || "");
-  formData.append("rasterLegend", metadata.rasterLegend ? JSON.stringify(metadata.rasterLegend.classes || []) : "");
+  formData.append("rasterLegend", metadata.rasterLegend ? JSON.stringify(metadata.rasterLegend) : "");
 
   (metadata.tags || []).forEach((tag) => formData.append("tags", tag));
   files.forEach((file) => formData.append("files", file));

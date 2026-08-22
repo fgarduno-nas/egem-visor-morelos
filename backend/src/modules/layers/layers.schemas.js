@@ -76,3 +76,13 @@ export const publishStateSchema = z.object({
   }),
   query: z.object({}).default({}),
 });
+
+export const rasterLegendSchema = z.object({
+  body: z.object({
+    rasterLegend: z.union([z.string().max(10000), z.array(z.any()), z.record(z.any())]).nullable(),
+  }),
+  params: z.object({
+    id: z.string().min(1),
+  }),
+  query: z.object({}).default({}),
+});

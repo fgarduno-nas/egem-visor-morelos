@@ -71,7 +71,7 @@ export async function analyzeKmzFile(file, options = {}) {
         const bytes = await imageEntry.async("uint8array");
         const mimeType = detectImageMime(bytes);
         if (!isAllowedImageMime(mimeType, getExtension(imageEntry.name))) {
-          errors.push(`La imagen ${imageEntry.name} no coincide con PNG, JPG o WebP valido.`);
+          errors.push(`La imagen ${imageEntry.name} no coincide con PNG, JPG o WebP válido.`);
         }
       }
       return {
@@ -172,8 +172,8 @@ function parseGroundOverlays(kmlText) {
     if (!href) errors.push(`GroundOverlay ${name} no contiene href de imagen.`);
     if (href && isExternalUrl(href)) errors.push(`GroundOverlay ${name} referencia una URL remota no autorizada.`);
     if (href && isUnsafeArchivePath(href)) errors.push(`GroundOverlay ${name} usa una ruta de imagen no segura.`);
-    if (!bounds) errors.push(`GroundOverlay ${name} no contiene LatLonBox valido.`);
-    if (bounds && rotation !== 0) errors.push(`GroundOverlay ${name} usa rotation=${rotation}; la rotacion distinta de cero aun no se representa con precision.`);
+    if (!bounds) errors.push(`GroundOverlay ${name} no contiene LatLonBox válido.`);
+    if (bounds && rotation !== 0) errors.push(`GroundOverlay ${name} usa rotation=${rotation}; la rotación distinta de cero aún no se representa con precisión.`);
     overlays.push({
       id: readXmlAttribute(match[1], "id") || `ground-overlay-${index}`,
       name,
@@ -200,12 +200,12 @@ function parseGroundOverlays(kmlText) {
 
 function validateArchiveEntries(entries, compressedSize) {
   if (!entries.length) throw new Error("El KMZ no contiene entradas legibles.");
-  if (entries.length > 250) throw new Error("El KMZ excede el maximo de entradas permitido.");
-  if (compressedSize > 120 * 1024 * 1024) throw new Error("El KMZ excede el tamano maximo comprimido permitido.");
+  if (entries.length > 250) throw new Error("El KMZ excede el máximo de entradas permitido.");
+  if (compressedSize > 120 * 1024 * 1024) throw new Error("El KMZ excede el tamaño máximo comprimido permitido.");
   entries.forEach((entry) => {
     if (isUnsafeArchivePath(entry.name)) throw new Error(`El KMZ contiene una ruta no segura: ${entry.name}`);
     const size = Number(entry._data?.uncompressedSize || 0);
-    if (size > 120 * 1024 * 1024) throw new Error(`La entrada ${entry.name} excede el tamano permitido.`);
+    if (size > 120 * 1024 * 1024) throw new Error(`La entrada ${entry.name} excede el tamaño permitido.`);
   });
 }
 

@@ -11,6 +11,7 @@ import {
   listPublicLayers,
   publishLayer,
   rejectLayer,
+  updateLayerRasterLegend,
   uploadLayer,
 } from "./layers.service.js";
 
@@ -115,6 +116,20 @@ export async function publishLayerController(req, res) {
   return sendSuccess(res, {
     statusCode: 200,
     message: "Estado de publicación actualizado correctamente.",
+    data: layer,
+  });
+}
+
+export async function updateLayerRasterLegendController(req, res) {
+  const layer = await updateLayerRasterLegend(
+    req.validated.params.id,
+    req.validated.body.rasterLegend,
+    req.user,
+    req
+  );
+  return sendSuccess(res, {
+    statusCode: 200,
+    message: "Leyenda raster actualizada correctamente.",
     data: layer,
   });
 }

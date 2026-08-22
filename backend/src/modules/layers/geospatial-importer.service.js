@@ -237,7 +237,7 @@ export function validateArchiveEntries(entries, limits = IMPORT_LIMITS) {
     throw new Error("El archivo comprimido no contiene entradas legibles.");
   }
   if (entries.length > limits.maxArchiveEntries) {
-    throw new Error(`El archivo comprimido excede el maximo de ${limits.maxArchiveEntries} entradas.`);
+    throw new Error(`El archivo comprimido excede el máximo de ${limits.maxArchiveEntries} entradas.`);
   }
 
   let compressedTotal = 0;
@@ -249,7 +249,7 @@ export function validateArchiveEntries(entries, limits = IMPORT_LIMITS) {
     compressedTotal += entry.compressedSize || 0;
     uncompressedTotal += entry.uncompressedSize || 0;
     if ((entry.uncompressedSize || 0) > limits.maxSingleEntryBytes) {
-      throw new Error(`La entrada ${entry.name} excede el tamano maximo permitido.`);
+      throw new Error(`La entrada ${entry.name} excede el tamaño máximo permitido.`);
     }
   }
   if (compressedTotal > limits.maxCompressedBytes || uncompressedTotal > limits.maxUncompressedBytes) {
@@ -311,9 +311,9 @@ function parseGroundOverlays(kmlText, options = {}) {
     if (!href) errors.push(`GroundOverlay ${name} no contiene href de imagen.`);
     if (href && isExternalUrl(href)) errors.push(`GroundOverlay ${name} referencia una URL remota no autorizada.`);
     if (href && isUnsafeArchivePath(href)) errors.push(`GroundOverlay ${name} usa una ruta de imagen no segura.`);
-    if (!bounds) errors.push(`GroundOverlay ${name} no contiene LatLonBox valido.`);
+    if (!bounds) errors.push(`GroundOverlay ${name} no contiene LatLonBox válido.`);
     if (bounds && rotation !== 0) {
-      errors.push(`GroundOverlay ${name} usa rotation=${rotation}; la rotacion distinta de cero aun no se representa con precision.`);
+      errors.push(`GroundOverlay ${name} usa rotation=${rotation}; la rotación distinta de cero aún no se representa con precisión.`);
     }
 
     const bbox = bounds ? [bounds.west, bounds.south, bounds.east, bounds.north] : null;

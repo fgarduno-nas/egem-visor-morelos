@@ -1976,8 +1976,7 @@ select {
   margin-top: 10px;
 }
 
-.raster-legend-editor__header,
-.raster-legend-item {
+.raster-legend-editor__header {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1989,27 +1988,48 @@ select {
   font-size: 0.92rem;
 }
 
+.raster-legend-editor__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
 .raster-legend-list {
   display: grid;
   gap: 6px;
 }
 
 .raster-legend-item {
+  display: grid;
+  grid-template-columns: 38px minmax(110px, 1fr) minmax(82px, 0.7fr) 58px 30px;
+  align-items: center;
+  gap: 8px;
   padding: 8px;
   border: 1px solid rgba(122, 32, 58, 0.12);
-  border-radius: 12px;
+  border-radius: 8px;
   background: rgba(255, 255, 255, 0.72);
 }
 
-.raster-legend-item input[type="text"] {
+.raster-legend-item input[type="text"],
+.raster-legend-item input[type="number"] {
   min-width: 0;
-  flex: 1;
 }
 
 .raster-legend-item input[type="color"] {
   width: 38px;
   height: 34px;
   padding: 2px;
+}
+
+@media (max-width: 560px) {
+  .raster-legend-item {
+    grid-template-columns: 38px minmax(0, 1fr) 54px;
+  }
+
+  .raster-legend-item input[data-raster-legend-value] {
+    grid-column: 2 / 4;
+  }
 }
 
 .modal-card--upload-panel .modal-header h2 {
@@ -2837,5 +2857,100 @@ select {
   .maplibregl-ctrl-bottom-right,
   .maplibregl-ctrl-bottom-left {
     bottom: calc(min(58vh, 440px) + 12px);
+  }
+}
+/* GOES infrared ambient overlay indicator */
+.goes-ir-indicator {
+  position: absolute;
+  left: 18px;
+  top: 18px;
+  z-index: 7;
+  width: min(220px, calc(100% - 36px));
+  border: 1px solid rgba(95, 24, 48, 0.18);
+  border-radius: 12px;
+  background: rgba(255, 252, 248, 0.88);
+  box-shadow: 0 14px 32px rgba(71, 31, 44, 0.14);
+  color: var(--ink);
+  padding: 9px 11px;
+  pointer-events: none;
+  backdrop-filter: blur(8px);
+}
+
+.goes-ir-indicator[hidden] {
+  display: none;
+}
+
+.goes-ir-indicator__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.goes-ir-indicator__header .section-kicker {
+  margin-bottom: 2px;
+  color: var(--accent);
+  font-size: 10px;
+}
+
+.goes-ir-indicator strong {
+  display: block;
+  font-size: 0.88rem;
+  line-height: 1.1;
+  font-weight: 700;
+}
+
+.goes-ir-indicator__time,
+.goes-ir-indicator__meta,
+.goes-ir-indicator__status {
+  margin: 5px 0 0;
+  font-size: 0.76rem;
+  line-height: 1.25;
+  color: var(--muted);
+}
+
+.goes-ir-indicator__time {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.goes-ir-indicator__help {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 0.66rem;
+  line-height: 1.25;
+}
+
+.goes-ir-indicator__ramp {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 6px;
+  margin-top: 7px;
+  font-size: 0.62rem;
+  line-height: 1;
+  color: var(--muted);
+}
+
+.goes-ir-indicator__ramp i {
+  display: block;
+  height: 7px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0), #6458d6, #22d2ef, #43d46d, #ffe95e, #ff8f1f, #ff2433);
+  box-shadow: inset 0 0 0 1px rgba(95, 24, 48, 0.16);
+}
+
+.goes-ir-indicator.is-demo .goes-ir-indicator__status,
+.goes-ir-indicator.is-stale .goes-ir-indicator__status {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+@media (max-width: 680px) {
+  .goes-ir-indicator {
+    left: 10px;
+    top: 172px;
+    width: min(220px, calc(100% - 20px));
+    padding: 8px 10px;
   }
 }
