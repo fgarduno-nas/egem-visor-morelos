@@ -32,6 +32,7 @@ import {
   buildSemanticLegendFromFeatures,
   buildTechnicalStyleFallbackLegend,
   isTechnicalStyleField,
+  legendTextsAreEquivalent,
   normalizePublishedRasterLegend,
   normalizePublishedVectorLegend,
 } from "./app/utils/remote-legend-utils.js";
@@ -339,6 +340,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     activeLayerStack: [],
     activeInfoPopup: null,
     activeLegendLayerId: null,
+    activeLegendRequestId: 0,
     symbologyCache: new Map(),
     previewLayerId: null,
     lastCapturedLayerId: null,
@@ -1449,6 +1451,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
   }
 
   function openFloatingLegendForLayer(layerId, options = {}) {
+    if (options.requestId && options.requestId !== state.activeLegendRequestId) return;
     const layer = findCatalogLayer(layerId);
     if (!layer || !canSeeLayer(layer)) {
       closeFloatingLegend({ renderCatalog: options.renderCatalog });
@@ -1464,17 +1467,21 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
 
   function syncFloatingLegendAfterLayerDeactivation(layerId) {
     if (state.activeLegendLayerId !== layerId) return;
-    const fallbackId = [...state.activeLayerStack]
-      .reverse()
-      .find((candidateId) => {
-        const layer = findCatalogLayer(candidateId);
-        return isThematicQueryableLayer(layer);
-      });
+    const fallbackId = getTopActiveThematicLayerId();
     if (fallbackId) {
       openFloatingLegendForLayer(fallbackId);
     } else {
       closeFloatingLegend();
     }
+  }
+
+  function getTopActiveThematicLayerId() {
+    return [...state.activeLayerStack]
+      .reverse()
+      .find((candidateId) => {
+        const layer = findCatalogLayer(candidateId);
+        return isThematicQueryableLayer(layer);
+      }) || null;
   }
 
   function renderFloatingLegend(layer) {
@@ -1545,6 +1552,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
   }
 
   function closeFloatingLegend(options = {}) {
+    state.activeLegendRequestId += 1;
     state.activeLegendLayerId = null;
     if (elements.mapLegendFloat) {
       elements.mapLegendFloat.hidden = true;
@@ -1559,7 +1567,9 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     if (!state.activeLegendLayerId) return;
     const layer = findCatalogLayer(state.activeLegendLayerId);
     if (!layer || !canSeeLayer(layer)) {
-      closeFloatingLegend();
+      const fallbackId = getTopActiveThematicLayerId();
+      if (fallbackId) openFloatingLegendForLayer(fallbackId);
+      else closeFloatingLegend();
     }
   }
 
@@ -2308,6 +2318,12 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     const thematicHit = getTopThematicPopupHit(event);
     if (thematicHit) {
       showThematicPopup(thematicHit, event.lngLat);
+      return;
+    }
+
+    const staticHit = getTopStaticPopupHit(event);
+    if (staticHit) {
+      showStaticFeaturePopup(staticHit, event.lngLat);
     }
   }
 
@@ -2838,11 +2854,14 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
 
     if (userLayer) {
       userLayer.visible = visible;
+      const legendRequestId = visible ? ++state.activeLegendRequestId : state.activeLegendRequestId;
       if (visible) {
+        activateLayerInStack(userLayer.id);
         try {
           await ensureLayerResourcesLoaded(userLayer);
         } catch (error) {
           userLayer.visible = false;
+          deactivateLayerInStack(userLayer.id);
           syncLayerCatalogItemState(layerId, false);
           captureVisibleSnapshot();
           saveUserLayers();
@@ -2852,13 +2871,16 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
           });
           throw error;
         }
+        const isLatestLegendRequest = legendRequestId === state.activeLegendRequestId && userLayer.visible !== false;
         if (!state.renderedLayers.has(userLayer.id) && (canSeeLayer(userLayer) || userLayer.id === state.previewLayerId)) {
           addUserLayerToMap(userLayer);
           state.renderedLayers.set(userLayer.id, true);
         }
         setUserLayerLayoutVisibility(userLayer, true);
-        activateLayerInStack(userLayer.id);
-        openFloatingLegendForLayer(userLayer.id, { renderCatalog: false });
+        if (isLatestLegendRequest) {
+          activateLayerInStack(userLayer.id);
+          openFloatingLegendForLayer(userLayer.id, { renderCatalog: false, requestId: legendRequestId });
+        }
       } else {
         setUserLayerLayoutVisibility(userLayer, false);
         deactivateLayerInStack(userLayer.id);
@@ -3056,33 +3078,6 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     if (map.__municipiosPopupBound) return;
     map.__municipiosPopupBound = true;
 
-    map.on("click", "municipios-hit", (event) => {
-      if (state.activeTool) return;
-      if (state.activeInfoPopup) return;
-      const feature = event.features && event.features[0];
-      if (!feature) return;
-
-      const props = feature.properties || {};
-      const name =
-        props.NOM_MUN ||
-        props.NOMBRE ||
-        props.nombre ||
-        props.municipio ||
-        "Municipio";
-
-      updateInfoPanel({
-        title: name,
-        description: "Municipio seleccionado para referencia territorial dentro del atlas.",
-        extra: ["Tipo: Límite municipal", "Uso recomendado: ubicar fenómenos y capas locales"],
-        attributes: props,
-      });
-
-      new maplibregl.Popup({ closeButton: true, closeOnClick: true })
-        .setLngLat(event.lngLat)
-        .setHTML(`<strong>${escapeHtml(name)}</strong><br />Municipio de Morelos`)
-        .addTo(map);
-    });
-
     map.on("mouseenter", "municipios-hit", () => {
       map.getCanvas().style.cursor = "pointer";
     });
@@ -3119,6 +3114,22 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       if (rasterHit) return rasterHit;
     }
     return null;
+  }
+
+  function getTopStaticPopupHit(event) {
+    return getStaticPopupHitForLayer("municipios", ["municipios-hit"], event) ||
+      getStaticPopupHitForLayer("estado", ["estado-fill"], event);
+  }
+
+  function getStaticPopupHitForLayer(layerId, layerIds, event) {
+    const layer = staticLayers.find((item) => item.id === layerId);
+    if (!layer || layer.visible === false) return null;
+    const visibleLayerIds = layerIds.filter((candidateId) => {
+      return map.getLayer(candidateId) && map.getLayoutProperty(candidateId, "visibility") !== "none";
+    });
+    if (!visibleLayerIds.length) return null;
+    const feature = map.queryRenderedFeatures(event.point, { layers: visibleLayerIds })[0];
+    return feature ? { kind: "static", layer, feature, mapLayerId: feature.layer?.id || visibleLayerIds[0] } : null;
   }
 
   function getVectorPopupHitForLayer(layer, event) {
@@ -3165,6 +3176,33 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       return;
     }
     showGroundOverlayPopup(hit, lngLat);
+  }
+
+  function showStaticFeaturePopup(hit, lngLat) {
+    const { layer, feature, mapLayerId } = hit;
+    const props = feature.properties || {};
+    const title = getStaticFeatureTitle(layer, props);
+    openInfoPopup({
+      ownerLayerId: layer.id,
+      resourceType: "static",
+      mapLayerId,
+      coordinate: lngLat,
+      html: buildFeaturePopup(title, props),
+      info: {
+        title,
+        description: layer.description,
+        extra: [`Tipo: ${layer.id === "municipios" ? "Limite municipal" : "Limite estatal"}`],
+        attributes: cleanFeatureAttributes(props),
+        legend: layer.legend,
+      },
+    });
+  }
+
+  function getStaticFeatureTitle(layer, properties = {}) {
+    if (layer.id === "municipios") {
+      return properties.NOM_MUN || properties.NOMBRE || properties.nombre || properties.municipio || "Municipio";
+    }
+    return layer.title || "Estado de Morelos";
   }
 
   function showVectorFeaturePopup(hit, lngLat) {
@@ -3234,6 +3272,11 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
   function closePopupIfOwnerUnavailable() {
     const ownerLayerId = state.activeInfoPopup?.owner?.ownerLayerId;
     if (!ownerLayerId) return;
+    const staticLayer = staticLayers.find((item) => item.id === ownerLayerId);
+    if (staticLayer) {
+      if (staticLayer.visible === false) closeActiveInfoPopup();
+      return;
+    }
     const layer = state.userLayers.find((item) => item.id === ownerLayerId);
     if (!isThematicQueryableLayer(layer)) {
       closeActiveInfoPopup();
@@ -3275,10 +3318,17 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       .join("");
     return `
       <div class="legend-list">
-        <p class="info-copy"><strong>${escapeHtml(legend.field)}</strong></p>
+        ${shouldRenderLegendField(legend) ? `<p class="info-copy"><strong>${escapeHtml(legend.field)}</strong></p>` : ""}
         ${items}
       </div>
     `;
+  }
+
+  function shouldRenderLegendField(legend) {
+    if (!legend?.field) return false;
+    if (legend.type === "continuous") return true;
+    const normalizedField = normalizeAttributeKey(legend.field).replace(/\s+/g, " ").trim();
+    return !["susceptibilidad", "peligro", "riesgo", "vulnerabilidad", "intensidad"].includes(normalizedField);
   }
 
   function showGroundOverlayPopup(hit, lngLat) {
@@ -3453,7 +3503,17 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
   }
 
   function cleanFeatureAttributes(properties = {}) {
-    const sourceEntries = Object.entries(properties)
+    const descriptionAttributes = parseKmlDescriptionHtmlAttributes(
+      getPropertyValueByAlias(properties, ["description", "Description"])
+    );
+    const mergedProperties = { ...properties };
+    Object.entries(descriptionAttributes).forEach(([key, value]) => {
+      if (!isUsablePopupValue(mergedProperties[key])) {
+        mergedProperties[key] = value;
+      }
+    });
+
+    const sourceEntries = Object.entries(mergedProperties)
       .filter(([key, value]) => isVisiblePopupAttribute(key, value));
     const normalizedLookup = new Map(
       sourceEntries.map(([key, value]) => [normalizeAttributeKey(key), { key, value: String(value).trim() }])
@@ -3481,14 +3541,18 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
 
   function getPopupAttributeSchema() {
     return [
-      { label: "Municipio", keys: ["Municipio", "MUN", "NOM_MUN", "NOMBRE", "Name"] },
-      { label: "Intensidad", keys: ["Intensidad", "INTENSIDAD", "Riesgo", "RIESGO", "Nivel", "NIVEL"] },
+      { label: "Municipio", keys: ["Municipio", "MUN", "NOM_MUN", "NOMBRE"] },
+      { label: "Intensidad", keys: ["Intensidad", "INTENSIDAD", "Intensid_1", "Intensidad_1", "Intensid1", "Riesgo", "RIESGO", "Nivel", "NIVEL"] },
       { label: "Detalles", keys: ["Detalles", "DETALLES", "Descripcion", "Descripción", "DESCRIP"] },
       { label: "Clasificación", keys: ["Clasificacion", "Clasificación", "Fen_Clasif", "FEN_CLASIF"] },
       { label: "Amenaza", keys: ["Amenaza", "Ame_Ampl", "AME_AMPL"] },
       { label: "Magnitud", keys: ["Magnitud", "Magni_num", "MAGNI_NUM", "Valor", "VALOR"] },
       { label: "Indicador", keys: ["Indicador", "R_P_V_E_A", "INDICADOR"] },
       { label: "Fuente", keys: ["Fuente", "FUENTE"] },
+      { label: "Metodologia", keys: ["Metodologia", "METODOLOGIA", "Metodo", "Metodolog"] },
+      { label: "Tipo", keys: ["Tipo", "TIPO", "Type"] },
+      { label: "Unidad", keys: ["Unidad", "UNIDAD", "Unit", "Magni_uni"] },
+      { label: "Periodo de retorno", keys: ["Periodo de retorno", "Periodo_Retorno", "PERIODO_RETORNO", "Perlo_Ret", "Tr", "TR"] },
       { label: "IVS_FINAL", keys: ["IVS_FINAL"] },
     ];
   }
@@ -3516,7 +3580,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     if (!isUsablePopupValue(value)) return false;
     if (key.startsWith("__")) return false;
     if (isTechnicalPublicAttribute(key, value)) return false;
-    if (normalizeAttributeKey(key) === "description" && containsRemoteStyleHtml(value)) return false;
+    if (normalizeAttributeKey(key) === "description") return false;
     return true;
   }
 
@@ -3524,6 +3588,28 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     const normalizedKey = normalizeAttributeKey(key).replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
     const normalizedValue = normalizeAttributeKey(value).trim();
     const blockedKeys = new Set([
+      "fid",
+      "id",
+      "objectid",
+      "gid",
+      "clave",
+      "shape leng",
+      "shape length",
+      "fenomeno",
+      "gridcode",
+      "grid code",
+      "styleurl",
+      "style url",
+      "ogr style",
+      "fillcolor",
+      "fill color",
+      "stroke",
+      "strokecolor",
+      "stroke color",
+      "style",
+      "styleid",
+      "intens uni",
+      "intens num",
       "geometry",
       "geom",
       "the geom",
@@ -3540,6 +3626,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       "reference",
     ]);
     if (blockedKeys.has(normalizedKey)) return true;
+    if (normalizedKey === "name" && (/^\d{1,6}$/u.test(String(value).trim()) || /^style[\s_-]*\d*$/iu.test(String(value).trim()))) return true;
     if ((normalizedKey === "format" || normalizedKey === "formato" || normalizedKey === "file type") && normalizedValue === "kmz") {
       return true;
     }
@@ -4246,7 +4333,11 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     if (item.min !== undefined && item.max !== undefined) {
       return `<p>${escapeHtml(formatLegendNumber(item.min))} - ${escapeHtml(formatLegendNumber(item.max))}</p>`;
     }
+    if (item.description && !legendTextsAreEquivalent(item.label, item.description)) {
+      return `<p>${escapeHtml(String(item.description).trim())}</p>`;
+    }
     if (item.value !== null && item.value !== undefined && String(item.value).trim()) {
+      if (legendTextsAreEquivalent(item.label, item.value)) return "";
       return `<p>${escapeHtml(String(item.value).trim())}</p>`;
     }
     return "";
@@ -6574,7 +6665,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
         .map(([key, value]) => [normalizeAttributeKey(key), { key, value }])
     );
     const aliases = [
-      ["Municipio", ["Municipio", "Name", "name"]],
+      ["Municipio", ["Municipio", "MUN", "NOM_MUN", "NOMBRE"]],
       ["Intensidad", ["Intensidad", "Intensid_1", "Intensidad_1", "Intensid1"]],
       ["Detalles", ["Detalles"]],
       ["Clasificación", ["Fen_Clasif", "Clasificacion", "Clasificación"]],

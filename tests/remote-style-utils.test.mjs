@@ -579,11 +579,70 @@ test("la simbologia usa un unico panel flotante independiente de visibilidad", a
   assert.match(mapSource, /function closeFloatingLegend\(options = \{\}\)/);
   assert.match(mapSource, /function openFloatingLegendForLayer\(layerId, options = \{\}\)/);
   assert.match(mapSource, /function syncFloatingLegendAfterLayerDeactivation\(layerId\)/);
-  assert.match(toggleSource, /openFloatingLegendForLayer\(userLayer\.id, \{ renderCatalog: false \}\)/);
+  assert.match(toggleSource, /openFloatingLegendForLayer\(userLayer\.id, \{ renderCatalog: false, requestId: legendRequestId \}\)/);
   assert.match(toggleSource, /syncFloatingLegendAfterLayerDeactivation\(userLayer\.id\)/);
   assert.match(previewSource, /openFloatingLegendForLayer\(layer\.id, \{ renderCatalog: false \}\)/);
   assert.doesNotMatch(floatingSource, /toggleLayerVisibility/);
   assert.doesNotMatch(floatingSource, /addUserLayerToMap/);
+});
+
+test("la leyenda flotante sigue la ultima capa activa y descarta aperturas antiguas", () => {
+  const toggleSource = extractFunctionSource(mapSource, "toggleLayerVisibility");
+  const deactivateSource = extractFunctionSource(mapSource, "syncFloatingLegendAfterLayerDeactivation");
+  const unavailableSource = extractFunctionSource(mapSource, "closeLegendIfLayerUnavailable");
+
+  assert.match(mapSource, /activeLegendRequestId:\s*0/);
+  assert.match(toggleSource, /\+\+state\.activeLegendRequestId/);
+  assert.match(toggleSource, /const isLatestLegendRequest = legendRequestId === state\.activeLegendRequestId/);
+  assert.match(toggleSource, /if \(isLatestLegendRequest\) \{\s*activateLayerInStack\(userLayer\.id\);/s);
+  assert.match(toggleSource, /openFloatingLegendForLayer\(userLayer\.id, \{ renderCatalog: false, requestId: legendRequestId \}\)/);
+  assert.match(mapSource, /options\.requestId && options\.requestId !== state\.activeLegendRequestId/);
+  assert.match(mapSource, /function getTopActiveThematicLayerId\(\)/);
+  assert.match(deactivateSource, /const fallbackId = getTopActiveThematicLayerId\(\)/);
+  assert.match(unavailableSource, /const fallbackId = getTopActiveThematicLayerId\(\)/);
+  assert.match(mapSource, /function closeFloatingLegend\(options = \{\}\) \{\s*state\.activeLegendRequestId \+= 1/s);
+});
+
+test("el popup tematico tiene prioridad sobre municipios y conserva atributos utiles", () => {
+  const clickSource = extractFunctionSource(mapSource, "handleMapToolClick");
+  const staticSource = extractFunctionSource(mapSource, "getTopStaticPopupHit");
+  const schemaSource = extractFunctionSource(mapSource, "getPopupAttributeSchema");
+  const technicalSource = extractFunctionSource(mapSource, "isTechnicalPublicAttribute");
+  const staticPopupSource = extractFunctionSource(mapSource, "showStaticFeaturePopup");
+  const municipiosSource = extractFunctionSource(mapSource, "bindMunicipiosPopup");
+  const aliasSource = extractFunctionSource(mapSource, "applyBackendAttributeAliases");
+
+  assert.match(clickSource, /const thematicHit = getTopThematicPopupHit\(event\);/);
+  assert.match(clickSource, /showThematicPopup\(thematicHit, event\.lngLat\);\s*return;/);
+  assert.match(clickSource, /const staticHit = getTopStaticPopupHit\(event\);/);
+  assert.match(staticSource, /getStaticPopupHitForLayer\("municipios", \["municipios-hit"\], event\)/);
+  assert.match(staticSource, /getStaticPopupHitForLayer\("estado", \["estado-fill"\], event\)/);
+  assert.match(staticPopupSource, /resourceType: "static"/);
+  assert.match(mapSource, /function cleanFeatureAttributes\(properties = \{\}\) \{[\s\S]*parseKmlDescriptionHtmlAttributes/);
+  assert.match(schemaSource, /"Intensid_1"/);
+  assert.doesNotMatch(schemaSource, /"NOMBRE", "Name"/);
+  assert.match(technicalSource, /"gridcode"/);
+  assert.match(technicalSource, /"styleurl"/);
+  assert.match(technicalSource, /"ogr style"/);
+  assert.match(technicalSource, /normalizedKey === "name"/);
+  assert.doesNotMatch(aliasSource, /\["Municipio", \["Municipio", "Name", "name"\]\]/);
+  assert.doesNotMatch(municipiosSource, /map\.on\("click", "municipios-hit"/);
+  assert.doesNotMatch(municipiosSource, /updateInfoPanel/);
+});
+
+test("la presentacion de leyenda omite encabezados categoricos redundantes", () => {
+  const renderLegendSource = extractFunctionSource(mapSource, "renderLayerLegend");
+  const shouldRenderSource = extractFunctionSource(mapSource, "shouldRenderLegendField");
+  const descriptorSource = extractFunctionSource(mapSource, "getLegendClassDescriptor");
+
+  assert.match(renderLegendSource, /shouldRenderLegendField\(legend\)/);
+  assert.match(shouldRenderSource, /legend\.type === "continuous"/);
+  assert.match(shouldRenderSource, /"susceptibilidad"/);
+  assert.match(shouldRenderSource, /"peligro"/);
+  assert.match(shouldRenderSource, /"riesgo"/);
+  assert.match(shouldRenderSource, /"vulnerabilidad"/);
+  assert.doesNotMatch(renderLegendSource, /<p class="info-copy"><strong>\$\{escapeHtml\(legend\.field\)\}<\/strong><\/p>\s*\$\{items\}/);
+  assert.match(descriptorSource, /legendTextsAreEquivalent\(item\.label, item\.value\)/);
 });
 
 test("el visor inicia con capas tematicas apagadas aunque existan preferencias antiguas", () => {
@@ -707,7 +766,8 @@ test("los correos institucionales propios usan dominio egem", async () => {
 
 test("no quedan separadores mojibakeados en textos publicos", async () => {
   const html = await fs.readFile(path.resolve("index.html"), "utf8");
-  assert.doesNotMatch(html, /Ã‚Â·/u);
-  assert.doesNotMatch(mapSource, /Ã‚Â·/u);
+  const mojibakeSeparator = String.fromCodePoint(0x00c3, 0x0192, 0x00e2, 0x20ac, 0x0161, 0x00c3, 0x201a, 0x00c2, 0x00b7);
+  assert.equal(html.includes(mojibakeSeparator), false);
+  assert.equal(mapSource.includes(mojibakeSeparator), false);
   assert.doesNotMatch(extractFunctionSource(mapSource, "renderLayerItem"), /&middot;| · /u);
 });
