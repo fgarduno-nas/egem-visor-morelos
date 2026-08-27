@@ -121,7 +121,7 @@ export function normalizePublishedRasterLegend(record = null) {
 
   return {
     type: "raster",
-    field: candidate.field || candidate.title || candidate.name || "Simbología raster",
+    field: candidate.field || candidate.title || candidate.name || null,
     classes,
   };
 }

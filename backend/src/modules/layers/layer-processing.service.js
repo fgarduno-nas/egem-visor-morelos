@@ -13,6 +13,7 @@ import {
   readZipEntryText,
   validateArchiveEntries as validateArchiveEntriesSecurity,
 } from "./geospatial-importer.service.js";
+import { detectRasterLegendForGroundOverlays } from "./raster-legend-detector.service.js";
 
 const execFileAsync = promisify(execFile);
 const VECTOR_EXTENSIONS = new Set(["geojson", "json", "kml", "kmz", "zip"]);
@@ -149,6 +150,22 @@ export async function processKmz(layer, file, originalFileNames = []) {
         publicBaseUrl: env.PUBLIC_BASE_URL,
       })
     : [];
+  const rasterLegendDetection = groundOverlays.length
+    ? await detectRasterLegendForGroundOverlays(groundOverlays, {
+        title: layer.title,
+        name: layer.title,
+        fileName: file.originalname,
+        metadata: layer.metadata?.properties,
+      })
+    : { rasterLegend: null, diagnostics: null };
+  if (rasterLegendDetection.diagnostics) {
+    console.info("Deteccion de leyenda raster:", {
+      confidence: rasterLegendDetection.diagnostics.confidence,
+      profile: rasterLegendDetection.diagnostics.profile,
+      concept: rasterLegendDetection.diagnostics.concept?.concept || null,
+      timingsMs: rasterLegendDetection.diagnostics.timingsMs,
+    });
+  }
 
   if (!analysis.vector.geometryCount && groundOverlays.length) {
     console.info("GroundOverlay detectado y procesado:", groundOverlays.length);
@@ -162,6 +179,8 @@ export async function processKmz(layer, file, originalFileNames = []) {
       crs: "EPSG:4326",
       originalFileNames,
       groundOverlays,
+      rasterLegend: rasterLegendDetection.rasterLegend,
+      rasterLegendDiagnostics: rasterLegendDetection.diagnostics,
       diagnostics: analysis.diagnostics,
     });
   }
@@ -191,6 +210,8 @@ export async function processKmz(layer, file, originalFileNames = []) {
     geometryType: `${vectorResult.geometryType || "Vector KML"} + GroundOverlay raster`,
     bbox: mergeProcessingBboxes(vectorResult.bbox, analysis.bbox),
     groundOverlays,
+    rasterLegend: rasterLegendDetection.rasterLegend,
+    rasterLegendDiagnostics: rasterLegendDetection.diagnostics,
     diagnostics: analysis.diagnostics,
   });
 }
@@ -626,6 +647,8 @@ function buildProcessingResult({
   crs = null,
   originalFileNames = [],
   groundOverlays = [],
+  rasterLegend = null,
+  rasterLegendDiagnostics = null,
   diagnostics = null,
 }) {
   return {
@@ -641,6 +664,8 @@ function buildProcessingResult({
     bbox,
     crs,
     originalFileNames,
+    rasterLegend,
+    rasterLegendDiagnostics,
     diagnostics,
   };
 }

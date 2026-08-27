@@ -471,6 +471,9 @@ test("el frontend reconstruye GroundOverlay raster y capas mixtas sin tratarlas 
   assert.match(processingSource, /resourceType:\s*"ground-overlay"/);
   assert.match(processingSource, /resourceType:\s*"mixed"/);
   assert.match(processingSource, /extractGroundOverlayImages/);
+  assert.match(processingSource, /detectRasterLegendForGroundOverlays/);
+  assert.match(processingSource, /rasterLegend:\s*rasterLegendDetection\.rasterLegend/);
+  assert.match(processingSource, /rasterLegendDiagnostics:\s*rasterLegendDetection\.diagnostics/);
 });
 
 test("la carga de capas usa timeout extendido y revisa duplicados tras cancelacion", async () => {

@@ -297,6 +297,30 @@ test("raster paletizado publicado como items se normaliza sin cambiar colores", 
   assert.deepEqual(legend.classes.map((item) => item.color), ["#abcdef", "#123456"]);
 });
 
+test("rasterLegend autogenerada conserva tipo raster y no fabrica encabezado redundante", () => {
+  const legend = normalizePublishedRasterLegend({
+    rasterLegend: {
+      type: "raster",
+      field: null,
+      title: null,
+      source: "auto-detected",
+      confidence: "high",
+      profile: "egem-ordinal-five-level",
+      classes: [
+        { label: "Muy baja", color: "#006100", order: 1 },
+        { label: "Baja", color: "#7aab00", order: 2 },
+        { label: "Media", color: "#ffff00", order: 3 },
+        { label: "Alta", color: "#ff9900", order: 4 },
+        { label: "Muy alta", color: "#ff2200", order: 5 },
+      ],
+    },
+  });
+
+  assert.equal(legend.type, "raster");
+  assert.equal(legend.field, null);
+  assert.deepEqual(legend.classes.map((item) => item.label), ["Muy baja", "Baja", "Media", "Alta", "Muy alta"]);
+});
+
 test("raster RGB sin rasterLegend no inventa etiquetas", () => {
   const fallback = buildRasterLegendFallback();
   const legend = normalizePublishedRasterLegend({
