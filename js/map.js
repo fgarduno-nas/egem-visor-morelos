@@ -1107,6 +1107,13 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
         updateLayerOpacity(event.target.dataset.opacity, Number(event.target.value), { persist: true });
       });
     });
+
+    elements.layerList.querySelectorAll("[data-transparency-fixed]").forEach((button) => {
+      button.addEventListener("click", (event) => {
+        event.stopPropagation();
+        toggleVisitorLayerTransparency(button.dataset.transparencyFixed);
+      });
+    });
   }
 
   function groupCatalogLayers(layers) {
@@ -1124,17 +1131,22 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     const shouldOpen = hasLayers || !searchTerm;
     const openAttribute = shouldOpen ? "open" : "";
     const countLabel = hasLayers ? `${layers.length} capa${layers.length === 1 ? "" : "s"}` : "Sin capas";
+    const activeCount = layers.filter((layer) => layer.visible).length;
+    const activeBadge = activeCount
+      ? `<span class="layer-group__active">${activeCount} activa${activeCount === 1 ? "" : "s"}</span>`
+      : "";
     const content = hasLayers
       ? layers.map((layer) => renderLayerItem(layer)).join("")
       : `<p class="layer-group__empty">No hay capas disponibles en esta subcapa por ahora.</p>`;
 
     return `
-      <details class="layer-group" ${openAttribute}>
-        <summary class="layer-group__summary">
+      <details class="layer-group${isPublicVisitor() ? " layer-group--visitor" : ""}${activeCount ? " has-active-layers" : ""}" ${openAttribute}>
+        <summary class="layer-group__summary" aria-label="${escapeHtml(`${group.title}, ${countLabel}`)}">
           <div class="layer-group__heading">
             <strong>${escapeHtml(group.title)}</strong>
             <span>${escapeHtml(countLabel)}</span>
           </div>
+          ${activeBadge}
           <span class="layer-group__chevron" aria-hidden="true"></span>
         </summary>
         <div class="layer-group__content">
@@ -1145,6 +1157,8 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
   }
 
   function renderLayerItem(layer) {
+    if (isPublicVisitor()) return renderVisitorLayerItem(layer);
+
     const checked = layer.visible ? "checked" : "";
     const disableToggle = !canSeeLayer(layer) || layer.isLoading ? "disabled" : "";
     const loadingStatus = layer.isLoading ? '<span class="layer-loading-state" aria-live="polite">Cargando capa...</span>' : "";
@@ -1186,6 +1200,42 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
           </div>
         </div>
         ${actionButtons ? `<div class="layer-actions">${actionButtons}</div>` : ""}
+      </div>
+    `;
+  }
+
+  function renderVisitorLayerItem(layer) {
+    const checked = layer.visible ? "checked" : "";
+    const disableToggle = !canSeeLayer(layer) || layer.isLoading ? "disabled" : "";
+    const loadingStatus = layer.isLoading ? '<span class="layer-loading-state" aria-live="polite">Cargando</span>' : "";
+    const errorStatus = layer.loadError ? `<span class="layer-error-state" aria-live="polite">${escapeHtml(layer.loadError)}</span>` : "";
+    const itemClassName = [
+      "layer-item",
+      "layer-item--visitor",
+      layer.visible ? "is-visible" : "is-hidden-layer",
+      state.selectedLayerId === layer.id ? "is-selected" : "",
+      layer.__visitorTransparency20 ? "has-fixed-transparency" : "",
+    ].filter(Boolean).join(" ");
+
+    return `
+      <div class="${itemClassName}" data-layer-id="${layer.id}" role="button" tabindex="0" aria-pressed="${state.selectedLayerId === layer.id ? "true" : "false"}">
+        <div class="layer-item__meta layer-item__meta--visitor">
+          <input type="checkbox" ${checked} ${disableToggle} aria-label="Mostrar u ocultar ${escapeHtml(layer.title)}" />
+          <div class="layer-item__copy">
+            <button class="layer-select-button" type="button" data-select-layer="${escapeHtml(layer.id)}">${escapeHtml(layer.title)}</button>
+            <div class="layer-visitor-controls">
+              <button
+                class="layer-transparency-toggle"
+                type="button"
+                data-transparency-fixed="${escapeHtml(layer.id)}"
+                aria-label="Aplicar transparencia del 20% a ${escapeHtml(layer.title)}"
+                aria-pressed="${layer.__visitorTransparency20 ? "true" : "false"}"
+              >Transparencia 20%</button>
+              ${loadingStatus}
+              ${errorStatus}
+            </div>
+          </div>
+        </div>
       </div>
     `;
   }
@@ -1278,6 +1328,10 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
 
   function getLayerOpacityPercent(layer) {
     return Math.round(getLayerOpacity(layer) * 100);
+  }
+
+  function isPublicVisitor() {
+    return state.session.role === "visitante" || !state.session.isAuthenticated;
   }
 
   function getLayerStyleOpacityPaintValue(layer) {
@@ -1448,6 +1502,12 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
 
   function findCatalogLayer(layerId) {
     return buildCatalog().find((layer) => layer.id === layerId) || null;
+  }
+
+  function findMutableLayer(layerId) {
+    return staticLayers.find((layer) => layer.id === layerId)
+      || state.userLayers.find((layer) => layer.id === layerId)
+      || null;
   }
 
   function openFloatingLegendForLayer(layerId, options = {}) {
@@ -1847,6 +1907,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
   function setupCloudTopPanel() {
     const mapStage = document.querySelector(".map-stage");
     if (!mapStage || document.getElementById("goes-ir-indicator")) return;
+    const coordinateOverlay = mapStage.querySelector(".map-overlay--bottom-left");
     const indicator = document.createElement("aside");
     indicator.className = "goes-ir-indicator";
     indicator.id = "goes-ir-indicator";
@@ -1854,23 +1915,18 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     indicator.innerHTML = `
       <div class="goes-ir-indicator__header">
         <div>
-          <p class="section-kicker">Actualización satelital</p>
-          <strong>Imagen infrarroja GOES realzada</strong>
+          <p class="section-kicker">GOES - Infrarrojo</p>
+          <strong id="goes-ir-current-time">Cargando...</strong>
         </div>
       </div>
-      <p class="goes-ir-indicator__time" id="goes-ir-current-time">Cargando...</p>
-      <p class="goes-ir-indicator__meta" id="goes-ir-updated">Referencia térmica de nubosidad y topes fríos</p>
-      <p class="goes-ir-indicator__help">
-        Los colores representan diferencias en la señal térmica infrarroja. Los tonos asociados con temperaturas más frías pueden indicar nubes altas o topes nubosos fríos. No representa directamente lluvia ni radiación UV.
-      </p>
-      <div class="goes-ir-indicator__ramp" aria-label="Realce visual de menor a mayor señal infrarroja">
-        <span>Menor señal</span>
-        <i aria-hidden="true"></i>
-        <span>Mayor señal IR</span>
-      </div>
-      <p class="goes-ir-indicator__status" id="goes-ir-status">NOAA nowCOAST GOES IR</p>
+      <p class="goes-ir-indicator__meta" id="goes-ir-updated">Actualizacion: pendiente</p>
+      <p class="goes-ir-indicator__status"><span id="goes-ir-status">Actualizando</span> - Fuente: NOAA nowCOAST</p>
     `;
-    mapStage.appendChild(indicator);
+    if (coordinateOverlay) {
+      coordinateOverlay.prepend(indicator);
+    } else {
+      mapStage.appendChild(indicator);
+    }
 
     elements.cloudTopPanel = indicator;
     elements.cloudTopStatus = document.getElementById("goes-ir-status");
@@ -2859,8 +2915,10 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
         activateLayerInStack(userLayer.id);
         try {
           await ensureLayerResourcesLoaded(userLayer);
+          userLayer.loadError = null;
         } catch (error) {
           userLayer.visible = false;
+          userLayer.loadError = error.message || "Error de carga";
           deactivateLayerInStack(userLayer.id);
           syncLayerCatalogItemState(layerId, false);
           captureVisibleSnapshot();
@@ -2905,6 +2963,35 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     if (checkbox) checkbox.checked = visible;
     item.classList.toggle("is-visible", visible);
     item.classList.toggle("is-hidden-layer", !visible);
+  }
+
+  function toggleVisitorLayerTransparency(layerId) {
+    const layer = findMutableLayer(layerId);
+    if (!layer) return;
+
+    if (layer.__visitorTransparency20) {
+      const restoreOpacity = Number.isFinite(layer.__visitorOpacityBeforeTransparency)
+        ? layer.__visitorOpacityBeforeTransparency
+        : getLayerOpacity(layer);
+      layer.__visitorTransparency20 = false;
+      layer.__visitorOpacityBeforeTransparency = null;
+      updateLayerOpacity(layerId, restoreOpacity * 100, { persist: false });
+    } else {
+      layer.__visitorOpacityBeforeTransparency = getLayerOpacity(layer);
+      layer.__visitorTransparency20 = true;
+      updateLayerOpacity(layerId, 80, { persist: false });
+    }
+
+    syncVisitorTransparencyControl(layer);
+  }
+
+  function syncVisitorTransparencyControl(layer) {
+    const item = elements.layerList?.querySelector(`.layer-item[data-layer-id="${CSS.escape(layer.id)}"]`);
+    if (!item) return;
+    const active = Boolean(layer.__visitorTransparency20);
+    item.classList.toggle("has-fixed-transparency", active);
+    const button = item.querySelector("[data-transparency-fixed]");
+    if (button) button.setAttribute("aria-pressed", String(active));
   }
 
   function updateLayerOpacity(layerId, percentage, options = {}) {
@@ -3671,6 +3758,8 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     }
 
     elements.sessionRoleLabel.textContent = roleLabel;
+    elements.appShell.classList.toggle("app-shell--visitor", isPublicVisitor());
+    elements.appShell.classList.toggle("app-shell--admin", state.session.role === "admin");
     elements.publishedCount.textContent = String(publishedLayers.length);
     elements.pendingCount.textContent = String(pendingLayers.length);
     elements.openUserAdmin.classList.toggle("hidden", state.session.role !== "admin");
@@ -5852,10 +5941,17 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
         layerKey: layer.backendLayerId || layer.id,
         backendLayerId: layer.backendLayerId || null,
         visible: Boolean(layer.visible),
-        opacity: clampLayerOpacity(layer.opacity ?? 1),
+        opacity: getPersistableLayerOpacity(layer),
       }));
 
     localStorage.setItem(STORAGE_KEYS.layerPrefs, JSON.stringify(layerPrefs));
+  }
+
+  function getPersistableLayerOpacity(layer) {
+    if (layer.__visitorTransparency20 && Number.isFinite(layer.__visitorOpacityBeforeTransparency)) {
+      return clampLayerOpacity(layer.__visitorOpacityBeforeTransparency);
+    }
+    return clampLayerOpacity(layer.opacity ?? 1);
   }
 
   function createVisitorSession() {

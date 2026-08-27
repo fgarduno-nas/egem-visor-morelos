@@ -190,10 +190,13 @@ test("el aviso institucional de version de prueba se muestra en cada carga sin p
   assert.doesNotMatch(showSource + closeSource, /toggleLayerVisibility|openFloatingLegendForLayer|closeFloatingLegend|fetch|listPublicLayersRequest|ensureLayerResourcesLoaded/);
 });
 
-test("la descripción GOES IR aclara que no representa UV ni lluvia", () => {
-  assert.match(mapSource, /Imagen infrarroja GOES realzada/);
-  assert.match(mapSource, /Referencia térmica de nubosidad y topes fríos/);
-  assert.match(mapSource, /No representa directamente lluvia ni radiación UV/);
+test("el panel compacto GOES IR no afirma lluvia ni radiacion UV", () => {
+  const setupGoesSource = extractFunctionSource(mapSource, "setupCloudTopPanel");
+
+  assert.match(setupGoesSource, /GOES - Infrarrojo/);
+  assert.match(setupGoesSource, /Fuente: NOAA nowCOAST/);
+  assert.doesNotMatch(setupGoesSource, /lluvia/);
+  assert.doesNotMatch(setupGoesSource, /radiaci/);
 });
 
 test("la auditoría ortográfica no deja variantes visibles conocidas sin acento", async () => {
@@ -522,6 +525,71 @@ test("visibilidad y opacidad de capas grandes no reconstruyen fuentes innecesari
   assert.match(saveSource, /visible:\s*Boolean\(layer\.visible\)/);
   assert.match(renderCatalogSource, /updateLayerOpacity\(event\.target\.dataset\.opacity, Number\(event\.target\.value\), \{ persist: false \}\)/);
   assert.match(renderCatalogSource, /input\.addEventListener\("change"/);
+});
+
+test("el visitante recibe catalogo compacto sin slider ni acciones administrativas", () => {
+  const renderItemSource = extractFunctionSource(mapSource, "renderLayerItem");
+  const visitorItemSource = extractFunctionSource(mapSource, "renderVisitorLayerItem");
+  const renderSessionSource = extractFunctionSource(mapSource, "renderSession");
+
+  assert.match(mapSource, /function isPublicVisitor\(\) \{/);
+  assert.match(renderSessionSource, /app-shell--visitor/);
+  assert.match(renderSessionSource, /app-shell--admin/);
+  assert.match(renderItemSource, /if \(isPublicVisitor\(\)\) return renderVisitorLayerItem\(layer\)/);
+  assert.match(visitorItemSource, /layer-item--visitor/);
+  assert.match(visitorItemSource, /data-transparency-fixed/);
+  assert.match(visitorItemSource, /Transparencia 20%/);
+  assert.match(visitorItemSource, /aria-pressed/);
+  assert.doesNotMatch(visitorItemSource, /data-opacity/);
+  assert.doesNotMatch(visitorItemSource, /data-publish/);
+  assert.doesNotMatch(visitorItemSource, /data-delete/);
+  assert.match(cssSource, /\.app-shell--visitor \.layer-group/);
+  assert.match(cssSource, /\.app-shell--visitor \.layer-item--visitor/);
+});
+
+test("el administrador conserva slider continuo y botones de gestion", () => {
+  const renderItemSource = extractFunctionSource(mapSource, "renderLayerItem");
+
+  assert.match(renderItemSource, /state\.session\.role === "admin" && canPreviewLayer\(layer\)/);
+  assert.match(renderItemSource, /data-publish="\$\{layer\.id\}"/);
+  assert.match(renderItemSource, /data-delete="\$\{layer\.id\}"/);
+  assert.match(renderItemSource, /class="layer-opacity-control"/);
+  assert.match(renderItemSource, /input type="range" min="10" max="100" step="5"/);
+});
+
+test("transparencia fija visitante aplica opacidad 0.8 y restaura la anterior sin backend", () => {
+  const toggleTransparencySource = extractFunctionSource(mapSource, "toggleVisitorLayerTransparency");
+  const persistableSource = extractFunctionSource(mapSource, "getPersistableLayerOpacity");
+  const transparencyListenerCount = [...mapSource.matchAll(/querySelectorAll\("\[data-transparency-fixed\]"\)/g)].length;
+  assert.match(mapSource, /querySelectorAll\("\[data-transparency-fixed\]"\)/);
+  assert.equal(transparencyListenerCount, 1);
+  assert.match(mapSource, /function findMutableLayer\(layerId\)/);
+  assert.match(toggleTransparencySource, /const layer = findMutableLayer\(layerId\)/);
+  assert.match(toggleTransparencySource, /__visitorOpacityBeforeTransparency = getLayerOpacity\(layer\)/);
+  assert.match(toggleTransparencySource, /__visitorTransparency20 = true/);
+  assert.match(toggleTransparencySource, /updateLayerOpacity\(layerId, 80, \{ persist: false \}\)/);
+  assert.match(toggleTransparencySource, /restoreOpacity \* 100/);
+  assert.doesNotMatch(toggleTransparencySource, /fetch\(/);
+  assert.doesNotMatch(toggleTransparencySource, /ensureLayerResourcesLoaded/);
+  assert.match(persistableSource, /__visitorTransparency20/);
+  assert.match(persistableSource, /__visitorOpacityBeforeTransparency/);
+});
+
+test("GOES compacto queda antes de coordenadas y la leyenda reduce espacio sin cambiar clases", async () => {
+  const html = await fs.readFile(path.resolve("index.html"), "utf8");
+  const setupGoesSource = extractFunctionSource(mapSource, "setupCloudTopPanel");
+
+  assert.match(html, /map-overlay map-overlay--bottom-left/);
+  assert.match(setupGoesSource, /mapStage\.querySelector\("\.map-overlay--bottom-left"\)/);
+  assert.match(setupGoesSource, /coordinateOverlay\.prepend\(indicator\)/);
+  assert.match(setupGoesSource, /GOES - Infrarrojo/);
+  assert.match(setupGoesSource, /Fuente: NOAA nowCOAST/);
+  assert.doesNotMatch(setupGoesSource, /goes-ir-indicator__help/);
+  assert.doesNotMatch(setupGoesSource, /goes-ir-indicator__ramp/);
+  assert.match(cssSource, /\.map-overlay--bottom-left \{[\s\S]*display: grid;[\s\S]*gap: 8px;/);
+  assert.match(cssSource, /\.goes-ir-indicator \{[\s\S]*position: static;/);
+  assert.match(cssSource, /\.map-legend-float \{[\s\S]*width: min\(308px/);
+  assert.match(cssSource, /\.legend-item \{[\s\S]*padding: 7px 8px;/);
 });
 
 test("la pila de activacion controla prioridad de consulta y cierre de popup", () => {
