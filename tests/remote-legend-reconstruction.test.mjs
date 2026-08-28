@@ -14,6 +14,8 @@ const {
   buildSemanticLegendFromFeatures,
   buildTechnicalStyleFallbackLegend,
   isTechnicalStyleField,
+  legendTextsAreEquivalent,
+  normalizeLegendComparisonText,
   normalizePublishedRasterLegend,
   normalizePublishedVectorLegend,
 } = await import(moduleUrl);
@@ -72,6 +74,87 @@ test("la reconstruccion semantica conserva colores tecnicos sin usarlos como eti
   assert.equal(legend.field, "Intensidad");
   assert.deepEqual(legend.classes.map((item) => item.label), ["Muy Baja", "Baja", "Media", "Alta", "Muy Alta"]);
   assert.deepEqual(legend.classes.map((item) => item.color), ["#006100", "#7aab00", "#ffff00", "#ff9900", "#ff2200"]);
+});
+
+test("la leyenda publicada no duplica etiqueta como valor secundario", () => {
+  const legend = normalizePublishedVectorLegend({
+    title: "Susceptibilidad por flujos",
+    vectorLegend: {
+      type: "categorical",
+      field: "Susceptibilidad",
+      classes: [
+        { label: "Muy Baja", value: "Muy Baja", color: "#006100", order: 1 },
+        { label: "Baja", value: "Baja", color: "#7aab00", order: 2 },
+        { label: "Media", value: "Media", color: "#ffff00", order: 3 },
+        { label: "Alta", value: "Alta", color: "#ff9900", order: 4 },
+        { label: "Muy Alta", value: "Muy Alta", color: "#ff2200", order: 5 },
+      ],
+    },
+  });
+
+  assert.equal(legend.field, "Susceptibilidad");
+  assert.deepEqual(legend.classes.map((item) => item.label), ["Muy Baja", "Baja", "Media", "Alta", "Muy Alta"]);
+  assert.deepEqual(legend.classes.map((item) => item.value), [null, null, null, null, null]);
+  assert.deepEqual(legend.classes.map((item) => item.description), [null, null, null, null, null]);
+  assert.deepEqual(legend.classes.map((item) => item.color), ["#006100", "#7aab00", "#ffff00", "#ff9900", "#ff2200"]);
+});
+
+test("la deduplicacion de descripcion usa equivalencia de presentacion sin cambiar etiqueta", () => {
+  const legend = normalizePublishedVectorLegend({
+    vectorLegend: {
+      field: "Susceptibilidad",
+      classes: [
+        { label: "Muy Baja", description: " muy&nbsp;&nbsp;baja. ", color: "#006100", order: 1 },
+        { label: "Baja", description: "<span>BAJA</span>", color: "#7aab00", order: 2 },
+        { label: "Media", description: "Me\u00addia", color: "#ffff00", order: 3 },
+      ],
+    },
+  });
+
+  assert.deepEqual(legend.classes.map((item) => item.label), ["Muy Baja", "Baja", "Media"]);
+  assert.deepEqual(legend.classes.map((item) => item.description), [null, null, null]);
+  assert.equal(normalizeLegendComparisonText("<b>Muy&nbsp;Baja.</b>"), "muy baja");
+  assert.equal(legendTextsAreEquivalent("Media", "Me\u00addia;"), true);
+});
+
+test("la descripcion util y los valores distintos se conservan", () => {
+  const legend = normalizePublishedVectorLegend({
+    vectorLegend: {
+      field: "Susceptibilidad",
+      classes: [
+        {
+          label: "Alta",
+          description: "Susceptibilidad alta por flujos",
+          value: "4",
+          color: "#ff9900",
+        },
+      ],
+    },
+  });
+
+  assert.equal(legend.classes[0].label, "Alta");
+  assert.equal(legend.classes[0].description, "Susceptibilidad alta por flujos");
+  assert.equal(legend.classes[0].value, "4");
+});
+
+test("solo se fusionan clases totalmente duplicadas, no rangos o colores distintos", () => {
+  const legend = normalizePublishedVectorLegend({
+    vectorLegend: {
+      field: "Indice",
+      classes: [
+        { label: "Alta", value: "Alta", color: "#ff9900", min: 3, max: 4 },
+        { label: "Alta", value: "Alta", color: "#ff9900", min: 3, max: 4 },
+        { label: "Alta", color: "#ff2200", min: 4, max: 5 },
+        { label: "Alta", color: "#ff9900", min: 4, max: 5 },
+      ],
+    },
+  });
+
+  assert.equal(legend.classes.length, 3);
+  assert.deepEqual(
+    legend.classes.map((item) => `${item.color}:${item.min}-${item.max}`).sort(),
+    ["#ff2200:4-5", "#ff9900:3-4", "#ff9900:4-5"],
+  );
 });
 
 test("una leyenda publicada con etiquetas 17 se reconstruye como Peligro desde Intensid_1", () => {
@@ -212,6 +295,30 @@ test("raster paletizado publicado como items se normaliza sin cambiar colores", 
   assert.equal(legend.field, "Paleta raster");
   assert.deepEqual(legend.classes.map((item) => item.label), ["Clase B", "Clase A"]);
   assert.deepEqual(legend.classes.map((item) => item.color), ["#abcdef", "#123456"]);
+});
+
+test("rasterLegend autogenerada conserva tipo raster y no fabrica encabezado redundante", () => {
+  const legend = normalizePublishedRasterLegend({
+    rasterLegend: {
+      type: "raster",
+      field: null,
+      title: null,
+      source: "auto-detected",
+      confidence: "high",
+      profile: "egem-ordinal-five-level",
+      classes: [
+        { label: "Muy baja", color: "#006100", order: 1 },
+        { label: "Baja", color: "#7aab00", order: 2 },
+        { label: "Media", color: "#ffff00", order: 3 },
+        { label: "Alta", color: "#ff9900", order: 4 },
+        { label: "Muy alta", color: "#ff2200", order: 5 },
+      ],
+    },
+  });
+
+  assert.equal(legend.type, "raster");
+  assert.equal(legend.field, null);
+  assert.deepEqual(legend.classes.map((item) => item.label), ["Muy baja", "Baja", "Media", "Alta", "Muy alta"]);
 });
 
 test("raster RGB sin rasterLegend no inventa etiquetas", () => {

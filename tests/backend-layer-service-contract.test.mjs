@@ -7,6 +7,7 @@ const source = await fs.readFile(path.resolve("backend/src/modules/layers/layers
 const routesSource = await fs.readFile(path.resolve("backend/src/modules/layers/layers.routes.js"), "utf8");
 const controllerSource = await fs.readFile(path.resolve("backend/src/modules/layers/layers.controller.js"), "utf8");
 const schemasSource = await fs.readFile(path.resolve("backend/src/modules/layers/layers.schemas.js"), "utf8");
+const rasterLegendScriptSource = await fs.readFile(path.resolve("backend/scripts/detect-raster-legend.js"), "utf8");
 
 function extractFunctionSource(name) {
   const match = new RegExp(`function\\s+${name}\\s*\\(`).exec(source);
@@ -120,4 +121,30 @@ test("backend expone actualizacion acotada de rasterLegend para capas existentes
   assert.match(updateSource, /properties:\s*\{\s*\.\.\.metadataProperties,\s*rasterLegend,/);
   assert.doesNotMatch(updateSource, /groundOverlays:\s*\[/);
   assert.doesNotMatch(updateSource, /files:\s*\{/);
+});
+
+test("uploadLayer persiste leyenda raster automatica sin sobrescribir una explicita", () => {
+  assert.match(source, /const persistedRasterLegend = rasterLegend \|\| processing\.rasterLegend \|\| null/);
+  assert.match(source, /rasterLegend:\s*persistedRasterLegend/);
+  assert.match(source, /rasterLegendDetection:\s*processing\.rasterLegendDiagnostics/);
+  assert.match(source, /rasterLegend:\s*metadataProperties\.rasterLegend \?\? null/);
+});
+
+test("mapLayer expone rasterLegend sin publicar diagnosticos internos", () => {
+  const mapLayerSource = extractFunctionSource("mapLayer");
+
+  assert.match(mapLayerSource, /\{\s*rasterLegendDetection,\s*\.\.\.publicMetadataProperties\s*\}\s*=\s*metadataProperties/);
+  assert.match(mapLayerSource, /\.\.\.publicMetadataProperties/);
+  assert.doesNotMatch(mapLayerSource, /\.\.\.metadataProperties,\s*vectorLegend/);
+});
+
+test("script administrativo de rasterLegend es explicito, diagnostico e idempotente", () => {
+  assert.match(rasterLegendScriptSource, /--file <ruta\.kmz>/);
+  assert.match(rasterLegendScriptSource, /--id <layerId>/);
+  assert.match(rasterLegendScriptSource, /--apply/);
+  assert.match(rasterLegendScriptSource, /--help/);
+  assert.match(rasterLegendScriptSource, /dryRun: !options\.apply/);
+  assert.match(rasterLegendScriptSource, /NODE_ENV === "production" && !options\.allowProduction/);
+  assert.match(rasterLegendScriptSource, /hasValidManualRasterLegend/);
+  assert.doesNotMatch(rasterLegendScriptSource, /findMany/);
 });

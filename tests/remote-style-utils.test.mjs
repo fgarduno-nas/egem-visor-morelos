@@ -190,10 +190,13 @@ test("el aviso institucional de version de prueba se muestra en cada carga sin p
   assert.doesNotMatch(showSource + closeSource, /toggleLayerVisibility|openFloatingLegendForLayer|closeFloatingLegend|fetch|listPublicLayersRequest|ensureLayerResourcesLoaded/);
 });
 
-test("la descripción GOES IR aclara que no representa UV ni lluvia", () => {
-  assert.match(mapSource, /Imagen infrarroja GOES realzada/);
-  assert.match(mapSource, /Referencia térmica de nubosidad y topes fríos/);
-  assert.match(mapSource, /No representa directamente lluvia ni radiación UV/);
+test("el panel compacto GOES IR no afirma lluvia ni radiacion UV", () => {
+  const setupGoesSource = extractFunctionSource(mapSource, "setupCloudTopPanel");
+
+  assert.match(setupGoesSource, /GOES - Infrarrojo/);
+  assert.match(setupGoesSource, /Fuente: NOAA nowCOAST/);
+  assert.doesNotMatch(setupGoesSource, /lluvia/);
+  assert.doesNotMatch(setupGoesSource, /radiaci/);
 });
 
 test("la auditoría ortográfica no deja variantes visibles conocidas sin acento", async () => {
@@ -471,6 +474,9 @@ test("el frontend reconstruye GroundOverlay raster y capas mixtas sin tratarlas 
   assert.match(processingSource, /resourceType:\s*"ground-overlay"/);
   assert.match(processingSource, /resourceType:\s*"mixed"/);
   assert.match(processingSource, /extractGroundOverlayImages/);
+  assert.match(processingSource, /detectRasterLegendForGroundOverlays/);
+  assert.match(processingSource, /rasterLegend:\s*rasterLegendDetection\.rasterLegend/);
+  assert.match(processingSource, /rasterLegendDiagnostics:\s*rasterLegendDetection\.diagnostics/);
 });
 
 test("la carga de capas usa timeout extendido y revisa duplicados tras cancelacion", async () => {
@@ -519,6 +525,105 @@ test("visibilidad y opacidad de capas grandes no reconstruyen fuentes innecesari
   assert.match(saveSource, /visible:\s*Boolean\(layer\.visible\)/);
   assert.match(renderCatalogSource, /updateLayerOpacity\(event\.target\.dataset\.opacity, Number\(event\.target\.value\), \{ persist: false \}\)/);
   assert.match(renderCatalogSource, /input\.addEventListener\("change"/);
+});
+
+test("el visitante recibe catalogo compacto sin slider ni acciones administrativas", () => {
+  const renderItemSource = extractFunctionSource(mapSource, "renderLayerItem");
+  const visitorItemSource = extractFunctionSource(mapSource, "renderVisitorLayerItem");
+  const groupSource = extractFunctionSource(mapSource, "renderLayerGroup");
+  const renderSessionSource = extractFunctionSource(mapSource, "renderSession");
+
+  assert.match(mapSource, /function isPublicVisitor\(\) \{/);
+  assert.match(renderSessionSource, /app-shell--visitor/);
+  assert.match(renderSessionSource, /app-shell--admin/);
+  assert.match(renderItemSource, /if \(isPublicVisitor\(\)\) return renderVisitorLayerItem\(layer\)/);
+  assert.match(groupSource, /layer-group__toggle-sign/);
+  assert.match(groupSource, /\[\$\{layers\.length\}\]/);
+  assert.match(visitorItemSource, /layer-item--visitor/);
+  assert.match(visitorItemSource, /class="layer-visibility-label"/);
+  assert.match(visitorItemSource, /class="layer-visibility-checkbox" type="checkbox"/);
+  assert.match(visitorItemSource, /class="layer-name--visitor"/);
+  assert.match(visitorItemSource, /title="\$\{escapeHtml\(layer\.title\)\}"/);
+  assert.doesNotMatch(visitorItemSource, /data-transparency-fixed/);
+  assert.doesNotMatch(visitorItemSource, /Transparencia 20%/);
+  assert.doesNotMatch(visitorItemSource, /role="switch"/);
+  assert.doesNotMatch(visitorItemSource, /data-opacity/);
+  assert.doesNotMatch(visitorItemSource, /data-publish/);
+  assert.doesNotMatch(visitorItemSource, /data-delete/);
+  assert.match(mapSource, /function syncVisitorLayerPanelLabels\(\)/);
+  assert.match(mapSource, /placeholder = visitor \? "Buscar capa"/);
+  assert.match(mapSource, /setAttribute\("aria-label", "Buscar capa"\)/);
+  assert.match(cssSource, /\.app-shell--visitor \.layer-group/);
+  assert.match(cssSource, /\.app-shell--visitor \.layer-item--visitor/);
+  assert.match(cssSource, /\.app-shell--visitor #layers-panel > \.panel-summary \{[\s\S]*display: none;/);
+  assert.match(cssSource, /\.app-shell--visitor #layers-panel \.search-box span \{[\s\S]*display: none;/);
+  assert.match(cssSource, /\.app-shell--visitor \.layer-group__toggle-sign::before \{[\s\S]*content: "\+"/);
+  assert.match(cssSource, /\.app-shell--visitor \.layer-group\[open\] > \.layer-group__summary \.layer-group__toggle-sign::before \{[\s\S]*content: "-"/);
+  assert.match(cssSource, /\.app-shell--visitor \.layer-visibility-checkbox/);
+  assert.match(cssSource, /\.app-shell--visitor \.layer-name--visitor \{[\s\S]*white-space: nowrap;[\s\S]*text-overflow: ellipsis;/);
+  assert.doesNotMatch(cssSource, /layer-transparency-toggle/);
+  assert.match(cssSource, /\.app-shell--visitor \.layer-item--visitor \{[\s\S]*border-radius: 0;[\s\S]*box-shadow: none;/);
+  assert.match(cssSource, /\.app-shell--visitor \.layer-group \{[\s\S]*border-radius: 0;[\s\S]*box-shadow: none;/);
+});
+
+test("el administrador conserva slider continuo y botones de gestion", () => {
+  const renderItemSource = extractFunctionSource(mapSource, "renderLayerItem");
+
+  assert.match(renderItemSource, /state\.session\.role === "admin" && canPreviewLayer\(layer\)/);
+  assert.match(renderItemSource, /data-publish="\$\{layer\.id\}"/);
+  assert.match(renderItemSource, /data-delete="\$\{layer\.id\}"/);
+  assert.match(renderItemSource, /class="layer-opacity-control"/);
+  assert.match(renderItemSource, /input type="range" min="10" max="100" step="5"/);
+});
+
+test("visitante omite bloque de informacion lateral y administrador lo conserva", async () => {
+  const html = await fs.readFile(path.resolve("index.html"), "utf8");
+  const renderSessionSource = extractFunctionSource(mapSource, "renderSession");
+  const updateInfoSource = extractFunctionSource(mapSource, "updateInfoPanel");
+
+  assert.match(html, /id="info-panel-section"/);
+  assert.match(html, /id="info-panel"/);
+  assert.match(html, /Detalle de la selecci/);
+  assert.match(mapSource, /infoPanelSection: document\.getElementById\("info-panel-section"\)/);
+  assert.match(renderSessionSource, /const visitorMode = isPublicVisitor\(\)/);
+  assert.match(renderSessionSource, /infoPanelSection\?\.toggleAttribute\("hidden", visitorMode\)/);
+  assert.match(renderSessionSource, /data-panel-target="info-panel-section"/);
+  assert.match(cssSource, /\.app-shell--visitor #info-panel-section,[\s\S]*\.app-shell--visitor \[data-panel-target="info-panel-section"\],[\s\S]*\.is-visitor-hidden \{[\s\S]*display: none;/);
+  assert.match(mapSource, /function openInfoPopup\(\{ ownerLayerId, resourceType, mapLayerId, overlayId = null, coordinate, html, info \}\) \{[\s\S]*updateInfoPanel\(info\);[\s\S]*new maplibregl\.Popup/);
+  assert.match(updateInfoSource, /elements\.infoPanel\.innerHTML/);
+});
+
+test("visitante no conserva transparencia fija y activa capas al 100 por ciento", () => {
+  const toggleVisibilitySource = extractFunctionSource(mapSource, "toggleLayerVisibility");
+  const saveSource = extractFunctionSource(mapSource, "saveUserLayers");
+
+  assert.doesNotMatch(mapSource, /toggleVisitorLayerTransparency/);
+  assert.doesNotMatch(mapSource, /data-transparency-fixed/);
+  assert.doesNotMatch(mapSource, /__visitorTransparency/);
+  assert.doesNotMatch(mapSource, /__visitorOpacityBeforeTransparency/);
+  assert.doesNotMatch(mapSource, /updateLayerOpacity\(layerId, 80/);
+  assert.doesNotMatch(cssSource, /20%/);
+  assert.doesNotMatch(cssSource, /layer-transparency-toggle/);
+  assert.match(toggleVisibilitySource, /if \(visible && isPublicVisitor\(\)\) \{[\s\S]*updateLayerOpacity\(layerId, 100, \{ persist: false \}\)/);
+  assert.match(saveSource, /opacity:\s*clampLayerOpacity\(layer\.opacity \?\? 1\)/);
+  assert.doesNotMatch(saveSource, /getPersistableLayerOpacity/);
+});
+
+test("GOES compacto queda antes de coordenadas y la leyenda reduce espacio sin cambiar clases", async () => {
+  const html = await fs.readFile(path.resolve("index.html"), "utf8");
+  const setupGoesSource = extractFunctionSource(mapSource, "setupCloudTopPanel");
+
+  assert.match(html, /map-overlay map-overlay--bottom-left/);
+  assert.match(setupGoesSource, /mapStage\.querySelector\("\.map-overlay--bottom-left"\)/);
+  assert.match(setupGoesSource, /coordinateOverlay\.prepend\(indicator\)/);
+  assert.match(setupGoesSource, /GOES - Infrarrojo/);
+  assert.match(setupGoesSource, /Fuente: NOAA nowCOAST/);
+  assert.doesNotMatch(setupGoesSource, /goes-ir-indicator__help/);
+  assert.doesNotMatch(setupGoesSource, /goes-ir-indicator__ramp/);
+  assert.match(cssSource, /\.map-overlay--bottom-left \{[\s\S]*display: grid;[\s\S]*gap: 8px;/);
+  assert.match(cssSource, /\.goes-ir-indicator \{[\s\S]*position: static;/);
+  assert.match(cssSource, /\.map-legend-float \{[\s\S]*width: min\(308px/);
+  assert.match(cssSource, /\.legend-item \{[\s\S]*padding: 7px 8px;/);
 });
 
 test("la pila de activacion controla prioridad de consulta y cierre de popup", () => {
@@ -579,11 +684,73 @@ test("la simbologia usa un unico panel flotante independiente de visibilidad", a
   assert.match(mapSource, /function closeFloatingLegend\(options = \{\}\)/);
   assert.match(mapSource, /function openFloatingLegendForLayer\(layerId, options = \{\}\)/);
   assert.match(mapSource, /function syncFloatingLegendAfterLayerDeactivation\(layerId\)/);
-  assert.match(toggleSource, /openFloatingLegendForLayer\(userLayer\.id, \{ renderCatalog: false \}\)/);
+  assert.match(toggleSource, /openFloatingLegendForLayer\(userLayer\.id, \{ renderCatalog: false, requestId: legendRequestId \}\)/);
   assert.match(toggleSource, /syncFloatingLegendAfterLayerDeactivation\(userLayer\.id\)/);
   assert.match(previewSource, /openFloatingLegendForLayer\(layer\.id, \{ renderCatalog: false \}\)/);
   assert.doesNotMatch(floatingSource, /toggleLayerVisibility/);
   assert.doesNotMatch(floatingSource, /addUserLayerToMap/);
+});
+
+test("la leyenda flotante sigue la ultima capa activa y descarta aperturas antiguas", () => {
+  const toggleSource = extractFunctionSource(mapSource, "toggleLayerVisibility");
+  const deactivateSource = extractFunctionSource(mapSource, "syncFloatingLegendAfterLayerDeactivation");
+  const unavailableSource = extractFunctionSource(mapSource, "closeLegendIfLayerUnavailable");
+
+  assert.match(mapSource, /activeLegendRequestId:\s*0/);
+  assert.match(toggleSource, /\+\+state\.activeLegendRequestId/);
+  assert.match(toggleSource, /const isLatestLegendRequest = legendRequestId === state\.activeLegendRequestId/);
+  assert.match(toggleSource, /if \(isLatestLegendRequest\) \{\s*activateLayerInStack\(userLayer\.id\);/s);
+  assert.match(toggleSource, /openFloatingLegendForLayer\(userLayer\.id, \{ renderCatalog: false, requestId: legendRequestId \}\)/);
+  assert.match(mapSource, /options\.requestId && options\.requestId !== state\.activeLegendRequestId/);
+  assert.match(mapSource, /function getTopActiveThematicLayerId\(\)/);
+  assert.match(deactivateSource, /const fallbackId = getTopActiveThematicLayerId\(\)/);
+  assert.match(unavailableSource, /const fallbackId = getTopActiveThematicLayerId\(\)/);
+  assert.match(mapSource, /function closeFloatingLegend\(options = \{\}\) \{\s*state\.activeLegendRequestId \+= 1/s);
+});
+
+test("el popup tematico tiene prioridad sobre municipios y conserva atributos utiles", () => {
+  const clickSource = extractFunctionSource(mapSource, "handleMapToolClick");
+  const staticSource = extractFunctionSource(mapSource, "getTopStaticPopupHit");
+  const schemaSource = extractFunctionSource(mapSource, "getPopupAttributeSchema");
+  const technicalSource = extractFunctionSource(mapSource, "isTechnicalPublicAttribute");
+  const usableValueSource = extractFunctionSource(mapSource, "isUsablePopupValue");
+  const staticPopupSource = extractFunctionSource(mapSource, "showStaticFeaturePopup");
+  const municipiosSource = extractFunctionSource(mapSource, "bindMunicipiosPopup");
+  const aliasSource = extractFunctionSource(mapSource, "applyBackendAttributeAliases");
+
+  assert.match(clickSource, /const thematicHit = getTopThematicPopupHit\(event\);/);
+  assert.match(clickSource, /showThematicPopup\(thematicHit, event\.lngLat\);\s*return;/);
+  assert.match(clickSource, /const staticHit = getTopStaticPopupHit\(event\);/);
+  assert.match(staticSource, /getStaticPopupHitForLayer\("municipios", \["municipios-hit"\], event\)/);
+  assert.match(staticSource, /getStaticPopupHitForLayer\("estado", \["estado-fill"\], event\)/);
+  assert.match(staticPopupSource, /resourceType: "static"/);
+  assert.match(mapSource, /function cleanFeatureAttributes\(properties = \{\}\) \{[\s\S]*parseKmlDescriptionHtmlAttributes/);
+  assert.match(schemaSource, /"Intensid_1"/);
+  assert.doesNotMatch(schemaSource, /"NOMBRE", "Name"/);
+  assert.match(usableValueSource, /value === null \|\| value === undefined/);
+  assert.match(usableValueSource, /String\(value\)\.trim\(\) !== ""/);
+  assert.match(technicalSource, /"gridcode"/);
+  assert.match(technicalSource, /"styleurl"/);
+  assert.match(technicalSource, /"ogr style"/);
+  assert.match(technicalSource, /normalizedKey === "name"/);
+  assert.doesNotMatch(aliasSource, /\["Municipio", \["Municipio", "Name", "name"\]\]/);
+  assert.doesNotMatch(municipiosSource, /map\.on\("click", "municipios-hit"/);
+  assert.doesNotMatch(municipiosSource, /updateInfoPanel/);
+});
+
+test("la presentacion de leyenda omite encabezados categoricos redundantes", () => {
+  const renderLegendSource = extractFunctionSource(mapSource, "renderLayerLegend");
+  const shouldRenderSource = extractFunctionSource(mapSource, "shouldRenderLegendField");
+  const descriptorSource = extractFunctionSource(mapSource, "getLegendClassDescriptor");
+
+  assert.match(renderLegendSource, /shouldRenderLegendField\(legend\)/);
+  assert.match(shouldRenderSource, /legend\.type === "continuous"/);
+  assert.match(shouldRenderSource, /"susceptibilidad"/);
+  assert.match(shouldRenderSource, /"peligro"/);
+  assert.match(shouldRenderSource, /"riesgo"/);
+  assert.match(shouldRenderSource, /"vulnerabilidad"/);
+  assert.doesNotMatch(renderLegendSource, /<p class="info-copy"><strong>\$\{escapeHtml\(legend\.field\)\}<\/strong><\/p>\s*\$\{items\}/);
+  assert.match(descriptorSource, /legendTextsAreEquivalent\(item\.label, item\.value\)/);
 });
 
 test("el visor inicia con capas tematicas apagadas aunque existan preferencias antiguas", () => {
@@ -707,7 +874,8 @@ test("los correos institucionales propios usan dominio egem", async () => {
 
 test("no quedan separadores mojibakeados en textos publicos", async () => {
   const html = await fs.readFile(path.resolve("index.html"), "utf8");
-  assert.doesNotMatch(html, /Ã‚Â·/u);
-  assert.doesNotMatch(mapSource, /Ã‚Â·/u);
+  const mojibakeSeparator = String.fromCodePoint(0x00c3, 0x0192, 0x00e2, 0x20ac, 0x0161, 0x00c3, 0x201a, 0x00c2, 0x00b7);
+  assert.equal(html.includes(mojibakeSeparator), false);
+  assert.equal(mapSource.includes(mojibakeSeparator), false);
   assert.doesNotMatch(extractFunctionSource(mapSource, "renderLayerItem"), /&middot;| · /u);
 });

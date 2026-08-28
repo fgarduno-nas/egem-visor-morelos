@@ -77,10 +77,10 @@ export function normalizePublishedVectorLegend(record = null, options = {}) {
   const candidate = getLegendCandidates(record).find((legend) => Array.isArray(getLegendClasses(legend)));
   if (!candidate) return null;
 
-  const classes = getLegendClasses(candidate)
+  const classes = dedupeLegendClasses(getLegendClasses(candidate)
     .map((item, index) => normalizeLegendClass(item, index))
     .filter((item) => item.label && item.color)
-    .sort(compareLegendClasses)
+    .sort(compareLegendClasses))
     .slice(0, 24);
 
   if (!classes.length) return null;
@@ -111,17 +111,17 @@ export function normalizePublishedRasterLegend(record = null) {
   const candidate = getRasterLegendCandidates(record).find((legend) => Array.isArray(getLegendClasses(legend)));
   if (!candidate) return null;
 
-  const classes = getLegendClasses(candidate)
+  const classes = dedupeLegendClasses(getLegendClasses(candidate)
     .map((item, index) => normalizeLegendClass(item, index))
     .filter((item) => item.label && item.color)
-    .sort(compareLegendClasses)
+    .sort(compareLegendClasses))
     .slice(0, 24);
 
   if (!classes.length) return null;
 
   return {
     type: "raster",
-    field: candidate.field || candidate.title || candidate.name || "Simbología raster",
+    field: candidate.field || candidate.title || candidate.name || null,
     classes,
   };
 }
@@ -278,19 +278,41 @@ function normalizeLegendClass(item, index) {
   const color = normalizeHexColor(item?.color || item?.fillColor || item?.fill || item?.strokeColor || item?.outlineColor);
   const outlineColor = normalizeHexColor(item?.outlineColor || item?.strokeColor || item?.stroke) || color;
   const explicitOrder = Number(item?.order);
+  const rawValue = item?.value;
+  const value = normalizeLegendLabel(rawValue);
+  const description = normalizeLegendLabel(item?.description ?? item?.summary ?? item?.text);
   return {
     label,
     color,
     outlineColor,
     order: Number.isFinite(explicitOrder) ? explicitOrder : getOrdinalLegendOrder(label, index),
-    value: item?.value ?? label,
+    value: value && !legendTextsAreEquivalent(label, value) ? rawValue : null,
     min: item?.min,
     max: item?.max,
+    description: description && !legendTextsAreEquivalent(label, description) ? description : null,
   };
 }
 
 function compareLegendClasses(a, b) {
   return a.order - b.order || String(a.label).localeCompare(String(b.label), "es");
+}
+
+function dedupeLegendClasses(classes) {
+  const seen = new Set();
+  return classes.filter((item) => {
+    const signature = [
+      normalizeLegendComparisonText(item.label),
+      normalizeHexColor(item.color) || "",
+      normalizeHexColor(item.outlineColor) || "",
+      normalizeLegendComparisonText(item.value),
+      normalizeLegendComparisonText(item.min),
+      normalizeLegendComparisonText(item.max),
+      normalizeLegendComparisonText(item.description),
+    ].join("|");
+    if (seen.has(signature)) return false;
+    seen.add(signature);
+    return true;
+  });
 }
 
 function inferLegendFieldFromClasses(classes) {
@@ -382,6 +404,48 @@ function looksLikeStyleTokenLegendLabel(value) {
 function normalizeLegendLabel(value) {
   if (value === null || value === undefined || typeof value === "object") return "";
   return String(value).trim();
+}
+
+export function normalizeLegendComparisonText(value) {
+  return decodeCommonHtmlEntities(String(value ?? ""))
+    .replace(/<[^>]*>/gu, " ")
+    .replace(/[\u200B-\u200D\uFEFF\u00AD]/gu, "")
+    .replace(/\u00a0/gu, " ")
+    .replace(/\s+/gu, " ")
+    .trim()
+    .replace(/[.:;,]+$/u, "")
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/gu, "")
+    .toLowerCase();
+}
+
+export function legendTextsAreEquivalent(a, b) {
+  const left = normalizeLegendComparisonText(a);
+  const right = normalizeLegendComparisonText(b);
+  return Boolean(left && right && left === right);
+}
+
+function decodeCommonHtmlEntities(value) {
+  return String(value || "")
+    .replace(/&nbsp;/giu, " ")
+    .replace(/&amp;/giu, "&")
+    .replace(/&lt;/giu, "<")
+    .replace(/&gt;/giu, ">")
+    .replace(/&quot;/giu, '"')
+    .replace(/&#39;|&apos;/giu, "'")
+    .replace(/&#(\d+);/gu, (match, code) => decodeHtmlCodePoint(code, 10) || match)
+    .replace(/&#x([0-9a-f]+);/giu, (match, code) => decodeHtmlCodePoint(code, 16) || match);
+}
+
+function decodeHtmlCodePoint(code, radix) {
+  const numeric = parseInt(code, radix);
+  if (!Number.isFinite(numeric) || numeric < 0 || numeric > 0x10ffff) return "";
+  try {
+    return String.fromCodePoint(numeric);
+  } catch (_error) {
+    return "";
+  }
 }
 
 function normalizeHexColor(value) {

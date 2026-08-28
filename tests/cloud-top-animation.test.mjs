@@ -472,7 +472,8 @@ test("map integration keeps GOES IR outside the layer catalog and removes manual
   assert.doesNotMatch(mapSource, /cloudTopCatalogLayer|weather-animation|data-weather-controls/);
   assert.doesNotMatch(mapSource, /cloud-top-play|cloud-top-previous|cloud-top-next|cloud-top-range|cloud-top-speed|cloud-top-visible/);
   assert.doesNotMatch(mapSource, /Hidrometeorologicos[\\s\\S]{0,200}GOES|Tope de nube/);
-  assert.match(mapSource, /Imagen infrarroja GOES realzada/);
+  assert.match(mapSource, /GOES - Infrarrojo/);
+  assert.match(mapSource, /Fuente: NOAA nowCOAST/);
   assert.match(mapSource, /createGoesIrFrameRenderer/);
   assert.match(mapSource, /visibleFrame/);
   assert.match(mapSource, /startProgressiveCloudTopPlayback/);

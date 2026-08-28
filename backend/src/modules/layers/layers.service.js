@@ -70,6 +70,7 @@ export async function uploadLayer({ body, files, actor, req }) {
     },
   });
   const processing = await processUploadedLayer(created, files);
+  const persistedRasterLegend = rasterLegend || processing.rasterLegend || null;
   const updated = await prisma.layer.update({
     where: { id: created.id },
     data: {
@@ -95,7 +96,8 @@ export async function uploadLayer({ body, files, actor, req }) {
             processedGeojsonUrl: processing.processedGeojsonUrl,
             groundOverlays: processing.groundOverlays,
             geospatialDiagnostics: processing.diagnostics,
-            rasterLegend,
+            rasterLegend: persistedRasterLegend,
+            rasterLegendDetection: processing.rasterLegendDiagnostics,
             isVisualizable: processing.isVisualizable,
             originalFileNames: processing.originalFileNames,
           },
@@ -443,6 +445,7 @@ export async function deleteLayer(id, actor, req) {
 
 function mapLayer(layer) {
   const metadataProperties = layer.metadata?.properties ?? {};
+  const { rasterLegendDetection, ...publicMetadataProperties } = metadataProperties;
   const vectorLegend = metadataProperties.vectorLegend ?? buildVectorLegendPreview(metadataProperties);
   return {
     id: layer.id,
@@ -486,7 +489,7 @@ function mapLayer(layer) {
       ? {
           ...layer.metadata,
           properties: {
-            ...metadataProperties,
+            ...publicMetadataProperties,
             vectorLegend,
           },
         }
