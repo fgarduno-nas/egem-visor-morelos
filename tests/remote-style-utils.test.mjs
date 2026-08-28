@@ -530,21 +530,40 @@ test("visibilidad y opacidad de capas grandes no reconstruyen fuentes innecesari
 test("el visitante recibe catalogo compacto sin slider ni acciones administrativas", () => {
   const renderItemSource = extractFunctionSource(mapSource, "renderLayerItem");
   const visitorItemSource = extractFunctionSource(mapSource, "renderVisitorLayerItem");
+  const groupSource = extractFunctionSource(mapSource, "renderLayerGroup");
   const renderSessionSource = extractFunctionSource(mapSource, "renderSession");
 
   assert.match(mapSource, /function isPublicVisitor\(\) \{/);
   assert.match(renderSessionSource, /app-shell--visitor/);
   assert.match(renderSessionSource, /app-shell--admin/);
   assert.match(renderItemSource, /if \(isPublicVisitor\(\)\) return renderVisitorLayerItem\(layer\)/);
+  assert.match(groupSource, /layer-group__toggle-sign/);
+  assert.match(groupSource, /\[\$\{layers\.length\}\]/);
   assert.match(visitorItemSource, /layer-item--visitor/);
-  assert.match(visitorItemSource, /data-transparency-fixed/);
-  assert.match(visitorItemSource, /Transparencia 20%/);
-  assert.match(visitorItemSource, /aria-pressed/);
+  assert.match(visitorItemSource, /class="layer-visibility-label"/);
+  assert.match(visitorItemSource, /class="layer-visibility-checkbox" type="checkbox"/);
+  assert.match(visitorItemSource, /class="layer-name--visitor"/);
+  assert.match(visitorItemSource, /title="\$\{escapeHtml\(layer\.title\)\}"/);
+  assert.doesNotMatch(visitorItemSource, /data-transparency-fixed/);
+  assert.doesNotMatch(visitorItemSource, /Transparencia 20%/);
+  assert.doesNotMatch(visitorItemSource, /role="switch"/);
   assert.doesNotMatch(visitorItemSource, /data-opacity/);
   assert.doesNotMatch(visitorItemSource, /data-publish/);
   assert.doesNotMatch(visitorItemSource, /data-delete/);
+  assert.match(mapSource, /function syncVisitorLayerPanelLabels\(\)/);
+  assert.match(mapSource, /placeholder = visitor \? "Buscar capa"/);
+  assert.match(mapSource, /setAttribute\("aria-label", "Buscar capa"\)/);
   assert.match(cssSource, /\.app-shell--visitor \.layer-group/);
   assert.match(cssSource, /\.app-shell--visitor \.layer-item--visitor/);
+  assert.match(cssSource, /\.app-shell--visitor #layers-panel > \.panel-summary \{[\s\S]*display: none;/);
+  assert.match(cssSource, /\.app-shell--visitor #layers-panel \.search-box span \{[\s\S]*display: none;/);
+  assert.match(cssSource, /\.app-shell--visitor \.layer-group__toggle-sign::before \{[\s\S]*content: "\+"/);
+  assert.match(cssSource, /\.app-shell--visitor \.layer-group\[open\] > \.layer-group__summary \.layer-group__toggle-sign::before \{[\s\S]*content: "-"/);
+  assert.match(cssSource, /\.app-shell--visitor \.layer-visibility-checkbox/);
+  assert.match(cssSource, /\.app-shell--visitor \.layer-name--visitor \{[\s\S]*white-space: nowrap;[\s\S]*text-overflow: ellipsis;/);
+  assert.doesNotMatch(cssSource, /layer-transparency-toggle/);
+  assert.match(cssSource, /\.app-shell--visitor \.layer-item--visitor \{[\s\S]*border-radius: 0;[\s\S]*box-shadow: none;/);
+  assert.match(cssSource, /\.app-shell--visitor \.layer-group \{[\s\S]*border-radius: 0;[\s\S]*box-shadow: none;/);
 });
 
 test("el administrador conserva slider continuo y botones de gestion", () => {
@@ -557,22 +576,37 @@ test("el administrador conserva slider continuo y botones de gestion", () => {
   assert.match(renderItemSource, /input type="range" min="10" max="100" step="5"/);
 });
 
-test("transparencia fija visitante aplica opacidad 0.8 y restaura la anterior sin backend", () => {
-  const toggleTransparencySource = extractFunctionSource(mapSource, "toggleVisitorLayerTransparency");
-  const persistableSource = extractFunctionSource(mapSource, "getPersistableLayerOpacity");
-  const transparencyListenerCount = [...mapSource.matchAll(/querySelectorAll\("\[data-transparency-fixed\]"\)/g)].length;
-  assert.match(mapSource, /querySelectorAll\("\[data-transparency-fixed\]"\)/);
-  assert.equal(transparencyListenerCount, 1);
-  assert.match(mapSource, /function findMutableLayer\(layerId\)/);
-  assert.match(toggleTransparencySource, /const layer = findMutableLayer\(layerId\)/);
-  assert.match(toggleTransparencySource, /__visitorOpacityBeforeTransparency = getLayerOpacity\(layer\)/);
-  assert.match(toggleTransparencySource, /__visitorTransparency20 = true/);
-  assert.match(toggleTransparencySource, /updateLayerOpacity\(layerId, 80, \{ persist: false \}\)/);
-  assert.match(toggleTransparencySource, /restoreOpacity \* 100/);
-  assert.doesNotMatch(toggleTransparencySource, /fetch\(/);
-  assert.doesNotMatch(toggleTransparencySource, /ensureLayerResourcesLoaded/);
-  assert.match(persistableSource, /__visitorTransparency20/);
-  assert.match(persistableSource, /__visitorOpacityBeforeTransparency/);
+test("visitante omite bloque de informacion lateral y administrador lo conserva", async () => {
+  const html = await fs.readFile(path.resolve("index.html"), "utf8");
+  const renderSessionSource = extractFunctionSource(mapSource, "renderSession");
+  const updateInfoSource = extractFunctionSource(mapSource, "updateInfoPanel");
+
+  assert.match(html, /id="info-panel-section"/);
+  assert.match(html, /id="info-panel"/);
+  assert.match(html, /Detalle de la selecci/);
+  assert.match(mapSource, /infoPanelSection: document\.getElementById\("info-panel-section"\)/);
+  assert.match(renderSessionSource, /const visitorMode = isPublicVisitor\(\)/);
+  assert.match(renderSessionSource, /infoPanelSection\?\.toggleAttribute\("hidden", visitorMode\)/);
+  assert.match(renderSessionSource, /data-panel-target="info-panel-section"/);
+  assert.match(cssSource, /\.app-shell--visitor #info-panel-section,[\s\S]*\.app-shell--visitor \[data-panel-target="info-panel-section"\],[\s\S]*\.is-visitor-hidden \{[\s\S]*display: none;/);
+  assert.match(mapSource, /function openInfoPopup\(\{ ownerLayerId, resourceType, mapLayerId, overlayId = null, coordinate, html, info \}\) \{[\s\S]*updateInfoPanel\(info\);[\s\S]*new maplibregl\.Popup/);
+  assert.match(updateInfoSource, /elements\.infoPanel\.innerHTML/);
+});
+
+test("visitante no conserva transparencia fija y activa capas al 100 por ciento", () => {
+  const toggleVisibilitySource = extractFunctionSource(mapSource, "toggleLayerVisibility");
+  const saveSource = extractFunctionSource(mapSource, "saveUserLayers");
+
+  assert.doesNotMatch(mapSource, /toggleVisitorLayerTransparency/);
+  assert.doesNotMatch(mapSource, /data-transparency-fixed/);
+  assert.doesNotMatch(mapSource, /__visitorTransparency/);
+  assert.doesNotMatch(mapSource, /__visitorOpacityBeforeTransparency/);
+  assert.doesNotMatch(mapSource, /updateLayerOpacity\(layerId, 80/);
+  assert.doesNotMatch(cssSource, /20%/);
+  assert.doesNotMatch(cssSource, /layer-transparency-toggle/);
+  assert.match(toggleVisibilitySource, /if \(visible && isPublicVisitor\(\)\) \{[\s\S]*updateLayerOpacity\(layerId, 100, \{ persist: false \}\)/);
+  assert.match(saveSource, /opacity:\s*clampLayerOpacity\(layer\.opacity \?\? 1\)/);
+  assert.doesNotMatch(saveSource, /getPersistableLayerOpacity/);
 });
 
 test("GOES compacto queda antes de coordenadas y la leyenda reduce espacio sin cambiar clases", async () => {
@@ -679,6 +713,7 @@ test("el popup tematico tiene prioridad sobre municipios y conserva atributos ut
   const staticSource = extractFunctionSource(mapSource, "getTopStaticPopupHit");
   const schemaSource = extractFunctionSource(mapSource, "getPopupAttributeSchema");
   const technicalSource = extractFunctionSource(mapSource, "isTechnicalPublicAttribute");
+  const usableValueSource = extractFunctionSource(mapSource, "isUsablePopupValue");
   const staticPopupSource = extractFunctionSource(mapSource, "showStaticFeaturePopup");
   const municipiosSource = extractFunctionSource(mapSource, "bindMunicipiosPopup");
   const aliasSource = extractFunctionSource(mapSource, "applyBackendAttributeAliases");
@@ -692,6 +727,8 @@ test("el popup tematico tiene prioridad sobre municipios y conserva atributos ut
   assert.match(mapSource, /function cleanFeatureAttributes\(properties = \{\}\) \{[\s\S]*parseKmlDescriptionHtmlAttributes/);
   assert.match(schemaSource, /"Intensid_1"/);
   assert.doesNotMatch(schemaSource, /"NOMBRE", "Name"/);
+  assert.match(usableValueSource, /value === null \|\| value === undefined/);
+  assert.match(usableValueSource, /String\(value\)\.trim\(\) !== ""/);
   assert.match(technicalSource, /"gridcode"/);
   assert.match(technicalSource, /"styleurl"/);
   assert.match(technicalSource, /"ogr style"/);

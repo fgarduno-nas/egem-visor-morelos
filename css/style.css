@@ -880,46 +880,122 @@ select {
   border-radius: 8px;
 }
 
-.app-shell--visitor .panel-card {
-  border-radius: 12px;
+.app-shell--visitor #layers-panel {
+  box-shadow: none;
+}
+
+.app-shell--visitor #info-panel-section,
+.app-shell--visitor [data-panel-target="info-panel-section"],
+.is-visitor-hidden {
+  display: none;
+}
+
+.app-shell--visitor #layers-panel > .panel-summary {
+  display: none;
 }
 
 .app-shell--visitor #layers-panel .panel-content {
-  padding: 0 10px 10px;
+  padding: 8px 8px;
+}
+
+.app-shell--visitor #layers-panel .search-box {
+  margin: 0 0 4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.app-shell--visitor #layers-panel .search-box span {
+  display: none;
+}
+
+.app-shell--visitor #layers-panel .search-box input {
+  min-height: 30px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  font-size: 0.82rem;
 }
 
 .app-shell--visitor .layer-list {
+  display: block;
   gap: 0;
-  margin-top: 10px;
-  border-top: 1px solid rgba(122, 32, 58, 0.1);
+  margin-top: 0;
+  border-top: 1px solid rgba(70, 36, 49, 0.1);
+  background: rgba(255, 255, 255, 0.28);
 }
 
 .app-shell--visitor .layer-group {
+  margin: 0;
   border: 0;
   border-radius: 0;
   background: transparent;
-  border-bottom: 1px solid rgba(122, 32, 58, 0.1);
+  box-shadow: none;
+}
+
+.app-shell--visitor .layer-group + .layer-group {
+  border-top: 1px solid rgba(70, 36, 49, 0.075);
 }
 
 .app-shell--visitor .layer-group__summary {
-  min-height: 38px;
-  padding: 8px 4px;
-  gap: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 30px;
+  padding: 3px 2px;
+  gap: 5px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font-family: "Barlow", sans-serif;
+  font-size: 0.86rem;
+  font-weight: 700;
+  line-height: 1.1;
 }
 
-.app-shell--visitor .layer-group__heading {
-  flex-direction: row;
-  align-items: baseline;
-  gap: 8px;
+.app-shell--visitor .layer-group__summary:hover {
+  background: rgba(122, 32, 58, 0.045);
 }
 
-.app-shell--visitor .layer-group__heading strong {
+.app-shell--visitor .layer-group__summary::-webkit-details-marker {
+  display: none;
+}
+
+.app-shell--visitor .layer-group__toggle-sign {
+  flex: 0 0 14px;
+  width: 14px;
+  height: 14px;
+  display: inline-grid;
+  place-items: center;
+  color: var(--accent);
   font-size: 0.9rem;
+  font-weight: 800;
+  line-height: 1;
 }
 
-.app-shell--visitor .layer-group__heading span,
+.app-shell--visitor .layer-group__toggle-sign::before {
+  content: "+";
+}
+
+.app-shell--visitor .layer-group[open] > .layer-group__summary .layer-group__toggle-sign::before {
+  content: "-";
+}
+
+.app-shell--visitor .layer-group__title {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.app-shell--visitor .layer-group__count {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.app-shell--visitor .layer-group__chevron,
+.app-shell--visitor .layer-group__heading,
 .app-shell--visitor .layer-group__active {
-  font-size: 0.74rem;
+  display: none;
 }
 
 .layer-group__active {
@@ -931,85 +1007,91 @@ select {
   font-weight: 700;
 }
 
-.app-shell--visitor .layer-group.has-active-layers .layer-group__summary {
-  background: rgba(122, 32, 58, 0.055);
-}
-
 .app-shell--visitor .layer-group__content {
+  display: block;
   gap: 0;
-  padding: 0 0 5px 14px;
+  padding: 0;
 }
 
 .app-shell--visitor .layer-group__empty {
-  padding: 6px 2px 8px;
+  min-height: 28px;
+  margin: 0;
+  padding: 5px 2px 5px 23px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.2;
 }
 
 .app-shell--visitor .layer-item--visitor {
-  min-height: 34px;
-  padding: 6px 4px 6px 0;
+  min-height: 30px;
+  margin: 0;
+  padding: 0;
   border: 0;
   border-radius: 0;
   background: transparent;
   box-shadow: none;
-  border-top: 1px solid rgba(122, 32, 58, 0.055);
 }
 
-.app-shell--visitor .layer-item--visitor.is-visible,
-.app-shell--visitor .layer-item--visitor.is-selected {
-  background: rgba(255, 252, 248, 0.72);
-  box-shadow: inset 3px 0 0 rgba(122, 32, 58, 0.72);
+.app-shell--visitor .layer-item--visitor.is-hidden-layer {
+  opacity: 1;
+}
+
+.app-shell--visitor .layer-item--visitor.is-selected,
+.app-shell--visitor .layer-item--visitor:focus-within {
+  background: rgba(122, 32, 58, 0.065);
+  box-shadow: inset 2px 0 0 rgba(122, 32, 58, 0.62);
 }
 
 .layer-item__meta--visitor {
-  align-items: center;
-  gap: 8px;
-}
-
-.app-shell--visitor .layer-item--visitor input[type="checkbox"] {
-  margin-top: 1px;
-}
-
-.app-shell--visitor .layer-select-button {
-  font-size: 0.86rem;
-  line-height: 1.15;
-}
-
-.layer-visitor-controls {
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
+  min-height: 30px;
+  padding: 2px 2px 2px 23px;
+}
+
+.app-shell--visitor .layer-visibility-label {
+  display: flex;
   align-items: center;
   gap: 5px;
-}
-
-.layer-transparency-toggle {
-  min-height: 28px;
-  padding: 4px 8px;
-  border: 1px solid rgba(122, 32, 58, 0.16);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.72);
-  color: var(--muted);
-  font: inherit;
-  font-size: 0.74rem;
-  font-weight: 700;
-  line-height: 1;
+  min-width: 0;
+  width: 100%;
+  min-height: 26px;
   cursor: pointer;
 }
 
-.layer-transparency-toggle[aria-pressed="true"] {
-  background: rgba(122, 32, 58, 0.12);
-  border-color: rgba(122, 32, 58, 0.36);
-  color: var(--accent);
+.app-shell--visitor .layer-visibility-checkbox {
+  flex: 0 0 auto;
+  width: 13px;
+  height: 13px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
 }
 
-.layer-transparency-toggle:focus-visible {
-  outline: 3px solid rgba(191, 147, 86, 0.72);
+.app-shell--visitor .layer-visibility-checkbox:focus-visible {
+  outline: 2px solid rgba(191, 147, 86, 0.72);
   outline-offset: 2px;
 }
 
+.app-shell--visitor .layer-name--visitor {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--ink);
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.12;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .layer-error-state {
+  flex: 0 1 auto;
+  min-width: 0;
   color: var(--danger);
-  font-size: 0.74rem;
+  font-size: 0.7rem;
   font-weight: 700;
+  line-height: 1.1;
 }
 
 .layer-item__copy span,
@@ -2862,6 +2944,24 @@ select {
   .toolbar-icon svg {
     width: 16px;
     height: 16px;
+  }
+
+  .app-shell--visitor #layers-panel .panel-content {
+    padding-inline: 6px;
+  }
+
+  .app-shell--visitor .layer-group__summary {
+    min-height: 28px;
+    padding-block: 2px;
+  }
+
+  .layer-item__meta--visitor {
+    min-height: 28px;
+    padding-left: 19px;
+  }
+
+  .app-shell--visitor .layer-name--visitor {
+    font-size: 0.8rem;
   }
 
   .modal {

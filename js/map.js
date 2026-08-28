@@ -390,10 +390,12 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     basemapFlyoutList: document.getElementById("basemap-flyout-list"),
     toolbarBasemap: document.getElementById("toolbar-basemap"),
     closeBasemapFlyout: document.getElementById("close-basemap-flyout"),
+    layersPanel: document.getElementById("layers-panel"),
     layerList: document.getElementById("layer-list"),
     layerCatalogNotice: document.getElementById("layer-catalog-notice"),
     mapLegendFloat: document.getElementById("map-legend-float"),
     layerSearch: document.getElementById("layer-search"),
+    infoPanelSection: document.getElementById("info-panel-section"),
     infoPanel: document.getElementById("info-panel"),
     statusbar: document.getElementById("statusbar"),
     statusbarLon: document.getElementById("statusbar-lon"),
@@ -1026,6 +1028,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     syncLayerCatalogNotice();
 
     if (!layers.length && searchTerm) {
+      syncVisitorLayerPanelLabels();
       elements.layerList.innerHTML = `
         <div class="empty-state">
           No hay capas que coincidan con la busqueda o con tu nivel de acceso actual.
@@ -1042,6 +1045,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     elements.layerList.innerHTML = getVisibleLayerGroups(groupedLayers, searchTerm)
       .map((group) => renderLayerGroup(group, groupedLayers.get(group.id) || [], searchTerm))
       .join("");
+    syncVisitorLayerPanelLabels();
 
     elements.layerList.querySelectorAll(".layer-item").forEach((item) => {
       const layerId = item.dataset.layerId;
@@ -1108,12 +1112,14 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       });
     });
 
-    elements.layerList.querySelectorAll("[data-transparency-fixed]").forEach((button) => {
-      button.addEventListener("click", (event) => {
-        event.stopPropagation();
-        toggleVisitorLayerTransparency(button.dataset.transparencyFixed);
-      });
-    });
+  }
+
+  function syncVisitorLayerPanelLabels() {
+    const visitor = isPublicVisitor();
+    elements.layersPanel?.setAttribute("aria-label", visitor ? "Catalogo de capas" : "Fenomenos y limites");
+    if (!elements.layerSearch) return;
+    elements.layerSearch.placeholder = visitor ? "Buscar capa" : "Ej. inundacion, Cuernavaca";
+    elements.layerSearch.setAttribute("aria-label", "Buscar capa");
   }
 
   function groupCatalogLayers(layers) {
@@ -1139,8 +1145,22 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       ? layers.map((layer) => renderLayerItem(layer)).join("")
       : `<p class="layer-group__empty">No hay capas disponibles en esta subcapa por ahora.</p>`;
 
+    if (isPublicVisitor()) {
+      return `
+        <details class="layer-group layer-group--visitor${activeCount ? " has-active-layers" : ""}" ${openAttribute}>
+          <summary class="layer-group__summary" aria-label="${escapeHtml(`${group.title}, ${countLabel}`)}">
+            <span class="layer-group__toggle-sign" aria-hidden="true"></span>
+            <span class="layer-group__title">${escapeHtml(group.title)} <span class="layer-group__count">[${layers.length}]</span></span>
+          </summary>
+          <div class="layer-group__content">
+            ${content}
+          </div>
+        </details>
+      `;
+    }
+
     return `
-      <details class="layer-group${isPublicVisitor() ? " layer-group--visitor" : ""}${activeCount ? " has-active-layers" : ""}" ${openAttribute}>
+      <details class="layer-group${activeCount ? " has-active-layers" : ""}" ${openAttribute}>
         <summary class="layer-group__summary" aria-label="${escapeHtml(`${group.title}, ${countLabel}`)}">
           <div class="layer-group__heading">
             <strong>${escapeHtml(group.title)}</strong>
@@ -1214,27 +1234,18 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       "layer-item--visitor",
       layer.visible ? "is-visible" : "is-hidden-layer",
       state.selectedLayerId === layer.id ? "is-selected" : "",
-      layer.__visitorTransparency20 ? "has-fixed-transparency" : "",
     ].filter(Boolean).join(" ");
+    const inputId = `layer-toggle-${slugify(layer.id)}`;
 
     return `
       <div class="${itemClassName}" data-layer-id="${layer.id}" role="button" tabindex="0" aria-pressed="${state.selectedLayerId === layer.id ? "true" : "false"}">
         <div class="layer-item__meta layer-item__meta--visitor">
-          <input type="checkbox" ${checked} ${disableToggle} aria-label="Mostrar u ocultar ${escapeHtml(layer.title)}" />
-          <div class="layer-item__copy">
-            <button class="layer-select-button" type="button" data-select-layer="${escapeHtml(layer.id)}">${escapeHtml(layer.title)}</button>
-            <div class="layer-visitor-controls">
-              <button
-                class="layer-transparency-toggle"
-                type="button"
-                data-transparency-fixed="${escapeHtml(layer.id)}"
-                aria-label="Aplicar transparencia del 20% a ${escapeHtml(layer.title)}"
-                aria-pressed="${layer.__visitorTransparency20 ? "true" : "false"}"
-              >Transparencia 20%</button>
-              ${loadingStatus}
-              ${errorStatus}
-            </div>
-          </div>
+          <label class="layer-visibility-label" for="${escapeHtml(inputId)}" title="${escapeHtml(layer.title)}">
+            <input id="${escapeHtml(inputId)}" class="layer-visibility-checkbox" type="checkbox" ${checked} ${disableToggle} aria-label="Mostrar u ocultar ${escapeHtml(layer.title)}" />
+            <span class="layer-name--visitor">${escapeHtml(layer.title)}</span>
+          </label>
+          ${loadingStatus}
+          ${errorStatus}
         </div>
       </div>
     `;
@@ -2901,6 +2912,10 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     const staticLayer = staticLayers.find((layer) => layer.id === layerId);
     const userLayer = state.userLayers.find((layer) => layer.id === layerId);
 
+    if (visible && isPublicVisitor()) {
+      updateLayerOpacity(layerId, 100, { persist: false });
+    }
+
     if (staticLayer) {
       staticLayer.visible = visible;
       setStaticVisibility(layerId, visible);
@@ -2963,35 +2978,6 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     if (checkbox) checkbox.checked = visible;
     item.classList.toggle("is-visible", visible);
     item.classList.toggle("is-hidden-layer", !visible);
-  }
-
-  function toggleVisitorLayerTransparency(layerId) {
-    const layer = findMutableLayer(layerId);
-    if (!layer) return;
-
-    if (layer.__visitorTransparency20) {
-      const restoreOpacity = Number.isFinite(layer.__visitorOpacityBeforeTransparency)
-        ? layer.__visitorOpacityBeforeTransparency
-        : getLayerOpacity(layer);
-      layer.__visitorTransparency20 = false;
-      layer.__visitorOpacityBeforeTransparency = null;
-      updateLayerOpacity(layerId, restoreOpacity * 100, { persist: false });
-    } else {
-      layer.__visitorOpacityBeforeTransparency = getLayerOpacity(layer);
-      layer.__visitorTransparency20 = true;
-      updateLayerOpacity(layerId, 80, { persist: false });
-    }
-
-    syncVisitorTransparencyControl(layer);
-  }
-
-  function syncVisitorTransparencyControl(layer) {
-    const item = elements.layerList?.querySelector(`.layer-item[data-layer-id="${CSS.escape(layer.id)}"]`);
-    if (!item) return;
-    const active = Boolean(layer.__visitorTransparency20);
-    item.classList.toggle("has-fixed-transparency", active);
-    const button = item.querySelector("[data-transparency-fixed]");
-    if (button) button.setAttribute("aria-pressed", String(active));
   }
 
   function updateLayerOpacity(layerId, percentage, options = {}) {
@@ -3767,6 +3753,12 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     elements.topbarSessionChip.classList.toggle("hidden", !state.topbarCollapsed);
     elements.topbarSessionChip.textContent = roleLabel;
     document.getElementById("open-login")?.classList.toggle("hidden", state.session.isAuthenticated);
+    const visitorMode = isPublicVisitor();
+    elements.infoPanelSection?.classList.toggle("is-visitor-hidden", visitorMode);
+    elements.infoPanelSection?.toggleAttribute("hidden", visitorMode);
+    elements.panelQuicknav
+      ?.querySelector('[data-panel-target="info-panel-section"]')
+      ?.classList.toggle("is-visitor-hidden", visitorMode);
     elements.uploadPermissionNote.textContent = canUpload()
       ? "Puedes subir capas vectoriales, raster y Shapefile en ZIP desde este menú."
       : "La medición es pública. Para subir capas o crear puntos inicia sesión como administrador o director.";
@@ -5941,17 +5933,10 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
         layerKey: layer.backendLayerId || layer.id,
         backendLayerId: layer.backendLayerId || null,
         visible: Boolean(layer.visible),
-        opacity: getPersistableLayerOpacity(layer),
+        opacity: clampLayerOpacity(layer.opacity ?? 1),
       }));
 
     localStorage.setItem(STORAGE_KEYS.layerPrefs, JSON.stringify(layerPrefs));
-  }
-
-  function getPersistableLayerOpacity(layer) {
-    if (layer.__visitorTransparency20 && Number.isFinite(layer.__visitorOpacityBeforeTransparency)) {
-      return clampLayerOpacity(layer.__visitorOpacityBeforeTransparency);
-    }
-    return clampLayerOpacity(layer.opacity ?? 1);
   }
 
   function createVisitorSession() {
