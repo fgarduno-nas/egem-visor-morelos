@@ -8,6 +8,8 @@ const moduleSource = await fs.readFile(modulePath, "utf8");
 const moduleUrl = `data:text/javascript;base64,${Buffer.from(moduleSource).toString("base64")}`;
 const mapSource = await fs.readFile(path.resolve("js/map.js"), "utf8");
 const cssSource = await fs.readFile(path.resolve("css/style.css"), "utf8");
+const htmlSource = await fs.readFile(path.resolve("index.html"), "utf8");
+const municipiosGeojson = JSON.parse(await fs.readFile(path.resolve("data/base/municipios.geojson"), "utf8"));
 
 const {
   analyzeStyleField,
@@ -38,6 +40,15 @@ function extractFunctionSource(source, name) {
     if (depth === 0) return source.slice(start, index + 1);
   }
   throw new Error(`No se pudo extraer ${name}`);
+}
+
+function walkCoordinatePairs(coordinates, callback) {
+  if (!Array.isArray(coordinates)) return;
+  if (typeof coordinates[0] === "number") {
+    callback(coordinates);
+    return;
+  }
+  coordinates.forEach((child) => walkCoordinatePairs(child, callback));
 }
 
 test("preserva cero como valor valido y descarta null/cadenas vacias", () => {
@@ -252,15 +263,14 @@ test("la simbologia remota conserva __styleFill existente", () => {
 });
 
 test("el selector de fondos usa un boton accesible y no duplica listeners globales", async () => {
-  const html = await fs.readFile(path.resolve("index.html"), "utf8");
-  assert.match(html, /<div class="basemap-control">\s*<button[\s\S]*id="toolbar-basemap"/);
-  assert.match(html, /id="toolbar-basemap"[\s\S]*<\/button>\s*<div class="basemap-flyout" id="basemap-flyout" hidden>/);
-  assert.match(html, /aria-label="Elegir fondo cartográfico"/);
-  assert.match(html, /id="basemap-flyout"/);
-  assert.doesNotMatch(html, /id="basemap-panel"/);
-  assert.doesNotMatch(html, /id="basemap-list"/);
-  assert.equal((html.match(/id="basemap-flyout"/g) || []).length, 1);
-  assert.equal((html.match(/class="basemap-list/g) || []).length, 1);
+  assert.match(htmlSource, /<div class="basemap-control">\s*<button[\s\S]*id="toolbar-basemap"/);
+  assert.match(htmlSource, /id="toolbar-basemap"[\s\S]*<\/button>\s*<div class="basemap-flyout" id="basemap-flyout" hidden>/);
+  assert.match(htmlSource, /aria-label="Elegir fondo cartográfico"/);
+  assert.match(htmlSource, /id="basemap-flyout"/);
+  assert.doesNotMatch(htmlSource, /id="basemap-panel"/);
+  assert.doesNotMatch(htmlSource, /id="basemap-list"/);
+  assert.equal((htmlSource.match(/id="basemap-flyout"/g) || []).length, 1);
+  assert.equal((htmlSource.match(/class="basemap-list/g) || []).length, 1);
   assert.equal((mapSource.match(/toolbarBasemap\?\..*addEventListener\("click"/g) || []).length, 1);
   assert.match(mapSource, /function openBasemapFlyout/);
   assert.match(mapSource, /function closeBasemapFlyout/);
@@ -280,14 +290,70 @@ test("el selector de fondos usa un boton accesible y no duplica listeners global
   });
 });
 
+test("la base satelital no carga la referencia Esri de etiquetas y contornos", () => {
+  const baseMapConfigSource = mapSource.match(/const baseMapConfigs = \{(?<body>[\s\S]*?)\n  \};/u)?.groups.body || "";
+  const createBaseMapStyleSource = extractFunctionSource(mapSource, "createBaseMapStyle");
+  const applyBaseMapVisibilitySource = extractFunctionSource(mapSource, "applyBaseMapVisibility");
+
+  assert.match(baseMapConfigSource, /satelite:\s*\[[\s\S]*sourceId: "satellite-source"/);
+  assert.doesNotMatch(baseMapConfigSource, /basemap-satelite-labels/);
+  assert.doesNotMatch(baseMapConfigSource, /World_Boundaries_and_Places/);
+  assert.doesNotMatch(mapSource, /Reference\/World_Boundaries_and_Places/);
+  assert.match(createBaseMapStyleSource, /sources\[entry\.sourceId\] = entry\.source/);
+  assert.match(applyBaseMapVisibilitySource, /safeSetLayoutProperty\(entry\.layerId, "visibility", visibility\)/);
+});
+
+test("la capa municipal oficial se carga una sola vez y conserva contrato MapLibre", () => {
+  const staticSource = extractFunctionSource(mapSource, "injectStaticSources");
+  const baseDataSource = extractFunctionSource(mapSource, "loadStaticData");
+  const municipioLayerIds = ["municipios-source", "municipios-hit", "municipios"];
+
+  assert.match(baseDataSource, /fetch\("data\/base\/municipios\.geojson"\)/);
+  assert.equal((staticSource.match(/upsertGeoJsonSource\("municipios-source"/g) || []).length, 1);
+  assert.equal((staticSource.match(/id: "municipios-hit"/g) || []).length, 1);
+  assert.equal((staticSource.match(/id: "municipios"/g) || []).length, 1);
+  municipioLayerIds.forEach((id) => assert.match(staticSource, new RegExp(id)));
+  assert.match(staticSource, /source: "municipios-source"/);
+  assert.match(staticSource, /"fill-opacity": 0\.01/);
+  assert.match(staticSource, /"line-color": "#efe4c6"/);
+});
+
+test("el GeoJSON municipal oficial usa WGS84, 36 municipios y geometria no vacia", () => {
+  const names = municipiosGeojson.features.map((featureItem) => featureItem.properties.NOMGEO);
+  const uniqueNames = new Set(names);
+  let coordinateCount = 0;
+  const bbox = [Infinity, Infinity, -Infinity, -Infinity];
+
+  assert.equal(municipiosGeojson.type, "FeatureCollection");
+  assert.equal(municipiosGeojson.features.length, 36);
+  assert.equal(uniqueNames.size, 36);
+  ["Coatetelco", "Hueyapan", "Xoxocotla"].forEach((name) => assert.ok(uniqueNames.has(name)));
+  municipiosGeojson.features.forEach((featureItem) => {
+    assert.ok(["Polygon", "MultiPolygon"].includes(featureItem.geometry?.type));
+    assert.ok(Array.isArray(featureItem.geometry?.coordinates));
+    assert.ok(featureItem.geometry.coordinates.length > 0);
+    walkCoordinatePairs(featureItem.geometry.coordinates, ([lon, lat]) => {
+      coordinateCount += 1;
+      assert.ok(lon >= -180 && lon <= 180);
+      assert.ok(lat >= -90 && lat <= 90);
+      bbox[0] = Math.min(bbox[0], lon);
+      bbox[1] = Math.min(bbox[1], lat);
+      bbox[2] = Math.max(bbox[2], lon);
+      bbox[3] = Math.max(bbox[3], lat);
+    });
+  });
+  assert.equal(coordinateCount, 42150);
+  assert.ok(bbox[0] > -100 && bbox[2] < -98);
+  assert.ok(bbox[1] > 18 && bbox[3] < 20);
+});
+
 test("el encabezado usa un único menú de acciones sin botones distribuidos", async () => {
-  const html = await fs.readFile(path.resolve("index.html"), "utf8");
-  const topbarActions = html.match(/<div class="topbar-actions">(?<body>[\s\S]*?)<\/div>\s*<div class="topbar-compact-menu"/u)?.groups.body || "";
-  const menu = html.match(/<div class="topbar-compact-menu"(?<body>[\s\S]*?)<\/div>/u)?.groups.body || "";
+  const topbarActions = htmlSource.match(/<div class="topbar-actions">(?<body>[\s\S]*?)<\/div>\s*<div class="topbar-compact-menu"/u)?.groups.body || "";
+  const menu = htmlSource.match(/<div class="topbar-compact-menu"(?<body>[\s\S]*?)<\/div>/u)?.groups.body || "";
   const menuItemIds = ["toggle-sidebar", "compact-open-territorial-query", "open-help", "open-user-admin", "logout-session", "open-login"];
 
-  assert.equal((html.match(/topbar-menu-toggle__label">Menú/g) || []).length, 1);
-  assert.doesNotMatch(html, /class="topbar-compact-actions"/);
+  assert.equal((htmlSource.match(/topbar-menu-toggle__label">Menú/g) || []).length, 1);
+  assert.doesNotMatch(htmlSource, /class="topbar-compact-actions"/);
   assert.match(topbarActions, /id="toggle-topbar"/);
   assert.match(topbarActions, /id="toggle-compact-menu"/);
   menuItemIds.forEach((id) => assert.doesNotMatch(topbarActions, new RegExp(`id="${id}"`)));
@@ -295,6 +361,17 @@ test("el encabezado usa un único menú de acciones sin botones distribuidos", a
   assert.match(menu, /Consulta rápida territorial/);
   assert.match(mapSource, /function handleCompactMenuKeydown/);
   assert.match(mapSource, /document\.getElementById\("open-login"\)\?\.classList\.toggle\("hidden", state\.session\.isAuthenticated\)/);
+});
+
+test("el encabezado contiene un unico aviso Version de prueba no interactivo", () => {
+  const badgeMarkup = htmlSource.match(/<span class="trial-version-badge"[^>]*>Versión de prueba<\/span>/u)?.[0] || "";
+  const visibleOccurrences = htmlSource.match(/>Versión de prueba<\/span>/g) || [];
+
+  assert.equal(visibleOccurrences.length, 1);
+  assert.match(badgeMarkup, /aria-label="Versión de prueba"/);
+  assert.doesNotMatch(badgeMarkup, /button|href|role="button"|tabindex/u);
+  assert.match(cssSource, /\.trial-version-badge\s*\{/);
+  assert.match(cssSource, /\.app-shell--topbar-collapsed \.brand-title-row\s*\{/);
 });
 
 test("el menu de fondos queda anclado estructuralmente al boton real", () => {

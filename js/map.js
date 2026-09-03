@@ -186,18 +186,6 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
           attribution: "Tiles © Esri, Maxar, Earthstar Geographics, and the GIS User Community",
         },
       },
-      {
-        sourceId: "basemap-satelite-labels",
-        layerId: "basemap-satelite-labels",
-        source: {
-          type: "raster",
-          tiles: [
-            "https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
-          ],
-          tileSize: 256,
-          attribution: "Esri",
-        },
-      },
     ],
     topografico: [
       {

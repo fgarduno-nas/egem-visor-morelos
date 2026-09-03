@@ -151,6 +151,28 @@ select {
   line-height: 1.02;
 }
 
+.brand-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.trial-version-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 3px 8px;
+  border: 1px solid rgba(251, 244, 235, 0.48);
+  border-radius: 999px;
+  background: rgba(251, 244, 235, 0.14);
+  color: #fff7eb;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
 .subtitle {
   max-width: 620px;
   margin: 4px 0 0;
@@ -270,6 +292,10 @@ select {
   margin: 0;
   font-size: 1rem;
   letter-spacing: 0.14em;
+}
+
+.app-shell--topbar-collapsed .brand-title-row {
+  margin-top: 4px;
 }
 
 .primary-button,
