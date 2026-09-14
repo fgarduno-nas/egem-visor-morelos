@@ -112,7 +112,7 @@ test("map.js prioriza vector, usa un solo listener global y conserva popup vecto
   assert.match(source, /const rasterHit = getRasterPopupHitForLayer\(layer, event\.lngLat\);/);
   assert.match(source, /map\.queryRenderedFeatures\(event\.point, \{ layers: layerIds \}\)/);
   assert.match(source, /if \(!hasPopupProperties\(props\)\) return;/);
-  assert.match(source, /buildFeaturePopup\(layer\.title, props\)/);
+  assert.match(source, /buildThematicFeaturePopup\(layer\.title, props, layer\.legend\)/);
   assert.match(source, /buildGroundOverlayPopup\(layer\)/);
 });
 

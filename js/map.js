@@ -31,10 +31,15 @@ import {
   buildRasterLegendFallback,
   buildSemanticLegendFromFeatures,
   buildTechnicalStyleFallbackLegend,
+  getFeatureStyleLegendLabel,
+  getFeatureVisualPriorityRank,
   isTechnicalStyleField,
+  isNoAplicaLegendValue,
   legendTextsAreEquivalent,
+  NO_APLICA_COLOR,
   normalizePublishedRasterLegend,
   normalizePublishedVectorLegend,
+  pickTopFeatureByVisualPriority,
 } from "./app/utils/remote-legend-utils.js";
 import {
   analyzeGeospatialFile,
@@ -78,6 +83,9 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
   const DEFAULT_MAP_MAX_ZOOM = 22;
   const SATELLITE_MAP_MAX_ZOOM = 20;
   const GOES_IR_OVERLAY_OPACITY = 0.62;
+  const TOOLBAR_AUTO_COLLAPSE_MS = 8000;
+  const GOES_IR_ACCESSIBLE_DESCRIPTION =
+    "Imagen infrarroja GOES. Los colores representan diferencias de temperatura radiativa; las zonas más frías suelen corresponder a nubes más altas. No representa lluvia directa.";
 
   const roleLabels = {
     admin: "Administrador",
@@ -282,6 +290,9 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     sidebarCollapsed: false,
     topbarCollapsed: loadTopbarModePreference(),
     compactMenuOpen: false,
+    toolbarCollapsed: false,
+    toolbarPointerInside: false,
+    toolbarAutoCollapseTimer: null,
     viewportMode: null,
     isUploading: false,
     remoteSyncInProgress: false,
@@ -322,6 +333,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       performance: {},
       initialized: false,
       visible: true,
+      userEnabled: true,
       opacity: GOES_IR_OVERLAY_OPACITY,
     },
     selectedLayerId: null,
@@ -374,6 +386,9 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     topbarCompactMenu: document.getElementById("topbar-compact-menu"),
     topbarSessionChip: document.getElementById("topbar-session-chip"),
     controlPanel: document.querySelector(".control-panel"),
+    mapToolbar: document.getElementById("map-toolbar"),
+    toolbarCompactTrigger: document.getElementById("toolbar-compact-trigger"),
+    toolbarCollapse: document.getElementById("toolbar-collapse"),
     basemapFlyout: document.getElementById("basemap-flyout"),
     basemapFlyoutList: document.getElementById("basemap-flyout-list"),
     toolbarBasemap: document.getElementById("toolbar-basemap"),
@@ -468,8 +483,11 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
   };
 
   map.on("mousemove", (event) => {
-    elements.statusbarLon.textContent = event.lngLat.lng.toFixed(5);
-    elements.statusbarLat.textContent = event.lngLat.lat.toFixed(5);
+    const lon = event.lngLat.lng.toFixed(5);
+    const lat = event.lngLat.lat.toFixed(5);
+    elements.statusbarLon.textContent = lon;
+    elements.statusbarLat.textContent = lat;
+    elements.statusbar?.setAttribute("aria-label", `Longitud: ${lon}, Latitud: ${lat}, WGS 84`);
   });
 
   map.on("error", (event) => {
@@ -530,6 +548,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     elements.toolbarClearMeasure.addEventListener("click", clearMeasurement);
     elements.toolbarBasemap?.addEventListener("click", toggleBasemapFlyout);
     elements.closeBasemapFlyout?.addEventListener("click", closeBasemapFlyout);
+    setupToolbarAutoCollapse();
     setupCloudTopPanel();
     document.getElementById("toggle-sidebar").addEventListener("click", () => {
       toggleSidebar();
@@ -1550,9 +1569,9 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     elements.mapLegendFloat.hidden = false;
     elements.mapLegendFloat.innerHTML = `
       <div class="map-legend-float__header">
-        <div>
+        <div class="map-legend-float__heading">
           <p class="section-kicker">${escapeHtml(categoryTitle)}</p>
-          <strong>${escapeHtml(layer.title)}</strong>
+          <strong class="map-legend-float__title" title="${escapeHtml(layer.title)}" aria-label="${escapeHtml(layer.title)}">${escapeHtml(layer.title)}</strong>
         </div>
         <button class="icon-button icon-button--small" type="button" data-close-floating-legend aria-label="Cerrar simbología">x</button>
       </div>
@@ -1568,8 +1587,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     if (vectorLegend) {
       sections.push(`
         <section class="floating-legend-section">
-          ${isImageBackedLayer(layer) ? `<p class="info-copy"><strong>Simbología vectorial</strong></p>` : ""}
-          ${renderLayerLegend(vectorLegend)}
+          ${renderLayerLegend(vectorLegend, { compact: true, hideField: true })}
         </section>
       `);
     }
@@ -1578,15 +1596,14 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       const rasterLegend = getRasterLayerSymbology(layer);
       sections.push(`
         <section class="floating-legend-section">
-          ${layer.data?.features?.length ? `<p class="info-copy"><strong>Simbología raster</strong></p>` : ""}
-          ${renderLayerLegend(rasterLegend)}
+          ${renderLayerLegend(rasterLegend, { compact: true, hideField: true })}
         </section>
       `);
     }
 
     if (!sections.length) {
       const legend = getLayerSymbology(layer);
-      if (legend) sections.push(renderLayerLegend(legend));
+      if (legend) sections.push(renderLayerLegend(legend, { compact: true, hideField: true }));
     }
 
     return sections.filter(Boolean).join("");
@@ -1906,23 +1923,28 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
   function setupCloudTopPanel() {
     const mapStage = document.querySelector(".map-stage");
     if (!mapStage || document.getElementById("goes-ir-indicator")) return;
-    const coordinateOverlay = mapStage.querySelector(".map-overlay--bottom-left");
+    const goesOverlay = mapStage.querySelector(".map-overlay--goes");
     const indicator = document.createElement("aside");
     indicator.className = "goes-ir-indicator";
     indicator.id = "goes-ir-indicator";
     indicator.setAttribute("aria-live", "polite");
+    indicator.setAttribute("title", GOES_IR_ACCESSIBLE_DESCRIPTION);
+    indicator.setAttribute("aria-label", GOES_IR_ACCESSIBLE_DESCRIPTION);
     indicator.innerHTML = `
-      <div class="goes-ir-indicator__header">
-        <div>
-          <p class="section-kicker">GOES - Infrarrojo</p>
-          <strong id="goes-ir-current-time">Cargando...</strong>
-        </div>
-      </div>
-      <p class="goes-ir-indicator__meta" id="goes-ir-updated">Actualizacion: pendiente</p>
-      <p class="goes-ir-indicator__status"><span id="goes-ir-status">Actualizando</span> - Fuente: NOAA nowCOAST</p>
+      <p class="goes-ir-indicator__line">
+        <button class="goes-ir-toggle" id="goes-ir-toggle" type="button" aria-pressed="true" aria-label="Desactivar visualización GOES">
+          <span class="goes-ir-toggle__state" aria-hidden="true">●</span>
+          <strong>GOES</strong>
+        </button>
+        <span>Infrarrojo de nubes</span>
+        <span id="goes-ir-current-time">Cargando...</span>
+        <span class="goes-ir-indicator__status" id="goes-ir-status">Actualizando</span>
+        <span>NOAA nowCOAST</span>
+      </p>
+      <span class="visually-hidden" id="goes-ir-updated">Actualización: pendiente</span>
     `;
-    if (coordinateOverlay) {
-      coordinateOverlay.prepend(indicator);
+    if (goesOverlay) {
+      goesOverlay.replaceChildren(indicator);
     } else {
       mapStage.appendChild(indicator);
     }
@@ -1931,6 +1953,9 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     elements.cloudTopStatus = document.getElementById("goes-ir-status");
     elements.cloudTopCurrentTime = document.getElementById("goes-ir-current-time");
     elements.cloudTopUpdated = document.getElementById("goes-ir-updated");
+    elements.cloudTopToggle = document.getElementById("goes-ir-toggle");
+    elements.cloudTopToggle?.addEventListener("click", toggleCloudTopVisibility);
+    updateCloudTopToggle();
   }
 
   async function initializeCloudTopAnimation() {
@@ -2011,7 +2036,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
             : "updated";
     const message = getCloudTopStatusMessage(status, age, gaps.length);
     setCloudTopStatus(status, message);
-    cloudTop.playback.setVisible(true);
+    cloudTop.playback.setVisible(cloudTop.userEnabled);
     await startProgressiveCloudTopPlayback({ autoplay: options.autoplay !== false });
     renderCloudTopPanel();
   }
@@ -2029,24 +2054,25 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     const seedFrames = frames.slice(Math.max(0, frames.length - 3), frames.length - 1);
     const loadedSeed = [];
     for (const frame of seedFrames) {
+      if (!cloudTop.userEnabled) break;
       try {
         loadedSeed.push(await cloudTop.frameRenderer.loadFrame(frame));
       } catch (error) {
-        console.warn("No se pudo preparar cuadro inicial GOES IR:", error);
+        if (!isExpectedCloudTopCancellation(error)) console.warn("No se pudo preparar cuadro inicial GOES IR:", error);
       }
     }
     cloudTop.loadedFrames = mergeCloudTopFrames([], [...loadedSeed, cloudTop.visibleFrame].filter(Boolean), { now: Date.now() });
-    const canPlay = shouldAutoPlay({ frameCount: cloudTop.loadedFrames.length, visible: true }) && options.autoplay;
+    const canPlay = shouldAutoPlay({ frameCount: cloudTop.loadedFrames.length, visible: cloudTop.userEnabled }) && options.autoplay;
     cloudTop.playback.setFrames(cloudTop.loadedFrames, { autoplay: canPlay });
     if (canPlay && !cloudTop.performance.animationStartedAt) {
       cloudTop.performance.animationStartedAt = performance.now();
     }
-    loadCloudTopFramesInBackground();
+    if (cloudTop.userEnabled) loadCloudTopFramesInBackground();
   }
 
   function loadCloudTopFramesInBackground() {
     const cloudTop = state.cloudTop;
-    if (cloudTop.backgroundQueueRunning || !cloudTop.frameRenderer) return;
+    if (!cloudTop.userEnabled || cloudTop.backgroundQueueRunning || !cloudTop.frameRenderer) return;
     const loaded = new Set((cloudTop.loadedFrames || []).map((frame) => frame.timestamp));
     const queue = prioritizeCloudTopFrames(cloudTop.frames || [], cloudTop.visibleFrame)
       .filter((frame) => !loaded.has(frame.timestamp));
@@ -2058,16 +2084,24 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     let active = 0;
     const maxConcurrent = 2;
     const pump = () => {
+      if (!cloudTop.userEnabled) {
+        cloudTop.backgroundQueueRunning = false;
+        return;
+      }
       while (active < maxConcurrent && queue.length) {
         const frame = queue.shift();
         active += 1;
         cloudTop.frameRenderer.loadFrame(frame)
           .then((rendered) => {
+            if (!cloudTop.userEnabled) return;
             cloudTop.loadedFrames = mergeCloudTopFrames(cloudTop.loadedFrames || [], [rendered], { now: Date.now() });
             cloudTop.playback.setFrames(cloudTop.loadedFrames, { autoplay: false });
             state.cloudTop.frameStats = cloudTop.frameRenderer.getStats();
           })
-          .catch((error) => console.warn("No se pudo cargar cuadro GOES IR en segundo plano:", error))
+          .catch((error) => {
+            if (isExpectedCloudTopCancellation(error)) return;
+            console.warn("No se pudo cargar cuadro GOES IR en segundo plano:", error);
+          })
           .finally(() => {
             active -= 1;
             if (!queue.length && active === 0) {
@@ -2098,6 +2132,10 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       renderCloudTopPanel();
       return;
     }
+    if (!state.cloudTop.userEnabled) {
+      renderCloudTopPanel();
+      return;
+    }
     const renderToken = (state.cloudTop.renderToken || 0) + 1;
     state.cloudTop.renderToken = renderToken;
     try {
@@ -2124,6 +2162,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       preloadNextCloudTopFrame(frame);
       renderCloudTopPanel();
     } catch (error) {
+      if (isExpectedCloudTopCancellation(error)) return;
       console.error("No se pudo mostrar el cuadro meteorológico:", error);
       if (state.cloudTop.lastValidFrame) {
         setCloudTopStatus("frame-error", "No se pudo cargar el cuadro actual; se mantiene el último válido.");
@@ -2136,7 +2175,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
 
   function preloadNextCloudTopFrame(frame) {
     const frames = state.cloudTop.frames || [];
-    if (!frames.length || !state.cloudTop.frameRenderer) return;
+    if (!state.cloudTop.userEnabled || !frames.length || !state.cloudTop.frameRenderer) return;
     const currentIndex = frames.findIndex((candidate) => candidate.timestamp === frame.timestamp);
     const nextFrame = frames[(currentIndex + 1) % frames.length];
     if (!nextFrame || nextFrame.timestamp === frame.timestamp) return;
@@ -2147,6 +2186,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
 
   function scheduleCloudTopPolling() {
     clearCloudTopPolling();
+    if (!state.cloudTop.userEnabled) return;
     const interval = state.cloudTop.activeProvider?.pollingIntervalMs || CLOUD_TOP_PROVIDER_CONFIG.pollingIntervalMs;
     state.cloudTop.pollingTimer = window.setTimeout(async () => {
       state.cloudTop.pollingTimer = null;
@@ -2170,26 +2210,96 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       clearCloudTopPolling();
       return;
     }
+    if (!state.cloudTop.userEnabled) return;
     scheduleCloudTopPolling();
     state.cloudTop.playback?.play();
+  }
+
+  function toggleCloudTopVisibility() {
+    setCloudTopVisibility(!state.cloudTop.userEnabled);
+  }
+
+  function setCloudTopVisibility(enabled) {
+    const cloudTop = state.cloudTop;
+    cloudTop.userEnabled = Boolean(enabled);
+    cloudTop.visible = cloudTop.userEnabled;
+    cloudTop.mapLayer?.setVisible(cloudTop.userEnabled);
+    cloudTop.playback?.setVisible(cloudTop.userEnabled);
+    if (!cloudTop.userEnabled) {
+      clearCloudTopPolling();
+      cloudTop.renderToken = (cloudTop.renderToken || 0) + 1;
+      setCloudTopStatus("disabled", "Visualización GOES desactivada.");
+    } else {
+      setCloudTopStatus(cloudTop.lastValidFrame ? "visible" : "loading", cloudTop.lastValidFrame ? "Cuadro visible." : "Actualizando datos satelitales...");
+      if (cloudTop.lastValidFrame) {
+        cloudTop.mapLayer?.showFrame(cloudTop.lastValidFrame).catch((error) => {
+          if (!isExpectedCloudTopCancellation(error)) console.error("No se pudo restaurar el cuadro GOES IR:", error);
+        });
+      } else if (cloudTop.initialized) {
+        ensureCloudTopFramesLoaded({ autoplay: true }).catch((error) => {
+          if (!isExpectedCloudTopCancellation(error)) console.error(error);
+        });
+      }
+      if (cloudTop.playback?.frames?.length >= 2) cloudTop.playback.play();
+      loadCloudTopFramesInBackground();
+      scheduleCloudTopPolling();
+    }
+    updateCloudTopToggle();
+    renderCloudTopPanel();
+  }
+
+  function updateCloudTopToggle() {
+    if (!elements.cloudTopToggle) return;
+    const enabled = state.cloudTop.userEnabled;
+    elements.cloudTopToggle.setAttribute("aria-pressed", String(enabled));
+    elements.cloudTopToggle.setAttribute("aria-label", enabled ? "Desactivar visualización GOES" : "Activar visualización GOES");
+    const stateMarker = elements.cloudTopToggle.querySelector(".goes-ir-toggle__state");
+    if (stateMarker) stateMarker.textContent = enabled ? "●" : "○";
   }
 
   function renderCloudTopPanel() {
     if (!elements.cloudTopPanel) return;
     const frame = state.cloudTop.visibleFrame || state.cloudTop.lastValidFrame;
     elements.cloudTopPanel.hidden = false;
-    elements.cloudTopCurrentTime.textContent = frame
+    const timeText = !state.cloudTop.userEnabled
+      ? "Desactivado"
+      : frame
       ? formatFrameTime(frame.timestamp, { timeZone: CLOUD_TOP_TIME_ZONE })
       : state.cloudTop.status === "unavailable"
         ? "Sin cuadro visible"
         : "Cargando...";
-    elements.cloudTopStatus.textContent = getCloudTopVisibleStatus(frame);
-    elements.cloudTopUpdated.textContent = getCloudTopUpdatedLabel(frame);
+    const visibleStatus = getCloudTopVisibleStatus(frame);
+    const compactStatus = getCloudTopCompactStatus(frame);
+    const updatedLabel = getCloudTopUpdatedLabel(frame);
+    elements.cloudTopCurrentTime.textContent = timeText;
+    elements.cloudTopStatus.textContent = compactStatus;
+    elements.cloudTopUpdated.textContent = updatedLabel;
+    elements.cloudTopPanel.setAttribute(
+      "title",
+      `${GOES_IR_ACCESSIBLE_DESCRIPTION} ${updatedLabel}. Estado: ${visibleStatus}`
+    );
+    elements.cloudTopPanel.setAttribute(
+      "aria-label",
+      `GOES, infrarrojo de nubes, ${timeText}, ${compactStatus ? `${compactStatus}, ` : ""}fuente NOAA nowCOAST. ${GOES_IR_ACCESSIBLE_DESCRIPTION} ${updatedLabel}. Estado: ${visibleStatus}`
+    );
     elements.cloudTopPanel.classList.toggle("is-demo", Boolean(state.cloudTop.metadata?.isDemo));
     elements.cloudTopPanel.classList.toggle("is-stale", isCloudTopVisibleStale(frame) || state.cloudTop.status === "unavailable");
+    elements.cloudTopPanel.classList.toggle("is-disabled", !state.cloudTop.userEnabled);
+    updateCloudTopToggle();
+  }
+
+  function getCloudTopCompactStatus(frame) {
+    if (!state.cloudTop.userEnabled || state.cloudTop.status === "disabled") return "";
+    if (state.cloudTop.status === "unavailable") return "Sin datos";
+    if (state.cloudTop.status === "loading") return "Actualizando";
+    if (state.cloudTop.status === "frame-error") return "Último válido";
+    if (state.cloudTop.metadata?.isDemo) return "Demo";
+    if (isCloudTopVisibleStale(frame)) return "Desactualizado";
+    return "";
   }
 
   function getCloudTopVisibleStatus(frame) {
+    if (!state.cloudTop.userEnabled || state.cloudTop.status === "disabled") return "Visualización GOES desactivada.";
     if (state.cloudTop.status === "unavailable") return "Datos satelitales temporalmente no disponibles.";
     if (state.cloudTop.metadata?.isDemo) return "Demo local activa; no son datos reales.";
     if (isCloudTopVisibleStale(frame)) {
@@ -2231,6 +2341,10 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     state.cloudTop.status = status;
     state.cloudTop.statusMessage = message;
     renderCloudTopPanel();
+  }
+
+  function isExpectedCloudTopCancellation(error) {
+    return error?.name === "AbortError" || error?.code === "AbortError" || !state.cloudTop.userEnabled;
   }
 
   function applyVisibleSnapshot() {
@@ -2326,8 +2440,110 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     elements.toolbarAddPoint.classList.toggle("is-hidden", !canUpload());
     elements.triggerUpload.classList.toggle("is-hidden", !canUpload());
     elements.toolbarClearMeasure.classList.toggle("is-hidden", state.measurement.points.length === 0);
-    elements.uploadPermissionNote.classList.toggle("is-hidden", canUpload());
+    elements.uploadPermissionNote.classList.toggle("is-hidden", canUpload() || state.toolbarCollapsed);
     map.getCanvas().style.cursor = state.activeTool ? "crosshair" : "";
+    syncToolbarCollapseState();
+    scheduleToolbarAutoCollapse();
+  }
+
+  function setupToolbarAutoCollapse() {
+    if (!elements.toolsOverlay || !elements.mapToolbar || !elements.toolbarCompactTrigger) return;
+    elements.toolbarCompactTrigger.addEventListener("click", () => expandToolbar({ focusToolbar: true }));
+    elements.toolbarCollapse?.addEventListener("click", () => collapseToolbar({ manual: true }));
+    elements.toolsOverlay.addEventListener("pointerenter", () => {
+      state.toolbarPointerInside = true;
+      clearToolbarAutoCollapseTimer();
+    });
+    elements.toolsOverlay.addEventListener("pointerleave", () => {
+      state.toolbarPointerInside = false;
+      scheduleToolbarAutoCollapse();
+    });
+    elements.toolsOverlay.addEventListener("focusin", () => {
+      clearToolbarAutoCollapseTimer();
+      if (state.toolbarCollapsed) expandToolbar();
+    });
+    elements.toolsOverlay.addEventListener("focusout", () => {
+      window.setTimeout(scheduleToolbarAutoCollapse, 0);
+    });
+    elements.toolsOverlay.addEventListener("click", scheduleToolbarAutoCollapse);
+    elements.toolsOverlay.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && !state.toolbarCollapsed && canToolbarAutoCollapse()) {
+        collapseToolbar({ manual: true });
+        elements.toolbarCompactTrigger?.focus();
+        return;
+      }
+      scheduleToolbarAutoCollapse();
+    });
+    syncToolbarCollapseState();
+    scheduleToolbarAutoCollapse();
+  }
+
+  function collapseToolbar(options = {}) {
+    if (state.toolbarCollapsed || !canToolbarAutoCollapse(options)) {
+      scheduleToolbarAutoCollapse();
+      return;
+    }
+    state.toolbarCollapsed = true;
+    clearToolbarAutoCollapseTimer();
+    syncToolbarCollapseState();
+  }
+
+  function expandToolbar(options = {}) {
+    if (!state.toolbarCollapsed) {
+      scheduleToolbarAutoCollapse();
+      return;
+    }
+    state.toolbarCollapsed = false;
+    syncToolbarCollapseState();
+    if (options.focusToolbar) {
+      window.requestAnimationFrame(() => {
+        getVisibleToolbarButtons()[0]?.focus();
+      });
+    }
+    scheduleToolbarAutoCollapse();
+  }
+
+  function syncToolbarCollapseState() {
+    const collapsed = Boolean(state.toolbarCollapsed);
+    elements.toolsOverlay?.classList.toggle("is-toolbar-collapsed", collapsed);
+    if (elements.mapToolbar) elements.mapToolbar.hidden = collapsed;
+    if (elements.toolbarCompactTrigger) {
+      elements.toolbarCompactTrigger.hidden = !collapsed;
+      elements.toolbarCompactTrigger.setAttribute("aria-expanded", String(!collapsed));
+      elements.toolbarCompactTrigger.setAttribute("title", collapsed ? "Mostrar herramientas del visor" : "Herramientas visibles");
+    }
+    elements.uploadPermissionNote?.classList.toggle("is-hidden", canUpload() || collapsed);
+  }
+
+  function scheduleToolbarAutoCollapse() {
+    clearToolbarAutoCollapseTimer();
+    if (state.toolbarCollapsed || !canToolbarAutoCollapse()) return;
+    state.toolbarAutoCollapseTimer = window.setTimeout(() => {
+      state.toolbarAutoCollapseTimer = null;
+      collapseToolbar();
+    }, TOOLBAR_AUTO_COLLAPSE_MS);
+  }
+
+  function clearToolbarAutoCollapseTimer() {
+    if (!state.toolbarAutoCollapseTimer) return;
+    window.clearTimeout(state.toolbarAutoCollapseTimer);
+    state.toolbarAutoCollapseTimer = null;
+  }
+
+  function canToolbarAutoCollapse(options = {}) {
+    if (state.activeTool) return false;
+    if (elements.basemapFlyout && !elements.basemapFlyout.hidden) return false;
+    if (state.uploadDraft?.previewVisible || state.uploadDraft?.files?.length) return false;
+    if (elements.uploadLayerModal?.open) return false;
+    if (state.toolbarPointerInside && !options.manual) return false;
+    if (elements.toolsOverlay?.contains(document.activeElement) && !options.manual) return false;
+    return true;
+  }
+
+  function getVisibleToolbarButtons() {
+    if (!elements.mapToolbar) return [];
+    return [...elements.mapToolbar.querySelectorAll("button")]
+      .filter((button) => !button.hidden && !button.disabled && !button.classList.contains("is-hidden"));
   }
 
   function refreshMeasurementLayers() {
@@ -2639,6 +2855,15 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     }
   }
 
+  function buildNoAplicaDisplayColorExpression(sourceExpression) {
+    return [
+      "case",
+      ["==", ["get", "__egemNoAplicaStyle"], true],
+      NO_APLICA_COLOR,
+      sourceExpression,
+    ];
+  }
+
   function addGeoJsonLayerToMap(layer) {
     const sourceId = `source-${layer.id}`;
     const lineId = `${layer.id}-line`;
@@ -2647,9 +2872,15 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     const defaultLineColor = layer.lineColor || layer.color;
     const defaultFillColor = layer.fillColor || layer.color;
     const defaultPointColor = layer.iconColor || layer.color;
-    const fillColorExpression = layer.symbology?.fillColorExpression || ["coalesce", ["get", "__styleFill"], defaultFillColor];
-    const lineColorExpression = layer.symbology?.lineColorExpression || ["coalesce", ["get", "__styleLine"], defaultLineColor];
-    const pointColorExpression = layer.symbology?.pointColorExpression || ["coalesce", ["get", "__styleIcon"], defaultPointColor];
+    const fillColorExpression = buildNoAplicaDisplayColorExpression(
+      layer.symbology?.fillColorExpression || ["coalesce", ["get", "__styleFill"], defaultFillColor]
+    );
+    const lineColorExpression = buildNoAplicaDisplayColorExpression(
+      layer.symbology?.lineColorExpression || ["coalesce", ["get", "__styleLine"], defaultLineColor]
+    );
+    const pointColorExpression = buildNoAplicaDisplayColorExpression(
+      layer.symbology?.pointColorExpression || ["coalesce", ["get", "__styleIcon"], ["get", "__styleFill"], defaultPointColor]
+    );
     const styleOpacityPaintValue = getLayerStyleOpacityPaintValue(layer);
     const geometryTypes = getLayerGeometryTypes(layer);
     const hasPolygons = hasAnyGeometryType(geometryTypes, ["Polygon", "MultiPolygon"]);
@@ -2669,6 +2900,9 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
           ["==", ["geometry-type"], "Polygon"],
           ["==", ["geometry-type"], "MultiPolygon"],
         ],
+        layout: {
+          "fill-sort-key": ["coalesce", ["to-number", ["get", "__egemSortKey"]], 0],
+        },
         paint: {
           "fill-color": fillColorExpression,
           "fill-opacity": styleOpacityPaintValue,
@@ -3199,7 +3433,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     });
     if (!layerIds.length) return null;
     const features = map.queryRenderedFeatures(event.point, { layers: layerIds });
-    const feature = features.find((item) => hasPopupProperties(item.properties));
+    const feature = pickTopVectorPopupFeature(features);
     if (!feature) return null;
     return {
       kind: "vector",
@@ -3271,17 +3505,13 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     const props = feature.properties || {};
     if (!hasPopupProperties(props)) return;
     console.info("Propiedades de una Feature seleccionada:", props);
-    const cleanedAttributes = cleanFeatureAttributes(props);
-    const mainAttribute = findMainFeatureAttribute(cleanedAttributes);
+    const cleanedAttributes = cleanThematicPopupAttributes(props, layer.legend);
     const info = {
       title: layer.title,
       description: layer.description,
-      extra: [
-        mainAttribute ? `${mainAttribute.label}: ${mainAttribute.value}` : null,
-        ...buildLayerCatalogLines(layer),
-      ],
+      extra: [],
       attributes: cleanedAttributes,
-      legend: layer.legend,
+      legend: null,
     };
 
     openInfoPopup({
@@ -3289,7 +3519,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       resourceType: isImageBackedLayer(layer) ? "mixed" : "vector",
       mapLayerId,
       coordinate: lngLat,
-      html: buildFeaturePopup(layer.title, props),
+      html: buildThematicFeaturePopup(layer.title, props, layer.legend),
       info,
     });
   }
@@ -3364,22 +3594,24 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     `;
   }
 
-  function renderLayerLegend(legend) {
+  function renderLayerLegend(legend, options = {}) {
     if (!legend || !Array.isArray(legend.classes)) return "";
+    const listClassName = ["legend-list", options.compact ? "legend-list--compact" : ""].filter(Boolean).join(" ");
+    const itemClassName = ["legend-item", options.compact ? "legend-item--compact" : ""].filter(Boolean).join(" ");
     const items = legend.classes
       .map((item) => `
-        <div class="legend-item">
-          <span class="legend-swatch" style="${escapeHtml(getLegendSwatchStyle(item))}"></span>
-          <div>
-            <strong>${escapeHtml(item.label)}</strong>
+        <div class="${itemClassName}">
+          <span class="legend-swatch" style="${escapeHtml(getLegendSwatchStyle(item))}" aria-hidden="true"></span>
+          <div class="legend-item__copy">
+            <strong title="${escapeHtml(item.label)}">${escapeHtml(item.label)}</strong>
             ${getLegendClassDescriptor(item, legend)}
           </div>
         </div>
       `)
       .join("");
     return `
-      <div class="legend-list">
-        ${shouldRenderLegendField(legend) ? `<p class="info-copy"><strong>${escapeHtml(legend.field)}</strong></p>` : ""}
+      <div class="${listClassName}">
+        ${!options.hideField && shouldRenderLegendField(legend) ? `<p class="info-copy"><strong>${escapeHtml(legend.field)}</strong></p>` : ""}
         ${items}
       </div>
     `;
@@ -3461,7 +3693,13 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
 
     if (!layerIds.length) return null;
     const features = map.queryRenderedFeatures(event.point, { layers: layerIds });
-    return features.find((feature) => hasPopupProperties(feature.properties)) || null;
+    return pickTopVectorPopupFeature(features);
+  }
+
+  function pickTopVectorPopupFeature(features) {
+    const popupFeatures = (features || []).filter((feature) => hasPopupProperties(feature.properties));
+    if (!popupFeatures.length) return null;
+    return pickTopFeatureByVisualPriority(popupFeatures);
   }
 
   function getTopGroundOverlayHit(lngLat) {
@@ -3530,8 +3768,8 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     });
   }
 
-  function buildFeaturePopup(layerName, properties = {}) {
-    const attributes = cleanFeatureAttributes(properties);
+  function buildFeaturePopup(layerName, properties = {}, legend = null) {
+    const attributes = cleanFeatureAttributes(properties, legend);
     const mainAttribute = findMainFeatureAttribute(attributes);
     const rows = Object.entries(attributes)
       .map(([key, value]) => `
@@ -3563,7 +3801,47 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     `;
   }
 
-  function cleanFeatureAttributes(properties = {}) {
+  function buildThematicFeaturePopup(layerName, properties = {}, legend = null) {
+    const attributes = cleanThematicPopupAttributes(properties, legend);
+    const rows = THEMATIC_POPUP_FIELDS
+      .filter(({ label }) => Object.prototype.hasOwnProperty.call(attributes, label))
+      .map(({ label }) => `
+        <div class="feature-popup__row">
+          <dt>${escapeHtml(label)}:</dt>
+          <dd>${escapeHtml(String(attributes[label]))}</dd>
+        </div>
+      `)
+      .join("");
+
+    return `
+      <section class="feature-popup feature-popup--thematic">
+        <header class="feature-popup__header">
+          <strong>${escapeHtml(layerName || "Capa seleccionada")}</strong>
+        </header>
+        <div class="feature-popup__body">
+          ${
+            rows
+              ? `<dl class="feature-popup__list">${rows}</dl>`
+              : `<p class="feature-popup__empty">Sin información temática disponible.</p>`
+          }
+        </div>
+      </section>
+    `;
+  }
+
+  const THEMATIC_POPUP_FIELDS = [
+    {
+      label: "Intensidad",
+      aliases: ["Intensidad", "INTENSIDAD", "Intensid_1", "Intensidad_1", "Intensid1", "Riesgo", "RIESGO", "Nivel", "NIVEL"],
+      fallbackAliases: ["Magni_unid", "MAGNI_UNID", "Magni_uni"],
+      acceptsFallback: isIntensityCategoryValue,
+    },
+    { label: "Detalles", aliases: ["Detalles", "DETALLES", "Detalle", "DETALLE"] },
+    { label: "Clasificación", aliases: ["Clasificación", "Clasificacion", "Fen_Clasif", "FEN_CLASIF"] },
+    { label: "Amenaza", aliases: ["Amenaza", "Ame_Ampl", "AME_AMPL"] },
+  ];
+
+  function cleanThematicPopupAttributes(properties = {}, legend = null) {
     const descriptionAttributes = parseKmlDescriptionHtmlAttributes(
       getPropertyValueByAlias(properties, ["description", "Description"])
     );
@@ -3573,6 +3851,83 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
         mergedProperties[key] = value;
       }
     });
+    applyVisibleLegendLabelForPopup(mergedProperties, legend);
+
+    const lookup = buildPopupAttributeLookup(mergedProperties);
+    return THEMATIC_POPUP_FIELDS.reduce((attributes, field) => {
+      const value = getThematicPopupFieldValue(field, lookup);
+      if (isUsablePopupValue(value)) {
+        attributes[field.label] = value;
+      }
+      return attributes;
+    }, {});
+  }
+
+  function buildPopupAttributeLookup(properties = {}) {
+    return Object.entries(properties).reduce((lookup, [key, value]) => {
+      const normalizedKey = normalizeAttributeKey(key);
+      if (!normalizedKey || lookup.has(normalizedKey)) return lookup;
+      const textValue = sanitizePopupTextValue(value);
+      if (isUsablePopupValue(textValue)) {
+        lookup.set(normalizedKey, textValue);
+      }
+      return lookup;
+    }, new Map());
+  }
+
+  function getThematicPopupFieldValue(field, lookup) {
+    const directValue = getPopupLookupValue(lookup, field.aliases);
+    if (isUsablePopupValue(directValue)) return directValue;
+    if (!field.fallbackAliases?.length) return null;
+    const fallbackValue = getPopupLookupValue(lookup, field.fallbackAliases);
+    return !field.acceptsFallback || field.acceptsFallback(fallbackValue) ? fallbackValue : null;
+  }
+
+  function getPopupLookupValue(lookup, aliases = []) {
+    const normalizedAliases = aliases.map(normalizeAttributeKey);
+    const matchedKey = normalizedAliases.find((key) => lookup.has(key));
+    return matchedKey ? lookup.get(matchedKey) : null;
+  }
+
+  function sanitizePopupTextValue(value) {
+    if (value === null || value === undefined || typeof value === "object") return null;
+    const raw = String(value).trim();
+    if (!raw) return null;
+    if (!/<[a-z][\s\S]*>/iu.test(raw)) return raw;
+    const htmlDoc = new DOMParser().parseFromString(raw, "text/html");
+    htmlDoc.querySelectorAll("script, style, iframe, object, embed").forEach((node) => node.remove());
+    return String(htmlDoc.body.textContent || "").replace(/\s+/g, " ").trim();
+  }
+
+  function isIntensityCategoryValue(value) {
+    if (!isUsablePopupValue(value)) return false;
+    const normalized = normalizeAttributeKey(value).replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
+    return [
+      "muy bajo",
+      "muy baja",
+      "bajo",
+      "baja",
+      "medio",
+      "media",
+      "alto",
+      "alta",
+      "muy alto",
+      "muy alta",
+      "no aplica",
+    ].includes(normalized);
+  }
+
+  function cleanFeatureAttributes(properties = {}, legend = null) {
+    const descriptionAttributes = parseKmlDescriptionHtmlAttributes(
+      getPropertyValueByAlias(properties, ["description", "Description"])
+    );
+    const mergedProperties = { ...properties };
+    Object.entries(descriptionAttributes).forEach(([key, value]) => {
+      if (!isUsablePopupValue(mergedProperties[key])) {
+        mergedProperties[key] = value;
+      }
+    });
+    applyVisibleLegendLabelForPopup(mergedProperties, legend);
 
     const sourceEntries = Object.entries(mergedProperties)
       .filter(([key, value]) => isVisiblePopupAttribute(key, value));
@@ -3598,6 +3953,33 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     });
 
     return attributes;
+  }
+
+  function applyVisibleLegendLabelForPopup(properties, legend = null) {
+    const visibleLabel = getFeatureStyleLegendLabel(properties, legend);
+    if (!isUsablePopupValue(visibleLabel)) return;
+    if (isGenericPopupLegendLabel(visibleLabel)) return;
+    const originalIntensity = getPropertyValueByAlias(properties, [
+      "Intensidad",
+      "INTENSIDAD",
+      "Intensid_1",
+      "Intensidad_1",
+      "Intensid1",
+      "Riesgo",
+      "RIESGO",
+      "Nivel",
+      "NIVEL",
+    ]);
+    if (legendTextsAreEquivalent(originalIntensity, visibleLabel)) return;
+    if (isUsablePopupValue(originalIntensity)) {
+      properties["Intensidad original"] = originalIntensity;
+    }
+    properties.Intensidad = visibleLabel;
+  }
+
+  function isGenericPopupLegendLabel(value) {
+    const normalized = normalizeAttributeKey(value).replace(/\s+/g, " ").trim();
+    return normalized === "clase" || /^clase sin etiqueta \d+$/u.test(normalized);
   }
 
   function getPopupAttributeSchema() {
@@ -6652,12 +7034,33 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
         ...geojson,
         features: featuresWithExistingStyle.map((feature) => ({
           ...feature,
-          properties: applyBackendFeatureStyle(feature.properties || {}, symbology, { preserveExistingStyle: existingStyleIsUsable }),
+          properties: applyBackendFeatureSortKey(
+            applyNoAplicaDisplayStyleFlag(
+              applyBackendFeatureStyle(feature.properties || {}, symbology, { preserveExistingStyle: existingStyleIsUsable }),
+              symbology
+            )
+          ),
         })),
       },
       symbology,
       legend: symbology?.legend || null,
     };
+  }
+
+  function applyNoAplicaDisplayStyleFlag(properties, symbology = null) {
+    const styleField = getNoAplicaStyleField(symbology);
+    if (!styleField) return properties;
+    const styleValue = getPropertyValueByAlias(properties, [styleField]);
+    if (!isNoAplicaLegendValue(styleValue)) return properties;
+    return {
+      ...properties,
+      __egemNoAplicaStyle: true,
+    };
+  }
+
+  function getNoAplicaStyleField(symbology = null) {
+    const field = symbology?.legend?.styleField || symbology?.legend?.field || symbology?.field;
+    return field && !isTechnicalStyleField(field) ? field : null;
   }
 
   function hasUsefulExistingStyle(features) {
@@ -6673,6 +7076,15 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     }
 
     return true;
+  }
+
+  function applyBackendFeatureSortKey(properties) {
+    const rank = getFeatureVisualPriorityRank(properties);
+    if (!rank) return properties;
+    return {
+      ...properties,
+      __egemSortKey: rank,
+    };
   }
 
   function normalizeBackendFeatureProperties(properties) {

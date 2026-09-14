@@ -13,15 +13,46 @@ const {
   buildRasterLegendFallback,
   buildSemanticLegendFromFeatures,
   buildTechnicalStyleFallbackLegend,
+  getFeatureStyleLegendLabel,
+  getFeatureVisualPriorityRank,
+  isNoAplicaLegendValue,
   isTechnicalStyleField,
   legendTextsAreEquivalent,
+  NO_APLICA_COLOR,
   normalizeLegendComparisonText,
   normalizePublishedRasterLegend,
   normalizePublishedVectorLegend,
+  pickTopFeatureByVisualPriority,
 } = await import(moduleUrl);
 
 function feature(properties) {
   return { type: "Feature", properties, geometry: { type: "Polygon", coordinates: [] } };
+}
+
+function ringFeature(label, color, halfSize) {
+  return {
+    type: "Feature",
+    properties: { Intensidad: label, __styleFill: color },
+    geometry: {
+      type: "Polygon",
+      coordinates: [[
+        [-halfSize, -halfSize],
+        [halfSize, -halfSize],
+        [halfSize, halfSize],
+        [-halfSize, halfSize],
+        [-halfSize, -halfSize],
+      ]],
+    },
+  };
+}
+
+function pointInSquare(point, ring) {
+  const xs = ring.map((coordinate) => coordinate[0]);
+  const ys = ring.map((coordinate) => coordinate[1]);
+  return point[0] >= Math.min(...xs) &&
+    point[0] <= Math.max(...xs) &&
+    point[1] >= Math.min(...ys) &&
+    point[1] <= Math.max(...ys);
 }
 
 function extractFunctionSource(source, name) {
@@ -62,6 +93,19 @@ test("la leyenda vectorial publicada es la fuente semantica y no expone __styleF
   assert.equal(legend.classes.some((item) => item.label.startsWith("#")), false);
 });
 
+test("No Aplica se reconoce solo como categoria exacta normalizada", () => {
+  assert.equal(NO_APLICA_COLOR, "#808080");
+  assert.equal(isNoAplicaLegendValue("No Aplica"), true);
+  assert.equal(isNoAplicaLegendValue("No aplica"), true);
+  assert.equal(isNoAplicaLegendValue("NO APLICA"), true);
+  assert.equal(isNoAplicaLegendValue("  No Aplica  "), true);
+  assert.equal(isNoAplicaLegendValue("No aplicable"), false);
+  assert.equal(isNoAplicaLegendValue("N/A"), false);
+  assert.equal(isNoAplicaLegendValue(""), false);
+  assert.equal(isNoAplicaLegendValue(null), false);
+  assert.equal(isNoAplicaLegendValue(undefined), false);
+});
+
 test("la reconstruccion semantica conserva colores tecnicos sin usarlos como etiquetas", () => {
   const legend = buildSemanticLegendFromFeatures([
     feature({ Intensidad: "Muy Baja", __styleFill: "#006100" }),
@@ -74,6 +118,190 @@ test("la reconstruccion semantica conserva colores tecnicos sin usarlos como eti
   assert.equal(legend.field, "Intensidad");
   assert.deepEqual(legend.classes.map((item) => item.label), ["Muy Baja", "Baja", "Media", "Alta", "Muy Alta"]);
   assert.deepEqual(legend.classes.map((item) => item.color), ["#006100", "#7aab00", "#ffff00", "#ff9900", "#ff2200"]);
+});
+
+test("la leyenda semantica lee Intensidad desde descripcion HTML aunque exista una sola clase", () => {
+  const description = `
+    <table>
+      <tr><td>Intensidad</td><td>Alto</td></tr>
+      <tr><td>R_P_V_E_A</td><td>Peligro</td></tr>
+    </table>
+  `;
+  const legend = normalizePublishedVectorLegend({ title: "Accidentes por autotransporte" }, {
+    preferredField: "Intensidad",
+    features: [
+      feature({ Name: "17", description, __styleFill: "#000000" }),
+      feature({ Name: "17", description, __styleFill: "#000000" }),
+    ],
+  });
+
+  assert.equal(legend.field, "Peligro");
+  assert.deepEqual(legend.classes.map((item) => item.label), ["Alto"]);
+  assert.deepEqual(legend.classes.map((item) => item.color), ["#000000"]);
+});
+
+test("ciclon tropical conserva No Aplica desde el HTML y no cae en clase anonima", () => {
+  const sourceFeature = feature({
+    Name: "17",
+    Description: "<table><tr><td>Intensidad</td><td>No Aplica</td></tr></table>",
+    __styleFill: "#d7b09e",
+  });
+  const legend = normalizePublishedVectorLegend({ title: "Ciclón tropical" }, {
+    preferredField: "Intensidad",
+    features: [sourceFeature],
+  });
+
+  assert.equal(legend.field, "Intensidad");
+  assert.equal(legend.styleField, "Intensidad");
+  assert.deepEqual(legend.classes.map((item) => item.label), ["No Aplica"]);
+  assert.deepEqual(legend.classes.map((item) => item.color), [NO_APLICA_COLOR]);
+  assert.equal(sourceFeature.properties.__styleFill, "#d7b09e");
+});
+
+test("No Aplica usa gris en leyenda publicada sin tocar el color fuente", () => {
+  const record = {
+    title: "Capa publicada",
+    vectorLegend: {
+      type: "categorical",
+      field: "Intensidad",
+      classes: [
+        { label: "No Aplica", color: "#d7b09e", outlineColor: "#d7b09e" },
+        { label: "Alto", color: "#ff0000" },
+      ],
+    },
+  };
+  const legend = normalizePublishedVectorLegend(record);
+
+  assert.deepEqual(legend.classes.map((item) => `${item.label}:${item.color}:${item.outlineColor}`), [
+    `No Aplica:${NO_APLICA_COLOR}:${NO_APLICA_COLOR}`,
+    `Alto:#ff0000:#ff0000`,
+  ]);
+  assert.equal(record.vectorLegend.classes[0].color, "#d7b09e");
+});
+
+test("No aplica en un campo secundario no cambia una clase Alto", () => {
+  const legend = buildSemanticLegendFromFeatures([
+    feature({
+      Intensidad: "Alto",
+      Perlo_Ret: "No aplica",
+      __styleFill: "#ff9900",
+      __styleLine: "#ff9900",
+    }),
+  ], "Intensidad");
+
+  assert.equal(legend.field, "Intensidad");
+  assert.equal(legend.styleField, "Intensidad");
+  assert.deepEqual(legend.classes.map((item) => `${item.label}:${item.color}:${item.outlineColor}`), [
+    "Alta:#ff9900:#ff9900",
+  ]);
+});
+
+test("la prioridad visual usa color KML ordinal antes que una etiqueta inconsistente", () => {
+  assert.equal(getFeatureVisualPriorityRank(feature({
+    Description: "<table><tr><td>Intensidad</td><td>Muy Alto</td></tr></table>",
+    __styleFill: "#38a800",
+  })), 1);
+  assert.equal(getFeatureVisualPriorityRank(feature({
+    Description: "<table><tr><td>Intensidad</td><td>Bajo</td></tr></table>",
+    __styleFill: "#e31a1c",
+  })), 5);
+});
+
+test("la seleccion de anillos concentricos elige la intensidad visible de cada zona", () => {
+  const rings = [
+    ringFeature("Muy Bajo", "#38a800", 5),
+    ringFeature("Bajo", "#8ccc48", 4),
+    ringFeature("Medio", "#ffff00", 3),
+    ringFeature("Alto", "#ffc300", 2),
+    ringFeature("Muy Alto", "#e31a1c", 1),
+  ];
+  const cases = [
+    { point: [0, 0], expected: "Muy Alto" },
+    { point: [1.5, 0], expected: "Alto" },
+    { point: [2.5, 0], expected: "Medio" },
+    { point: [3.5, 0], expected: "Bajo" },
+    { point: [4.5, 0], expected: "Muy Bajo" },
+  ];
+
+  cases.forEach(({ point, expected }) => {
+    const candidates = rings.filter((item) => pointInSquare(point, item.geometry.coordinates[0]));
+    const selected = pickTopFeatureByVisualPriority(candidates);
+    assert.equal(selected.properties.Intensidad, expected);
+  });
+});
+
+test("popup puede alinear una etiqueta inconsistente con la clase visible sin perder el valor original", () => {
+  const legend = {
+    type: "categorical",
+    field: "Peligro",
+    classes: [
+      { label: "Muy Bajo", color: "#38a800", order: 1 },
+      { label: "Bajo", color: "#8ccc48", order: 2 },
+      { label: "Medio", color: "#ffff00", order: 3 },
+      { label: "Alto", color: "#ffc300", order: 4 },
+      { label: "Muy Alto", color: "#e31a1c", order: 5 },
+    ],
+  };
+
+  assert.equal(getFeatureStyleLegendLabel(feature({ Intensidad: "Alto", __styleFill: "#8ccc48" }), legend), "Bajo");
+});
+
+test("si la leyenda publicada contradice los colores KML preservados se reconstruye desde features", () => {
+  const record = {
+    title: "Histórico de incendios forestales",
+    vectorLegend: {
+      type: "categorical",
+      field: "Intensidad",
+      classes: [
+        { label: "Bajo", color: "#7aab00", order: 2 },
+        { label: "Medio", color: "#ffff00", order: 3 },
+        { label: "Alto", color: "#ff9900", order: 4 },
+      ],
+    },
+  };
+  const features = [
+    feature({ Description: "<table><tr><td>Intensidad</td><td>Bajo</td></tr><tr><td>R_P_V_E_A</td><td>Peligro</td></tr></table>", __styleFill: "#38a800" }),
+    feature({ Description: "<table><tr><td>Intensidad</td><td>Medio</td></tr><tr><td>R_P_V_E_A</td><td>Peligro</td></tr></table>", __styleFill: "#ffff00" }),
+    feature({ Description: "<table><tr><td>Intensidad</td><td>Alto</td></tr><tr><td>R_P_V_E_A</td><td>Peligro</td></tr></table>", __styleFill: "#ff0000" }),
+  ];
+
+  const legend = normalizePublishedVectorLegend(record, { features, preferredField: "Intensidad", record });
+
+  assert.deepEqual(legend.classes.map((item) => `${item.label}:${item.color}`), [
+    "Bajo:#38a800",
+    "Medio:#ffff00",
+    "Alto:#ff0000",
+  ]);
+});
+
+test("Alto puede ser rojo o naranja segun el estilo real de cada capa", () => {
+  const historico = normalizePublishedVectorLegend({ title: "Histórico de incendios forestales" }, {
+    preferredField: "Intensidad",
+    features: [feature({
+      Description: "<table><tr><td>Intensidad</td><td>Alto</td></tr><tr><td>R_P_V_E_A</td><td>Peligro</td></tr></table>",
+      __styleFill: "#ff0000",
+    })],
+  });
+  const otraCapa = normalizePublishedVectorLegend({ title: "Peligro por incendios forestales" }, {
+    preferredField: "Intensidad",
+    features: [feature({
+      Description: "<table><tr><td>Intensidad</td><td>Alto</td></tr><tr><td>R_P_V_E_A</td><td>Peligro</td></tr></table>",
+      __styleFill: "#ff9900",
+    })],
+  });
+
+  assert.equal(historico.classes[0].color, "#ff0000");
+  assert.equal(otraCapa.classes[0].color, "#ff9900");
+});
+
+test("una capa monoclase sin etiqueta semantica no se convierte en No Aplica", () => {
+  const legend = normalizePublishedVectorLegend({ title: "Capa monoclase" }, {
+    preferredField: "Intensidad",
+    features: [feature({ Name: "17", __styleFill: "#d7b09e" })],
+  });
+
+  assert.equal(legend, null);
+  assert.equal(buildTechnicalStyleFallbackLegend([feature({ Name: "17", __styleFill: "#d7b09e" })]).classes[0].label, "Clase sin etiqueta 1");
 });
 
 test("la leyenda publicada no duplica etiqueta como valor secundario", () => {

@@ -31,7 +31,18 @@ function extractFunctionSource(source, name) {
   const match = new RegExp(`function\\s+${name}\\s*\\(`).exec(source);
   assert.ok(match, `No se encontro ${name}`);
   const start = match.index;
-  const openBrace = source.indexOf("{", start);
+  let parenDepth = 0;
+  let signatureEnd = -1;
+  for (let index = source.indexOf("(", start); index < source.length; index += 1) {
+    const char = source[index];
+    if (char === "(") parenDepth += 1;
+    if (char === ")") parenDepth -= 1;
+    if (parenDepth === 0) {
+      signatureEnd = index;
+      break;
+    }
+  }
+  const openBrace = source.indexOf("{", signatureEnd);
   let depth = 0;
   for (let index = openBrace; index < source.length; index += 1) {
     const char = source[index];
@@ -203,9 +214,15 @@ test("el aviso institucional de version de prueba se muestra en cada carga sin p
 
 test("el panel compacto GOES IR no afirma lluvia ni radiacion UV", () => {
   const setupGoesSource = extractFunctionSource(mapSource, "setupCloudTopPanel");
+  const renderGoesSource = extractFunctionSource(mapSource, "renderCloudTopPanel");
 
-  assert.match(setupGoesSource, /GOES - Infrarrojo/);
-  assert.match(setupGoesSource, /Fuente: NOAA nowCOAST/);
+  assert.match(setupGoesSource, /<strong>GOES<\/strong>/);
+  assert.match(setupGoesSource, /id="goes-ir-toggle"/);
+  assert.match(setupGoesSource, /aria-pressed="true"/);
+  assert.match(setupGoesSource, /Infrarrojo de nubes/);
+  assert.match(setupGoesSource, /NOAA nowCOAST/);
+  assert.match(mapSource, /No representa lluvia directa/);
+  assert.match(renderGoesSource, /setAttribute\(\s*"aria-label"/);
   assert.doesNotMatch(setupGoesSource, /lluvia/);
   assert.doesNotMatch(setupGoesSource, /radiaci/);
 });
@@ -240,7 +257,7 @@ test("la auditoría ortográfica no deja variantes visibles conocidas sin acento
   });
   assert.match(visibleSources, /Menú/);
   assert.match(visibleSources, /Consulta rápida territorial/);
-  assert.match(visibleSources, /Coordenadas geográficas/);
+  assert.match(visibleSources, /Longitud:[\s\S]*Latitud:[\s\S]*WGS 84/);
   assert.match(visibleSources, /Última actualización/);
 });
 
@@ -686,21 +703,156 @@ test("visitante no conserva transparencia fija y activa capas al 100 por ciento"
   assert.doesNotMatch(saveSource, /getPersistableLayerOpacity/);
 });
 
-test("GOES compacto queda antes de coordenadas y la leyenda reduce espacio sin cambiar clases", async () => {
+test("GOES y coordenadas usan franjas compactas opuestas sin cambiar la leyenda", async () => {
   const html = await fs.readFile(path.resolve("index.html"), "utf8");
   const setupGoesSource = extractFunctionSource(mapSource, "setupCloudTopPanel");
+  const renderGoesSource = extractFunctionSource(mapSource, "renderCloudTopPanel");
+  const compactStatusSource = extractFunctionSource(mapSource, "getCloudTopCompactStatus");
 
-  assert.match(html, /map-overlay map-overlay--bottom-left/);
-  assert.match(setupGoesSource, /mapStage\.querySelector\("\.map-overlay--bottom-left"\)/);
-  assert.match(setupGoesSource, /coordinateOverlay\.prepend\(indicator\)/);
-  assert.match(setupGoesSource, /GOES - Infrarrojo/);
-  assert.match(setupGoesSource, /Fuente: NOAA nowCOAST/);
+  assert.match(html, /map-overlay map-overlay--goes/);
+  assert.match(html, /map-overlay map-overlay--coordinates/);
+  assert.match(html, /Longitud:[\s\S]*statusbar-lon[\s\S]*Latitud:[\s\S]*statusbar-lat[\s\S]*WGS 84/);
+  assert.doesNotMatch(html, /Coordenadas geográficas[\s\S]*WGS 84 \/ EPSG:4326/);
+  assert.match(setupGoesSource, /mapStage\.querySelector\("\.map-overlay--goes"\)/);
+  assert.match(setupGoesSource, /goesOverlay\.replaceChildren\(indicator\)/);
+  assert.match(setupGoesSource, /goes-ir-indicator__line/);
+  assert.match(setupGoesSource, /goes-ir-toggle/);
+  assert.match(setupGoesSource, /addEventListener\("click", toggleCloudTopVisibility\)/);
+  assert.match(setupGoesSource, /<strong>GOES<\/strong>/);
+  assert.match(setupGoesSource, /Infrarrojo de nubes/);
+  assert.match(setupGoesSource, /NOAA nowCOAST/);
+  assert.match(renderGoesSource, /getCloudTopCompactStatus\(frame\)/);
+  assert.match(compactStatusSource, /Desactualizado/);
+  assert.match(compactStatusSource, /return ""/);
   assert.doesNotMatch(setupGoesSource, /goes-ir-indicator__help/);
   assert.doesNotMatch(setupGoesSource, /goes-ir-indicator__ramp/);
-  assert.match(cssSource, /\.map-overlay--bottom-left \{[\s\S]*display: grid;[\s\S]*gap: 8px;/);
-  assert.match(cssSource, /\.goes-ir-indicator \{[\s\S]*position: static;/);
-  assert.match(cssSource, /\.map-legend-float \{[\s\S]*width: min\(308px/);
+  assert.doesNotMatch(setupGoesSource, /cloud-top-visible|cloud-top-button|cloud-top-toggle/);
+  assert.match(cssSource, /\.map-overlay--goes \{[\s\S]*bottom: 18px;/);
+  assert.match(cssSource, /\.map-overlay--coordinates \{[\s\S]*right: 178px;[\s\S]*bottom: 38px;/);
+  assert.match(cssSource, /\.coordinate-readout \{[\s\S]*display: inline-flex;[\s\S]*pointer-events|\.map-overlay \{[\s\S]*pointer-events: none;/);
+  assert.match(cssSource, /\.coordinate-readout \{[\s\S]*display: inline-flex;[\s\S]*white-space: nowrap;/);
+  assert.match(cssSource, /\.map-overlay--goes \{[\s\S]*bottom: 70px;[\s\S]*\.map-overlay--coordinates \{[\s\S]*bottom: 42px;/);
+  assert.match(cssSource, /\.map-overlay--goes \{[\s\S]*bottom: 68px;[\s\S]*\.map-overlay--coordinates \{[\s\S]*bottom: 40px;/);
+  assert.match(cssSource, /\.goes-ir-indicator \{[\s\S]*position: static;[\s\S]*pointer-events: none;/);
+  assert.match(cssSource, /\.goes-ir-toggle \{[\s\S]*pointer-events: auto;/);
+  assert.match(cssSource, /\.goes-ir-toggle:focus-visible \{/);
+  assert.match(cssSource, /\.goes-ir-indicator__line \{[\s\S]*display: inline-flex;[\s\S]*white-space: nowrap;/);
+  assert.match(cssSource, /\.map-legend-float \{[\s\S]*width: fit-content;/);
+  assert.match(cssSource, /\.map-legend-float__body \{[\s\S]*max-width: min\(190px, calc\(100vw - 36px\)\);/);
   assert.match(cssSource, /\.legend-item \{[\s\S]*padding: 7px 8px;/);
+});
+
+test("el boton compacto GOES controla solo la visibilidad satelital sin duplicar temporizadores", () => {
+  const setupGoesSource = extractFunctionSource(mapSource, "setupCloudTopPanel");
+  const setVisibilitySource = extractFunctionSource(mapSource, "setCloudTopVisibility");
+  const updateToggleSource = extractFunctionSource(mapSource, "updateCloudTopToggle");
+  const backgroundSource = extractFunctionSource(mapSource, "loadCloudTopFramesInBackground");
+  const pollingSource = extractFunctionSource(mapSource, "scheduleCloudTopPolling");
+  const renderFrameSource = extractFunctionSource(mapSource, "renderCloudTopFrame");
+
+  assert.equal((setupGoesSource.match(/id="goes-ir-toggle"/g) || []).length, 1);
+  assert.match(setupGoesSource, /aria-pressed="true"/);
+  assert.match(updateToggleSource, /aria-pressed/);
+  assert.match(updateToggleSource, /Desactivar visualización GOES/);
+  assert.match(updateToggleSource, /Activar visualización GOES/);
+  assert.match(updateToggleSource, /enabled \? "●" : "○"/);
+  assert.match(setVisibilitySource, /mapLayer\?\.setVisible\(cloudTop\.userEnabled\)/);
+  assert.match(setVisibilitySource, /playback\?\.setVisible\(cloudTop\.userEnabled\)/);
+  assert.match(setVisibilitySource, /clearCloudTopPolling\(\)/);
+  assert.match(setVisibilitySource, /scheduleCloudTopPolling\(\)/);
+  assert.match(backgroundSource, /if \(!cloudTop\.userEnabled/);
+  assert.match(pollingSource, /if \(!state\.cloudTop\.userEnabled\) return;/);
+  assert.match(renderFrameSource, /if \(!state\.cloudTop\.userEnabled\)/);
+  assert.doesNotMatch(setVisibilitySource, /localStorage|sessionStorage/);
+  assert.doesNotMatch(setVisibilitySource, /removeLayer|removeSource|toggleLayerVisibility|applyBaseMapVisibility/);
+});
+
+test("la barra de herramientas aumenta iconos y reduce separacion sin perder area clicable", async () => {
+  const html = await fs.readFile(path.resolve("index.html"), "utf8");
+  const toolbarStart = html.indexOf('<div class="map-toolbar" id="map-toolbar"');
+  const toolbarEnd = html.indexOf('<p class="toolbar-note"', toolbarStart);
+  const toolbarHtml = html.slice(toolbarStart, toolbarEnd);
+  const ids = [...toolbarHtml.matchAll(/id="([^"]+)"/g)].map((match) => match[1]);
+
+  assert.deepEqual(ids.filter((id) => id.startsWith("toolbar-") || id === "trigger-upload" || id === "focus-morelos-menu"), [
+    "toolbar-basemap",
+    "toolbar-toggle-panel",
+    "toolbar-zoom-in",
+    "toolbar-zoom-out",
+    "toolbar-reset-north",
+    "toolbar-fullscreen",
+    "toolbar-rotate-left",
+    "toolbar-rotate-right",
+    "toolbar-pitch-up",
+    "toolbar-pitch-down",
+    "toolbar-measure",
+    "toolbar-add-point",
+    "trigger-upload",
+    "focus-morelos-menu",
+    "toolbar-clear-measure",
+    "toolbar-collapse",
+  ]);
+  assert.match(toolbarHtml, /id="toolbar-zoom-in"[\s\S]*aria-label="Acercar mapa"[\s\S]*title="Acercar mapa"/);
+  assert.match(toolbarHtml, /id="toolbar-measure"[\s\S]*aria-label="Medir distancia entre dos puntos"[\s\S]*title="Medir distancia entre dos puntos"/);
+  assert.match(toolbarHtml, /id="toolbar-collapse"[\s\S]*aria-label="Comprimir herramientas del visor"[\s\S]*title="Comprimir herramientas"/);
+  assert.match(cssSource, /\.map-toolbar \{[\s\S]*?gap: 5px;[\s\S]*?padding: 8px 10px;/);
+  assert.match(cssSource, /\.map-toolbar\[hidden\] \{[\s\S]*?display: none;/);
+  assert.match(cssSource, /\.toolbar-button \{[\s\S]*?width: 36px;[\s\S]*?height: 36px;/);
+  assert.match(cssSource, /\.toolbar-icon \{[\s\S]*?width: 20px;[\s\S]*?height: 20px;/);
+  assert.match(cssSource, /\.toolbar-icon svg \{[\s\S]*?width: 20px;[\s\S]*?height: 20px;/);
+  assert.match(cssSource, /\.toolbar-button:focus-visible,/);
+  assert.match(cssSource, /\.toolbar-compact-trigger:focus-visible,/);
+  assert.match(cssSource, /\.map-toolbar \{[\s\S]*?border-radius: 20px;[\s\S]*?background: rgba\(255, 250, 245, 0\.94\);/);
+  assert.match(cssSource, /@media \(max-width: 760px\) \{[\s\S]*?\.map-toolbar \{[\s\S]*?gap: 2px;[\s\S]*?\.toolbar-button,[\s\S]*?width: 32px;[\s\S]*?height: 32px;[\s\S]*?\.toolbar-icon,[\s\S]*?width: 18px;[\s\S]*?height: 18px;/);
+});
+
+test("la barra de herramientas inicia abierta y se comprime con un solo temporizador seguro", async () => {
+  const html = await fs.readFile(path.resolve("index.html"), "utf8");
+  const setupSource = extractFunctionSource(mapSource, "setupToolbarAutoCollapse");
+  const collapseSource = extractFunctionSource(mapSource, "collapseToolbar");
+  const expandSource = extractFunctionSource(mapSource, "expandToolbar");
+  const syncSource = extractFunctionSource(mapSource, "syncToolbarCollapseState");
+  const scheduleSource = extractFunctionSource(mapSource, "scheduleToolbarAutoCollapse");
+  const canSource = extractFunctionSource(mapSource, "canToolbarAutoCollapse");
+  const updateToolbarSource = extractFunctionSource(mapSource, "updateToolbarState");
+
+  assert.match(mapSource, /const TOOLBAR_AUTO_COLLAPSE_MS = 8000;/);
+  assert.match(mapSource, /toolbarCollapsed: false/);
+  assert.match(mapSource, /toolbarAutoCollapseTimer: null/);
+  assert.match(html, /id="toolbar-compact-trigger"[\s\S]*aria-expanded="false"[\s\S]*aria-controls="map-toolbar"[\s\S]*hidden/);
+  assert.match(html, /id="map-toolbar"/);
+  assert.match(html, /id="toolbar-collapse"[\s\S]*aria-label="Comprimir herramientas del visor"/);
+  assert.match(setupSource, /toolbarCompactTrigger\.addEventListener\("click", \(\) => expandToolbar/);
+  assert.match(setupSource, /toolbarCollapse\?\.addEventListener\("click", \(\) => collapseToolbar/);
+  assert.match(setupSource, /pointerenter/);
+  assert.match(setupSource, /pointerleave/);
+  assert.match(setupSource, /focusin/);
+  assert.match(setupSource, /focusout/);
+  assert.match(scheduleSource, /clearToolbarAutoCollapseTimer\(\)/);
+  assert.match(scheduleSource, /window\.setTimeout\(\(\) => \{/);
+  assert.match(scheduleSource, /TOOLBAR_AUTO_COLLAPSE_MS/);
+  assert.match(collapseSource, /state\.toolbarCollapsed = true/);
+  assert.match(expandSource, /state\.toolbarCollapsed = false/);
+  assert.match(syncSource, /mapToolbar\) elements\.mapToolbar\.hidden = collapsed/);
+  assert.match(syncSource, /toolbarCompactTrigger\.hidden = !collapsed/);
+  assert.match(syncSource, /aria-expanded/);
+  assert.match(syncSource, /uploadPermissionNote\?\.classList\.toggle\("is-hidden", canUpload\(\) \|\| collapsed\)/);
+  assert.match(updateToolbarSource, /scheduleToolbarAutoCollapse\(\)/);
+  assert.doesNotMatch(collapseSource + expandSource + syncSource, /map\.resize|queueMapResize|localStorage|sessionStorage/);
+  assert.doesNotMatch(setupSource, /querySelectorAll\("[^"]*toolbar-compact-trigger/);
+});
+
+test("la compresion de herramientas se bloquea durante operaciones activas o navegacion de controles", () => {
+  const canSource = extractFunctionSource(mapSource, "canToolbarAutoCollapse");
+  const setupSource = extractFunctionSource(mapSource, "setupToolbarAutoCollapse");
+
+  assert.match(canSource, /if \(state\.activeTool\) return false;/);
+  assert.match(canSource, /basemapFlyout && !elements\.basemapFlyout\.hidden/);
+  assert.match(canSource, /uploadDraft\?\.previewVisible/);
+  assert.match(canSource, /uploadLayerModal\?\.open/);
+  assert.match(canSource, /toolbarPointerInside && !options\.manual/);
+  assert.match(canSource, /toolsOverlay\?\.contains\(document\.activeElement\) && !options\.manual/);
+  assert.match(setupSource, /if \(state\.toolbarCollapsed\) expandToolbar\(\);/);
 });
 
 test("la pila de activacion controla prioridad de consulta y cierre de popup", () => {
@@ -723,6 +875,53 @@ test("la pila de activacion controla prioridad de consulta y cierre de popup", (
   assert.match(clickSource, /getRasterPopupHitForLayer\(layer, event\.lngLat\)/);
   assert.match(vectorSource, /map\.queryRenderedFeatures\(event\.point, \{ layers: layerIds \}\)/);
   assert.match(rasterSource, /pickTopGroundOverlayHit\(candidates, lngLat, getMapLayerOrder\(\)\)/);
+});
+
+test("los poligonos ordinales se dibujan y consultan por intensidad visible superior", () => {
+  const addLayerSource = extractFunctionSource(mapSource, "addGeoJsonLayerToMap");
+  const vectorSource = extractFunctionSource(mapSource, "getVectorPopupHitForLayer");
+  const pickSource = extractFunctionSource(mapSource, "pickTopVectorPopupFeature");
+  const normalizeSource = extractFunctionSource(mapSource, "normalizeBackendProcessedGeoJson");
+  const sortSource = extractFunctionSource(mapSource, "applyBackendFeatureSortKey");
+
+  assert.match(addLayerSource, /"fill-sort-key": \["coalesce", \["to-number", \["get", "__egemSortKey"\]\], 0\]/);
+  assert.match(normalizeSource, /applyBackendFeatureSortKey\(/);
+  assert.match(sortSource, /getFeatureVisualPriorityRank\(properties\)/);
+  assert.match(vectorSource, /pickTopVectorPopupFeature\(features\)/);
+  assert.match(pickSource, /pickTopFeatureByVisualPriority\(popupFeatures\)/);
+  assert.match(mapSource, /pickTopFeatureByVisualPriority,/);
+});
+
+test("los puntos remotos usan color de icono, relleno KML y fallback en ese orden", () => {
+  const addLayerSource = extractFunctionSource(mapSource, "addGeoJsonLayerToMap");
+
+  assert.match(addLayerSource, /layer\.symbology\?\.pointColorExpression \|\| \["coalesce", \["get", "__styleIcon"\], \["get", "__styleFill"\], defaultPointColor\]/);
+  assert.match(addLayerSource, /"circle-color": pointColorExpression/);
+});
+
+test("No Aplica se pinta en gris solo desde el campo visual resuelto", () => {
+  const normalizeSource = extractFunctionSource(mapSource, "normalizeBackendProcessedGeoJson");
+  const flagSource = extractFunctionSource(mapSource, "applyNoAplicaDisplayStyleFlag");
+  const fieldSource = extractFunctionSource(mapSource, "getNoAplicaStyleField");
+  const addLayerSource = extractFunctionSource(mapSource, "addGeoJsonLayerToMap");
+  const colorSource = extractFunctionSource(mapSource, "buildNoAplicaDisplayColorExpression");
+
+  assert.match(mapSource, /NO_APLICA_COLOR,/);
+  assert.match(mapSource, /isNoAplicaLegendValue,/);
+  assert.match(normalizeSource, /applyNoAplicaDisplayStyleFlag\(/);
+  assert.match(flagSource, /const styleField = getNoAplicaStyleField\(symbology\)/);
+  assert.match(flagSource, /getPropertyValueByAlias\(properties, \[styleField\]\)/);
+  assert.match(flagSource, /isNoAplicaLegendValue\(styleValue\)/);
+  assert.match(flagSource, /__egemNoAplicaStyle: true/);
+  assert.match(fieldSource, /symbology\?\.legend\?\.styleField \|\| symbology\?\.legend\?\.field \|\| symbology\?\.field/);
+  assert.match(fieldSource, /!isTechnicalStyleField\(field\)/);
+  assert.doesNotMatch(flagSource, /Perlo_Ret|Description|description/);
+  assert.match(colorSource, /\["==", \["get", "__egemNoAplicaStyle"\], true\]/);
+  assert.match(colorSource, /NO_APLICA_COLOR/);
+  assert.equal((addLayerSource.match(/buildNoAplicaDisplayColorExpression/g) || []).length, 3);
+  assert.match(addLayerSource, /"fill-color": fillColorExpression/);
+  assert.match(addLayerSource, /"line-color": lineColorExpression/);
+  assert.match(addLayerSource, /"circle-color": pointColorExpression/);
 });
 
 test("el popup informativo tiene propietario unico y ciclo de vida claro", () => {
@@ -788,12 +987,15 @@ test("la leyenda flotante sigue la ultima capa activa y descarta aperturas antig
 test("el popup tematico tiene prioridad sobre municipios y conserva atributos utiles", () => {
   const clickSource = extractFunctionSource(mapSource, "handleMapToolClick");
   const staticSource = extractFunctionSource(mapSource, "getTopStaticPopupHit");
-  const schemaSource = extractFunctionSource(mapSource, "getPopupAttributeSchema");
+  const thematicPopupSource = extractFunctionSource(mapSource, "buildThematicFeaturePopup");
+  const thematicAttributesSource = extractFunctionSource(mapSource, "cleanThematicPopupAttributes");
   const technicalSource = extractFunctionSource(mapSource, "isTechnicalPublicAttribute");
   const usableValueSource = extractFunctionSource(mapSource, "isUsablePopupValue");
   const staticPopupSource = extractFunctionSource(mapSource, "showStaticFeaturePopup");
+  const vectorPopupSource = extractFunctionSource(mapSource, "showVectorFeaturePopup");
   const municipiosSource = extractFunctionSource(mapSource, "bindMunicipiosPopup");
   const aliasSource = extractFunctionSource(mapSource, "applyBackendAttributeAliases");
+  const fieldsSource = mapSource.match(/const THEMATIC_POPUP_FIELDS = \[[\s\S]*?\n  \];/)?.[0] || "";
 
   assert.match(clickSource, /const thematicHit = getTopThematicPopupHit\(event\);/);
   assert.match(clickSource, /showThematicPopup\(thematicHit, event\.lngLat\);\s*return;/);
@@ -801,9 +1003,17 @@ test("el popup tematico tiene prioridad sobre municipios y conserva atributos ut
   assert.match(staticSource, /getStaticPopupHitForLayer\("municipios", \["municipios-hit"\], event\)/);
   assert.match(staticSource, /getStaticPopupHitForLayer\("estado", \["estado-fill"\], event\)/);
   assert.match(staticPopupSource, /resourceType: "static"/);
-  assert.match(mapSource, /function cleanFeatureAttributes\(properties = \{\}\) \{[\s\S]*parseKmlDescriptionHtmlAttributes/);
-  assert.match(schemaSource, /"Intensid_1"/);
-  assert.doesNotMatch(schemaSource, /"NOMBRE", "Name"/);
+  assert.match(vectorPopupSource, /const cleanedAttributes = cleanThematicPopupAttributes\(props, layer\.legend\);/);
+  assert.match(vectorPopupSource, /extra: \[\]/);
+  assert.match(vectorPopupSource, /legend: null/);
+  assert.match(vectorPopupSource, /html: buildThematicFeaturePopup\(layer\.title, props, layer\.legend\)/);
+  assert.match(thematicPopupSource, /<strong>\$\{escapeHtml\(layerName \|\| "Capa seleccionada"\)\}<\/strong>/);
+  assert.doesNotMatch(thematicPopupSource, /feature-popup__highlight/);
+  assert.match(thematicPopupSource, /Sin información temática disponible\./);
+  assert.match(thematicAttributesSource, /parseKmlDescriptionHtmlAttributes/);
+  assert.match(thematicAttributesSource, /applyVisibleLegendLabelForPopup\(mergedProperties, legend\)/);
+  assert.match(fieldsSource, /label: "Intensidad"[\s\S]*?"Intensid_1"[\s\S]*?fallbackAliases: \["Magni_unid", "MAGNI_UNID", "Magni_uni"\]/);
+  assert.doesNotMatch(fieldsSource, /"Intensidad original"/);
   assert.match(usableValueSource, /value === null \|\| value === undefined/);
   assert.match(usableValueSource, /String\(value\)\.trim\(\) !== ""/);
   assert.match(technicalSource, /"gridcode"/);
@@ -813,6 +1023,97 @@ test("el popup tematico tiene prioridad sobre municipios y conserva atributos ut
   assert.doesNotMatch(aliasSource, /\["Municipio", \["Municipio", "Name", "name"\]\]/);
   assert.doesNotMatch(municipiosSource, /map\.on\("click", "municipios-hit"/);
   assert.doesNotMatch(municipiosSource, /updateInfoPanel/);
+});
+
+test("el popup tematico muestra solo cuatro campos en orden y no usa intensidad en el titulo", () => {
+  const popupSource = extractFunctionSource(mapSource, "buildThematicFeaturePopup");
+  const attributesSource = extractFunctionSource(mapSource, "cleanThematicPopupAttributes");
+  const fieldsSource = mapSource.match(/const THEMATIC_POPUP_FIELDS = \[[\s\S]*?\n  \];/)?.[0] || "";
+
+  assert.match(fieldsSource, /label: "Intensidad"[\s\S]*label: "Detalles"[\s\S]*label: "Clasificación"[\s\S]*label: "Amenaza"/);
+  assert.doesNotMatch(fieldsSource, /Municipio|Magnitud|Indicador|Fuente|IVS_FINAL|R_P_V_E_A/);
+  assert.match(popupSource, /THEMATIC_POPUP_FIELDS\s*\n\s*\.filter/);
+  assert.match(popupSource, /<dt>\$\{escapeHtml\(label\)\}:<\/dt>/);
+  assert.match(popupSource, /<dd>\$\{escapeHtml\(String\(attributes\[label\]\)\)\}<\/dd>/);
+  assert.doesNotMatch(popupSource, /mainAttribute|findMainFeatureAttribute|feature-popup__highlight|Clasificación.*<strong>|Intensidad.*<strong>/s);
+  assert.match(attributesSource, /return THEMATIC_POPUP_FIELDS\.reduce/);
+});
+
+test("el popup tematico omite campos ausentes, conserva cero y deduplica aliases", () => {
+  const lookupSource = extractFunctionSource(mapSource, "buildPopupAttributeLookup");
+  const valueSource = extractFunctionSource(mapSource, "getThematicPopupFieldValue");
+  const usableSource = extractFunctionSource(mapSource, "isUsablePopupValue");
+  const applyVisibleSource = extractFunctionSource(mapSource, "applyVisibleLegendLabelForPopup");
+  const genericSource = extractFunctionSource(mapSource, "isGenericPopupLegendLabel");
+  const fieldsSource = mapSource.match(/const THEMATIC_POPUP_FIELDS = \[[\s\S]*?\n  \];/)?.[0] || "";
+
+  assert.match(usableSource, /value === null \|\| value === undefined/);
+  assert.match(usableSource, /String\(value\)\.trim\(\) !== ""/);
+  assert.doesNotMatch(usableSource, /!value/);
+  assert.match(lookupSource, /lookup\.has\(normalizedKey\)/);
+  assert.match(lookupSource, /sanitizePopupTextValue\(value\)/);
+  assert.match(valueSource, /const directValue = getPopupLookupValue\(lookup, field\.aliases\)/);
+  assert.match(valueSource, /fallbackAliases/);
+  assert.match(valueSource, /field\.acceptsFallback\(fallbackValue\)/);
+  assert.match(applyVisibleSource, /isGenericPopupLegendLabel\(visibleLabel\)/);
+  assert.match(genericSource, /normalized === "clase"/);
+  assert.match(genericSource, /clase sin etiqueta/);
+  assert.match(fieldsSource, /"Detalles", "DETALLES", "Detalle", "DETALLE"/);
+  assert.match(fieldsSource, /"Clasificación", "Clasificacion", "Fen_Clasif", "FEN_CLASIF"/);
+  assert.match(fieldsSource, /"Amenaza", "Ame_Ampl", "AME_AMPL"/);
+});
+
+test("el popup tematico sanitiza HTML y descarta campos tecnicos visibles", () => {
+  const sanitizerSource = extractFunctionSource(mapSource, "sanitizePopupTextValue");
+  const popupSource = extractFunctionSource(mapSource, "buildThematicFeaturePopup");
+  const attributesSource = extractFunctionSource(mapSource, "cleanThematicPopupAttributes");
+
+  assert.match(sanitizerSource, /querySelectorAll\("script, style, iframe, object, embed"\)/);
+  assert.match(sanitizerSource, /node\.remove\(\)/);
+  assert.match(sanitizerSource, /textContent/);
+  assert.match(popupSource, /escapeHtml\(String\(attributes\[label\]\)\)/);
+  assert.doesNotMatch(popupSource, /innerHTML|setHTML/);
+  assert.doesNotMatch(attributesSource, /sourceEntries\.forEach/);
+  assert.doesNotMatch(attributesSource, /attributes\[key\]/);
+  [
+    "styleUrl",
+    "OGR_STYLE",
+    "__styleFill",
+    "__styleIcon",
+    "__egemSortKey",
+    "R_P_V_E_A",
+    "Magni_num",
+    "Intens_num",
+    "Fenomeno",
+    "description",
+    "Intensidad original",
+  ].forEach((forbidden) => {
+    assert.doesNotMatch(popupSource, new RegExp(escapeRegExp(forbidden), "u"));
+  });
+});
+
+test("el popup tematico mantiene etiquetas completas y valores ajustables", () => {
+  assert.match(cssSource, /\.feature-popup__row \{[\s\S]*?grid-template-columns: minmax\(82px, max-content\) minmax\(0, 1fr\);[\s\S]*?gap: 7px;/);
+  assert.match(cssSource, /\.feature-popup__row dt \{[\s\S]*?white-space: nowrap;[\s\S]*?overflow-wrap: normal;[\s\S]*?word-break: normal;/);
+  assert.match(cssSource, /\.feature-popup__row dd \{[\s\S]*?color: var\(--ink\);[\s\S]*?font-weight: 600;/);
+  assert.match(cssSource, /\.feature-popup__row dt,\s*\n\.feature-popup__row dd \{[\s\S]*?align-self: start;[\s\S]*?min-width: 0;[\s\S]*?white-space: normal;[\s\S]*?overflow-wrap: break-word;[\s\S]*?word-break: break-word;/);
+  assert.match(cssSource, /@media \(max-width: 760px\) \{[\s\S]*?\.feature-popup__row \{[\s\S]*?grid-template-columns: minmax\(82px, max-content\) minmax\(0, 1fr\);[\s\S]*?gap: 6px;[\s\S]*?padding: 5px 9px;/);
+  assert.match(cssSource, /\.maplibregl-popup-content \{[\s\S]*?width: 250px;[\s\S]*?max-width: 250px;/);
+  assert.match(cssSource, /\.feature-popup \{[\s\S]*?max-width: 250px;[\s\S]*?overflow: hidden;/);
+});
+
+test("el popup raster y los limites conservan rutas separadas", () => {
+  const thematicSource = extractFunctionSource(mapSource, "showThematicPopup");
+  const staticSource = extractFunctionSource(mapSource, "showStaticFeaturePopup");
+  const rasterSource = extractFunctionSource(mapSource, "showGroundOverlayPopup");
+  const rasterPopupSource = extractFunctionSource(mapSource, "buildGroundOverlayPopup");
+
+  assert.match(thematicSource, /showVectorFeaturePopup\(hit, lngLat\)/);
+  assert.match(thematicSource, /showGroundOverlayPopup\(hit, lngLat\)/);
+  assert.match(staticSource, /html: buildFeaturePopup\(title, props\)/);
+  assert.match(rasterSource, /html: buildGroundOverlayPopup\(layer\)/);
+  assert.match(rasterPopupSource, /Imagen raster georreferenciada/);
+  assert.doesNotMatch(rasterPopupSource, /Sin información temática disponible/);
 });
 
 test("la presentacion de leyenda omite encabezados categoricos redundantes", () => {
@@ -828,6 +1129,45 @@ test("la presentacion de leyenda omite encabezados categoricos redundantes", () 
   assert.match(shouldRenderSource, /"vulnerabilidad"/);
   assert.doesNotMatch(renderLegendSource, /<p class="info-copy"><strong>\$\{escapeHtml\(legend\.field\)\}<\/strong><\/p>\s*\$\{items\}/);
   assert.match(descriptorSource, /legendTextsAreEquivalent\(item\.label, item\.value\)/);
+});
+
+test("la leyenda flotante separa cabecera y cuerpo compacto sin cambiar las clases", () => {
+  const floatingSource = extractFunctionSource(mapSource, "renderFloatingLegend");
+  const floatingContentSource = extractFunctionSource(mapSource, "renderFloatingLegendContent");
+  const renderLegendSource = extractFunctionSource(mapSource, "renderLayerLegend");
+
+  assert.match(floatingSource, /map-legend-float__header/);
+  assert.match(floatingSource, /map-legend-float__body/);
+  assert.match(floatingSource, /map-legend-float__heading/);
+  assert.match(floatingSource, /map-legend-float__title/);
+  assert.match(floatingSource, /title="\$\{escapeHtml\(layer\.title\)\}"/);
+  assert.match(floatingSource, /aria-label="\$\{escapeHtml\(layer\.title\)\}"/);
+  assert.match(floatingSource, /data-close-floating-legend aria-label="Cerrar simbología"/);
+  assert.match(floatingContentSource, /renderLayerLegend\(vectorLegend, \{ compact: true, hideField: true \}\)/);
+  assert.match(floatingContentSource, /renderLayerLegend\(rasterLegend, \{ compact: true, hideField: true \}\)/);
+  assert.doesNotMatch(floatingContentSource, /Simbología vectorial/);
+  assert.doesNotMatch(floatingContentSource, /Simbología raster/);
+  assert.match(renderLegendSource, /function renderLayerLegend\(legend, options = \{\}\)/);
+  assert.match(renderLegendSource, /legend-list--compact/);
+  assert.match(renderLegendSource, /legend-item--compact/);
+  assert.match(renderLegendSource, /aria-hidden="true"/);
+  assert.match(renderLegendSource, /!options\.hideField && shouldRenderLegendField\(legend\)/);
+  assert.match(renderLegendSource, /getLegendClassDescriptor\(item, legend\)/);
+});
+
+test("el cuerpo compacto de simbologia no hereda el ancho de la cabecera", () => {
+  assert.match(cssSource, /\.map-legend-float \{[\s\S]*?width: fit-content;[\s\S]*?max-width: min\(320px, calc\(100vw - 36px\)\);[\s\S]*?justify-items: center;/);
+  assert.match(cssSource, /\.map-legend-float__header \{[\s\S]*?position: relative;[\s\S]*?display: block;[\s\S]*?width: min\(260px, calc\(100vw - 36px\)\);[\s\S]*?padding: 8px 34px 7px;/);
+  assert.match(cssSource, /\.map-legend-float__heading \{[\s\S]*?text-align: center;/);
+  assert.match(cssSource, /\.map-legend-float__header \.section-kicker \{[\s\S]*?text-align: center;/);
+  assert.match(cssSource, /\.map-legend-float__title \{[\s\S]*?text-align: center;/);
+  assert.match(cssSource, /\.map-legend-float__header \[data-close-floating-legend\] \{[\s\S]*?position: absolute;[\s\S]*?top: 7px;[\s\S]*?right: 7px;/);
+  assert.match(cssSource, /\.map-legend-float__body \{[\s\S]*?width: fit-content;[\s\S]*?min-width: 150px;[\s\S]*?max-width: min\(190px, calc\(100vw - 36px\)\);/);
+  assert.match(cssSource, /\.legend-list--compact \{[\s\S]*?width: fit-content;[\s\S]*?min-width: 138px;/);
+  assert.match(cssSource, /\.legend-item--compact \{[\s\S]*?grid-template-columns: 18px max-content;[\s\S]*?width: fit-content;/);
+  assert.match(cssSource, /\.legend-item--compact strong \{[\s\S]*?white-space: nowrap;/);
+  assert.match(cssSource, /\.map-legend-float \{[\s\S]*?top: 82px;[\s\S]*?right: 10px;[\s\S]*?left: auto;[\s\S]*?max-width: calc\(100vw - 20px\);[\s\S]*?\.map-legend-float__header \{[\s\S]*?width: min\(260px, calc\(100vw - 20px\)\);/);
+  assert.match(cssSource, /\.map-legend-float \{[\s\S]*?right: 6px;[\s\S]*?left: auto;[\s\S]*?max-width: calc\(100vw - 12px\);[\s\S]*?\.map-legend-float__header \{[\s\S]*?width: min\(260px, calc\(100vw - 12px\)\);/);
 });
 
 test("el visor inicia con capas tematicas apagadas aunque existan preferencias antiguas", () => {

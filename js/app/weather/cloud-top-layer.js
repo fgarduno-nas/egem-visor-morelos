@@ -21,10 +21,11 @@ export class CloudTopMapLayer {
     this.currentFrameId = null;
     this.imageCache = new Set();
     this.maxCachedImages = options.maxCachedImages || 8;
+    this.destroyed = false;
   }
 
   async showFrame(frame) {
-    if (!frame) return;
+    if (!frame || this.destroyed) return;
     await this.preloadFrame(frame);
     const beforeId = this.resolveBeforeLayerId();
     const nextBuffer = this.activeBuffer === 0 ? 1 : 0;
@@ -46,6 +47,7 @@ export class CloudTopMapLayer {
   }
 
   setVisible(visible) {
+    if (this.destroyed) return;
     this.visible = Boolean(visible);
     this.getLayerIds().forEach((layerId) => {
       if (this.map.getLayer(layerId)) {
@@ -55,6 +57,7 @@ export class CloudTopMapLayer {
   }
 
   setOpacity(opacity) {
+    if (this.destroyed) return;
     const numeric = Number(opacity);
     this.opacity = Number.isFinite(numeric) ? Math.min(1, Math.max(0.1, numeric)) : this.opacity;
     this.getLayerIds().forEach((layerId, index) => {
@@ -65,6 +68,7 @@ export class CloudTopMapLayer {
   }
 
   destroy() {
+    this.destroyed = true;
     this.getLayerIds().forEach((layerId) => {
       if (this.map.getLayer(layerId)) this.map.removeLayer(layerId);
     });
@@ -115,7 +119,12 @@ export class CloudTopMapLayer {
     const coordinates = boundsToImageCoordinates(frame.bounds);
     const source = this.map.getSource(sourceId);
     if (source && typeof source.updateImage === "function") {
-      source.updateImage({ url: frame.url, coordinates });
+      try {
+        source.updateImage({ url: frame.url, coordinates });
+      } catch (error) {
+        if (error?.name === "AbortError" || error?.code === "AbortError") return;
+        throw error;
+      }
     } else {
       if (source) {
         if (this.map.getLayer(layerId)) this.map.removeLayer(layerId);

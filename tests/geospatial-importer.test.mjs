@@ -3,13 +3,16 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import zlib from "node:zlib";
 
 import {
   analyzeKmlText,
   analyzeKmzFile,
   extractGroundOverlayImages,
+  readZipEntries,
 } from "../backend/src/modules/layers/geospatial-importer.service.js";
 import {
+  enrichKmlStyleIndexWithKmzIconColors,
   enrichGeoJsonWithKmlStyles,
   parseKmlStyleIndex,
 } from "../backend/src/modules/layers/layer-processing.service.js";
@@ -159,6 +162,98 @@ test("resuelve StyleMap KML usando el estado normal", () => {
   assert.equal(enriched.features[0].properties.__styleFill, "#7aab00");
 });
 
+test("preserva IconStyle KML como __styleIcon para capas puntuales", () => {
+  const kml = `
+    <kml><Document>
+      <Style id="point"><IconStyle><color>ff336699</color><Icon><href>icon.png</href></Icon></IconStyle></Style>
+      <Placemark><name>A</name><styleUrl>#point</styleUrl><Point><coordinates>-99,18,0</coordinates></Point></Placemark>
+    </Document></kml>
+  `;
+  const geojson = {
+    type: "FeatureCollection",
+    features: [{
+      type: "Feature",
+      properties: { Name: "A" },
+      geometry: { type: "Point", coordinates: [-99, 18] },
+    }],
+  };
+
+  const enriched = enrichGeoJsonWithKmlStyles(geojson, parseKmlStyleIndex(kml));
+
+  assert.equal(enriched.features[0].properties.__styleIcon, "#996633");
+  assert.equal(enriched.features[0].properties.__styleOpacity, 1);
+});
+
+test("convierte color KML aabbggrr a CSS rrggbb y opacidad", () => {
+  const kml = `
+    <kml><Document>
+      <Style id="point"><IconStyle><color>80336699</color></IconStyle></Style>
+      <Placemark><name>A</name><styleUrl>#point</styleUrl><Point><coordinates>-99,18,0</coordinates></Point></Placemark>
+    </Document></kml>
+  `;
+  const geojson = {
+    type: "FeatureCollection",
+    features: [{
+      type: "Feature",
+      properties: { Name: "A" },
+      geometry: { type: "Point", coordinates: [-99, 18] },
+    }],
+  };
+
+  const enriched = enrichGeoJsonWithKmlStyles(geojson, parseKmlStyleIndex(kml));
+
+  assert.equal(enriched.features[0].properties.__styleIcon, "#996633");
+  assert.equal(enriched.features[0].properties.__styleOpacity, 0.502);
+});
+
+test("usa color dominante de icono PNG interno cuando IconStyle no declara color", () => {
+  const kml = `
+    <kml><Document>
+      <Style id="point">
+        <IconStyle><Icon><href>icons/point.png</href></Icon></IconStyle>
+        <PolyStyle><color>ff000000</color></PolyStyle>
+      </Style>
+      <Placemark><name>A</name><styleUrl>#point</styleUrl><Point><coordinates>-99,18,0</coordinates></Point></Placemark>
+    </Document></kml>
+  `;
+  const filePath = writeKmz({
+    "doc.kml": kml,
+    "icons/point.png": buildRgbaPng([
+      [255, 0, 0, 255],
+      [255, 0, 0, 255],
+      [0, 0, 0, 255],
+      [255, 0, 0, 255],
+    ], 2, 2),
+  });
+  const styleIndex = parseKmlStyleIndex(kml);
+  enrichKmlStyleIndexWithKmzIconColors(styleIndex, {
+    archivePath: filePath,
+    entries: readZipEntries(filePath),
+    kmlEntryName: "doc.kml",
+  });
+  const geojson = {
+    type: "FeatureCollection",
+    features: [{
+      type: "Feature",
+      properties: { Name: "A" },
+      geometry: { type: "Point", coordinates: [-99, 18] },
+    }],
+  };
+
+  const enriched = enrichGeoJsonWithKmlStyles(geojson, styleIndex);
+
+  assert.equal(enriched.features[0].properties.__styleIcon, "#ff0000");
+  assert.equal(enriched.features[0].properties.__styleFill, undefined);
+});
+
+test("KML y KMZ fuerzan una capa GeoJSON unica al invocar ogr2ogr", () => {
+  const source = fs.readFileSync(path.resolve("backend/src/modules/layers/layer-processing.service.js"), "utf8");
+
+  assert.match(source, /singleLayerName:\s*"layer"/);
+  assert.match(source, /args\.push\("-nln", singleLayerName\)/);
+  assert.doesNotMatch(source, /Gasoliner/);
+});
+
 function writeAndAnalyzeUnsafeKmz(unsafeName) {
   const filePath = writeKmz({
     "doc.kml": kmlWithOverlay({ href: "Layer0.png" }),
@@ -247,4 +342,38 @@ function buildZip(entries) {
   end.writeUInt16LE(0, 20);
 
   return Buffer.concat([...localParts, centralBuffer, end]);
+}
+
+function buildRgbaPng(pixels, width, height) {
+  const raw = Buffer.alloc((width * 4 + 1) * height);
+  for (let y = 0; y < height; y += 1) {
+    const rowOffset = y * (width * 4 + 1);
+    raw[rowOffset] = 0;
+    for (let x = 0; x < width; x += 1) {
+      const pixel = pixels[y * width + x];
+      const offset = rowOffset + 1 + x * 4;
+      raw[offset] = pixel[0];
+      raw[offset + 1] = pixel[1];
+      raw[offset + 2] = pixel[2];
+      raw[offset + 3] = pixel[3];
+    }
+  }
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(width, 0);
+  ihdr.writeUInt32BE(height, 4);
+  ihdr[8] = 8;
+  ihdr[9] = 6;
+  return Buffer.concat([
+    Buffer.from("89504e470d0a1a0a", "hex"),
+    pngChunk("IHDR", ihdr),
+    pngChunk("IDAT", zlib.deflateSync(raw)),
+    pngChunk("IEND", Buffer.alloc(0)),
+  ]);
+}
+
+function pngChunk(type, data) {
+  const typeBytes = Buffer.from(type, "ascii");
+  const length = Buffer.alloc(4);
+  length.writeUInt32BE(data.length, 0);
+  return Buffer.concat([length, typeBytes, data, Buffer.alloc(4)]);
 }

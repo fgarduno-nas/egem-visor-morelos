@@ -11,6 +11,21 @@ const ORDINAL_LABEL_ORDER = new Map([
   ["muy alto", 5],
 ]);
 
+const ORDINAL_STYLE_COLOR_ORDER = new Map([
+  ["#006100", 1],
+  ["#38a800", 1],
+  ["#7aab00", 2],
+  ["#8ccc48", 2],
+  ["#ffff00", 3],
+  ["#ff9900", 4],
+  ["#ffc300", 4],
+  ["#ff2200", 5],
+  ["#ff0000", 5],
+  ["#e31a1c", 5],
+]);
+
+export const NO_APLICA_COLOR = "#808080";
+
 const TECHNICAL_STYLE_FIELDS = new Set([
   "__stylefill",
   "__styleline",
@@ -53,6 +68,10 @@ const SEMANTIC_LABEL_FIELDS = [
   "Intensidad",
   "Intensid_1",
   "Intensidad_1",
+  "Intens_uni",
+  "Magni_uni",
+  "Magni_unid",
+  "Magnitud",
   "Peligro",
   "Riesgo",
   "Susceptibilidad",
@@ -75,7 +94,12 @@ export function isTechnicalStyleField(field) {
 
 export function normalizePublishedVectorLegend(record = null, options = {}) {
   const candidate = getLegendCandidates(record).find((legend) => Array.isArray(getLegendClasses(legend)));
-  if (!candidate) return null;
+  if (!candidate) {
+    return buildBestSemanticLegendFromFeatures(options.features || [], {
+      preferredField: options.preferredField,
+      record,
+    });
+  }
 
   const classes = dedupeLegendClasses(getLegendClasses(candidate)
     .map((item, index) => normalizeLegendClass(item, index))
@@ -99,12 +123,17 @@ export function normalizePublishedVectorLegend(record = null, options = {}) {
     classes,
   };
 
-  if (!isSemanticallyInvalidLegend(legend, options)) return legend;
-
-  return buildBestSemanticLegendFromFeatures(options.features || [], {
+  const semanticLegend = buildBestSemanticLegendFromFeatures(options.features || [], {
     preferredField: options.preferredField,
     record,
   });
+
+  const invalidLegend = isSemanticallyInvalidLegend(legend, { ...options, semanticLegend });
+  if (!invalidLegend && legendMatchesFeatureStyles(legend, options.features || [])) {
+    return legend;
+  }
+
+  return semanticLegend || (invalidLegend ? null : legend);
 }
 
 export function normalizePublishedRasterLegend(record = null) {
@@ -126,6 +155,14 @@ export function normalizePublishedRasterLegend(record = null) {
   };
 }
 
+export function isNoAplicaLegendValue(value) {
+  return normalizeLegendComparisonText(value) === "no aplica";
+}
+
+export function resolveDisplayColor(value, sourceColor) {
+  return isNoAplicaLegendValue(value) ? NO_APLICA_COLOR : sourceColor;
+}
+
 export function buildRasterLegendFallback() {
   return {
     type: "raster",
@@ -141,18 +178,17 @@ export function buildRasterLegendFallback() {
 
 export function isSemanticallyInvalidLegend(legend = null, options = {}) {
   const classes = Array.isArray(legend?.classes) ? legend.classes : [];
-  if (classes.length <= 1) return false;
+  if (!classes.length) return false;
 
   const labels = classes.map((item) => normalizeLegendLabel(item.label)).filter(Boolean);
   const uniqueLabels = new Set(labels.map((label) => normalizeLegendKey(label)));
   const uniqueColors = new Set(classes.map((item) => normalizeHexColor(item.color)).filter(Boolean));
-  if (uniqueColors.size <= 1) return false;
 
   const repeatedSingleLabel = uniqueLabels.size === 1;
   const fieldIsGeneric = isTechnicalStyleField(legend.field) || GENERIC_LEGEND_FIELDS.has(normalizeLegendKey(legend.field));
   const hasTechnicalLabel = labels.some(looksLikeTechnicalLegendLabel);
   const hasStyleTokenLabel = labels.some(looksLikeStyleTokenLegendLabel);
-  const hasSemanticEvidence = buildBestSemanticLegendFromFeatures(options.features || [], {
+  const hasSemanticEvidence = Boolean(options.semanticLegend) || buildBestSemanticLegendFromFeatures(options.features || [], {
     preferredField: options.preferredField,
     record: options.record,
     validateOnly: true,
@@ -160,7 +196,8 @@ export function isSemanticallyInvalidLegend(legend = null, options = {}) {
 
   return (
     hasStyleTokenLabel ||
-    (repeatedSingleLabel && (fieldIsGeneric || hasTechnicalLabel || Boolean(hasSemanticEvidence)))
+    ((fieldIsGeneric || hasTechnicalLabel) && Boolean(hasSemanticEvidence)) ||
+    (uniqueColors.size > 1 && repeatedSingleLabel && (fieldIsGeneric || hasTechnicalLabel || Boolean(hasSemanticEvidence)))
   );
 }
 
@@ -178,7 +215,7 @@ export function buildBestSemanticLegendFromFeatures(features, options = {}) {
     seen.add(key);
     const fieldTitle = getSemanticLegendTitle(features, field, options.record);
     const legend = buildSemanticLegendFromFeatures(features, field, { fieldTitle });
-    if (legend?.classes?.length > 1) return options.validateOnly ? true : legend;
+    if (legend?.classes?.length) return options.validateOnly ? true : legend;
   }
 
   return null;
@@ -192,23 +229,25 @@ export function buildSemanticLegendFromFeatures(features, styleField, options = 
 
   features.forEach((feature) => {
     const properties = feature?.properties || {};
-    const rawLabel = getPropertyValueByAlias(properties, labelAliases);
+    const rawLabel = getSemanticPropertyValueByAlias(properties, labelAliases);
     const label = normalizeOrdinalLegendLabel(rawLabel, fieldTitle);
-    const color = normalizeHexColor(properties.__styleFill || properties.__styleLine || properties.__styleIcon);
+    const sourceColor = normalizeHexColor(properties.__styleFill || properties.__styleLine || properties.__styleIcon);
+    const color = resolveDisplayColor(label, sourceColor);
     if (!label || !color || classes.has(label)) return;
     classes.set(label, {
       label,
       color,
-      outlineColor: normalizeHexColor(properties.__styleLine || properties.__styleStroke) || color,
+      outlineColor: resolveDisplayColor(label, normalizeHexColor(properties.__styleLine || properties.__styleStroke) || sourceColor),
       order: getLegendClassOrder(properties, label),
     });
   });
 
   const ordered = [...classes.values()].sort(compareLegendClasses).slice(0, 24);
-  return ordered.length > 1
+  return ordered.length
     ? {
         type: "categorical",
         field: fieldTitle,
+        styleField,
         classes: ordered,
       }
     : null;
@@ -275,8 +314,10 @@ function getLegendClasses(legend) {
 
 function normalizeLegendClass(item, index) {
   const label = normalizeLegendLabel(item?.label ?? item?.name ?? item?.value ?? item?.title);
-  const color = normalizeHexColor(item?.color || item?.fillColor || item?.fill || item?.strokeColor || item?.outlineColor);
-  const outlineColor = normalizeHexColor(item?.outlineColor || item?.strokeColor || item?.stroke) || color;
+  const sourceColor = normalizeHexColor(item?.color || item?.fillColor || item?.fill || item?.strokeColor || item?.outlineColor);
+  const color = resolveDisplayColor(label, sourceColor);
+  const sourceOutlineColor = normalizeHexColor(item?.outlineColor || item?.strokeColor || item?.stroke) || sourceColor;
+  const outlineColor = resolveDisplayColor(label, sourceOutlineColor);
   const explicitOrder = Number(item?.order);
   const rawValue = item?.value;
   const value = normalizeLegendLabel(rawValue);
@@ -334,7 +375,7 @@ function getSemanticLegendTitle(features, labelField, record = null) {
 function getDominantConceptValue(features) {
   const counts = new Map();
   features.forEach((feature) => {
-    const value = normalizeLegendLabel(getPropertyValueByAlias(feature?.properties || {}, CONCEPT_FIELDS));
+    const value = normalizeLegendLabel(getSemanticPropertyValueByAlias(feature?.properties || {}, CONCEPT_FIELDS));
     if (!value) return;
     const normalized = normalizeLegendKey(value);
     if (!["peligro", "riesgo", "susceptibilidad", "intensidad"].includes(normalized)) return;
@@ -346,20 +387,62 @@ function getDominantConceptValue(features) {
 function getSemanticFieldAliases(field) {
   const normalized = normalizeLegendKey(field).replace(/\s+/g, " ");
   if (normalized === "intensidad" || normalized === "intensid 1") {
-    return ["Intensidad", "Intensid_1", "Intensidad_1", "Intensid1"];
+    return ["Intensidad", "Intensid_1", "Intensidad_1", "Intensid1", "Intens_uni"];
+  }
+  if (normalized === "magnitud" || normalized === "magni uni" || normalized === "magni unid") {
+    return ["Magnitud", "Magni_uni", "Magni_unid", "Magni_unidad"];
   }
   return [field];
 }
 
 function getLegendClassOrder(properties, label) {
-  const rawGridCode = getPropertyValueByAlias(properties, ["gridcode", "GridCode", "grid_code"]);
+  const rawGridCode = getSemanticPropertyValueByAlias(properties, ["gridcode", "GridCode", "grid_code"]);
   const gridCode = Number(rawGridCode);
   if (rawGridCode !== null && rawGridCode !== undefined && String(rawGridCode).trim() !== "" && Number.isFinite(gridCode)) return gridCode;
   return getOrdinalLegendOrder(label);
 }
 
-function getOrdinalLegendOrder(label, fallback = 100) {
+export function getOrdinalLegendOrder(label, fallback = 100) {
   return ORDINAL_LABEL_ORDER.get(normalizeLegendKey(label).replace(/\s+/g, " ").trim()) ?? fallback;
+}
+
+export function getFeatureOrdinalLegendRank(featureOrProperties = null) {
+  const properties = featureOrProperties?.properties || featureOrProperties || {};
+  const rawLabel = getSemanticPropertyValueByAlias(properties, [
+    "Intensidad",
+    "Intensid_1",
+    "Intensidad_1",
+    "Intensid1",
+    "Magni_uni",
+    "Magni_unid",
+    "Magnitud",
+  ]);
+  return getOrdinalLegendOrder(rawLabel, 0);
+}
+
+export function getFeatureVisualPriorityRank(featureOrProperties = null) {
+  const properties = featureOrProperties?.properties || featureOrProperties || {};
+  const styleColor = normalizeHexColor(properties.__styleFill || properties.__styleLine || properties.__styleIcon);
+  return ORDINAL_STYLE_COLOR_ORDER.get(styleColor) || getFeatureOrdinalLegendRank(properties);
+}
+
+export function getFeatureStyleLegendLabel(featureOrProperties = null, legend = null) {
+  const properties = featureOrProperties?.properties || featureOrProperties || {};
+  const styleColor = normalizeHexColor(properties.__styleFill || properties.__styleLine || properties.__styleIcon);
+  if (!styleColor || !Array.isArray(legend?.classes)) return null;
+  return legend.classes.find((item) => normalizeHexColor(item?.color) === styleColor)?.label || null;
+}
+
+export function pickTopFeatureByVisualPriority(features = []) {
+  const candidates = Array.isArray(features) ? features : [];
+  if (!candidates.length) return null;
+  return candidates
+    .map((feature, index) => ({
+      feature,
+      index,
+      rank: getFeatureVisualPriorityRank(feature),
+    }))
+    .sort((a, b) => b.rank - a.rank || a.index - b.index)[0].feature;
 }
 
 function normalizeOrdinalLegendLabel(value, fieldTitle = "") {
@@ -390,6 +473,8 @@ function looksLikeTechnicalLegendLabel(value) {
   const label = normalizeLegendLabel(value);
   if (!label) return false;
   if (looksLikeStyleTokenLegendLabel(label)) return true;
+  const normalized = normalizeLegendComparisonText(label);
+  if (normalized === "clase" || /^clase sin etiqueta \d+$/u.test(normalized)) return true;
   if (/^\d{1,4}$/u.test(label)) return true;
   return false;
 }
@@ -464,6 +549,51 @@ function getPropertyValueByAlias(properties, aliases) {
   const lookup = new Map(Object.entries(properties).map(([key, value]) => [normalizeLegendKey(key), value]));
   const alias = aliases.map(normalizeLegendKey).find((key) => lookup.has(key));
   return alias ? lookup.get(alias) : null;
+}
+
+function getSemanticPropertyValueByAlias(properties, aliases) {
+  const direct = getPropertyValueByAlias(properties, aliases);
+  if (normalizeLegendLabel(direct)) return direct;
+
+  const description = getPropertyValueByAlias(properties, ["Description", "description"]);
+  const descriptionAttributes = parseDescriptionAttributes(description);
+  return getPropertyValueByAlias(descriptionAttributes, aliases);
+}
+
+function parseDescriptionAttributes(description) {
+  const html = decodeCommonHtmlEntities(String(description || ""));
+  if (!html.trim()) return {};
+
+  const attributes = {};
+  const rowRegex = /<tr\b[^>]*>([\s\S]*?)<\/tr>/giu;
+  let rowMatch = null;
+  while ((rowMatch = rowRegex.exec(html))) {
+    const cells = [...rowMatch[1].matchAll(/<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/giu)]
+      .map((cell) => normalizeLegendLabel(decodeCommonHtmlEntities(cell[1]).replace(/<[^>]*>/gu, " ")));
+    if (cells.length >= 2 && cells[0] && cells[1]) {
+      attributes[cells[0].replace(/:$/u, "").trim()] = cells[1];
+    }
+  }
+
+  return attributes;
+}
+
+function legendMatchesFeatureStyles(legend, features = []) {
+  if (!Array.isArray(features) || !features.length || !legend?.classes?.length) return true;
+  const legendColorsByLabel = new Map(
+    legend.classes.map((item) => [normalizeLegendComparisonText(item.label), normalizeHexColor(item.color)])
+  );
+  let checked = 0;
+  for (const feature of features) {
+    const label = getSemanticPropertyValueByAlias(feature?.properties || {}, getSemanticFieldAliases(legend.field));
+    const legendColor = legendColorsByLabel.get(normalizeLegendComparisonText(label));
+    if (!legendColor) continue;
+    const featureColor = normalizeHexColor(feature?.properties?.__styleFill || feature?.properties?.__styleLine || feature?.properties?.__styleIcon);
+    if (!featureColor) continue;
+    checked += 1;
+    if (featureColor !== legendColor) return false;
+  }
+  return true;
 }
 
 function toTitleCase(value) {

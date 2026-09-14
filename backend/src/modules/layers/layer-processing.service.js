@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import zlib from "node:zlib";
 
 import { env } from "../../config/env.js";
 import { buildPublicFileUrl } from "../../shared/utils/file-utils.js";
@@ -10,6 +11,7 @@ import {
   analyzeKmzFile,
   extractGroundOverlayImages,
   readZipEntries,
+  readZipEntryBuffer,
   readZipEntryText,
   validateArchiveEntries as validateArchiveEntriesSecurity,
 } from "./geospatial-importer.service.js";
@@ -123,6 +125,7 @@ export function processKml(layer, file, originalFileNames = []) {
     originalFileNames,
     kmlStyleIndex,
     diagnostics: analysis,
+    singleLayerName: "layer",
   });
 }
 
@@ -140,6 +143,11 @@ export async function processKmz(layer, file, originalFileNames = []) {
   console.info(`KML principal detectado: ${kmlEntry.name}`);
   const kmlText = analysis.kmlText || readZipEntryText(file.path, kmlEntry);
   const kmlStyleIndex = parseKmlStyleIndex(kmlText);
+  enrichKmlStyleIndexWithKmzIconColors(kmlStyleIndex, {
+    archivePath: file.path,
+    entries,
+    kmlEntryName: kmlEntry.name,
+  });
   const validOverlays = analysis.groundOverlays.filter((overlay) => overlay.isValid && overlay.imageEntry);
   const groundOverlays = validOverlays.length
     ? extractGroundOverlayImages({
@@ -198,6 +206,7 @@ export async function processKmz(layer, file, originalFileNames = []) {
     kmlStyleIndex,
     logSuccess: "GeoJSON procesado generado.",
     diagnostics: analysis.diagnostics,
+    singleLayerName: "layer",
   });
 
   if (!groundOverlays.length) return vectorResult;
@@ -236,7 +245,15 @@ export async function processShapefileZip(layer, file, originalFileNames = []) {
   });
 }
 
-export async function convertWithOgr2Ogr({ inputPath, outputPath, originalFileNames = [], logSuccess = null, kmlStyleIndex = null, diagnostics = null }) {
+export async function convertWithOgr2Ogr({
+  inputPath,
+  outputPath,
+  originalFileNames = [],
+  logSuccess = null,
+  kmlStyleIndex = null,
+  diagnostics = null,
+  singleLayerName = null,
+}) {
   const hasOgr = await hasOgr2Ogr();
   if (!hasOgr) {
     return buildProcessingResult({
@@ -255,14 +272,18 @@ export async function convertWithOgr2Ogr({ inputPath, outputPath, originalFileNa
   }
 
   try {
-    await execFileAsync("ogr2ogr", [
+    const args = [
       "-f",
       "GeoJSON",
       "-t_srs",
       "EPSG:4326",
       outputPath,
       inputPath,
-    ]);
+    ];
+    if (singleLayerName) {
+      args.push("-nln", singleLayerName);
+    }
+    await execFileAsync("ogr2ogr", args);
   } catch (error) {
     throw new Error(`No se pudo convertir la capa con GDAL/ogr2ogr: ${error.message}`);
   }
@@ -451,13 +472,17 @@ function extractFirstInlineKmlStyle(value) {
 function extractKmlStyle(styleBody) {
   const polyStyle = readXmlTagBody(styleBody, "PolyStyle");
   const lineStyle = readXmlTagBody(styleBody, "LineStyle");
+  const iconStyle = readXmlTagBody(styleBody, "IconStyle");
   const fill = polyStyle ? parseKmlColor(readXmlTag(polyStyle, "color")) : null;
   const stroke = lineStyle ? parseKmlColor(readXmlTag(lineStyle, "color")) : null;
+  const icon = iconStyle ? parseKmlColor(readXmlTag(iconStyle, "color")) : null;
 
   return {
     fill: fill?.hex || null,
     stroke: stroke?.hex || null,
-    opacity: fill?.opacity ?? stroke?.opacity ?? null,
+    icon: icon?.hex || null,
+    iconHref: iconStyle ? readXmlTag(readXmlTagBody(iconStyle, "Icon"), "href") || null : null,
+    opacity: fill?.opacity ?? stroke?.opacity ?? icon?.opacity ?? null,
   };
 }
 
@@ -477,16 +502,18 @@ export function enrichGeoJsonWithKmlStyles(geojson, kmlStyleIndex) {
     features: geojson.features.map((feature, index) => {
       const properties = feature.properties || {};
       const style = resolveFeatureKmlStyle(properties, index, kmlStyleIndex);
-      if (!style?.fill && !style?.stroke) return feature;
+      if (!style?.fill && !style?.stroke && !style?.icon) return feature;
+      const isPointGeometry = ["Point", "MultiPoint"].includes(feature.geometry?.type);
 
       const enrichedProperties = {
         ...properties,
-        ...(style.fill ? { __styleFill: style.fill } : {}),
+        ...(style.fill && !isPointGeometry ? { __styleFill: style.fill } : {}),
         ...(style.stroke ? { __styleStroke: style.stroke, __styleLine: style.stroke } : {}),
+        ...(style.icon ? { __styleIcon: style.icon } : {}),
         ...(style.opacity !== null && style.opacity !== undefined ? { __styleOpacity: style.opacity } : {}),
       };
 
-      if (style.fill) {
+      if (style.fill && !isPointGeometry) {
         console.info("__styleFill aplicado:", style.fill);
       }
 
@@ -505,7 +532,7 @@ function resolveFeatureKmlStyle(properties, index, kmlStyleIndex) {
   }
 
   const indexedStyle = kmlStyleIndex.placemarks[index]?.style || null;
-  if (indexedStyle?.fill || indexedStyle?.stroke) return indexedStyle;
+  if (indexedStyle?.fill || indexedStyle?.stroke || indexedStyle?.icon) return indexedStyle;
 
   const name = properties.Name || properties.name || properties.NAME;
   if (name && kmlStyleIndex.byName.has(name)) {
@@ -513,6 +540,170 @@ function resolveFeatureKmlStyle(properties, index, kmlStyleIndex) {
   }
 
   return null;
+}
+
+export function enrichKmlStyleIndexWithKmzIconColors(kmlStyleIndex, { archivePath, entries, kmlEntryName }) {
+  if (!kmlStyleIndex?.styles?.size || !Array.isArray(entries)) return kmlStyleIndex;
+
+  const styleObjects = new Set([
+    ...kmlStyleIndex.styles.values(),
+    ...(kmlStyleIndex.placemarks || []).map((placemark) => placemark.style).filter(Boolean),
+  ]);
+
+  for (const style of styleObjects) {
+    if (!style?.iconHref || style.icon) continue;
+    const entry = resolveKmzRelativeEntry(entries, kmlEntryName, style.iconHref);
+    if (!entry || getExtension(entry.name) !== "png") continue;
+    const iconColor = detectDominantPngIconColor(readZipEntryBuffer(archivePath, entry));
+    if (iconColor) {
+      style.icon = iconColor;
+    }
+  }
+
+  return kmlStyleIndex;
+}
+
+function resolveKmzRelativeEntry(entries, kmlEntryName, href) {
+  const normalizedHref = normalizeArchivePath(href);
+  if (!normalizedHref || isExternalUrl(normalizedHref) || isUnsafeArchivePath(normalizedHref)) return null;
+
+  const kmlDir = path.posix.dirname(normalizeArchivePath(kmlEntryName));
+  const candidates = [
+    normalizedHref,
+    kmlDir && kmlDir !== "." ? path.posix.normalize(`${kmlDir}/${normalizedHref}`) : normalizedHref,
+  ];
+  const candidateSet = new Set(candidates.map((item) => item.toLowerCase()));
+  return entries.find((entry) => candidateSet.has(normalizeArchivePath(entry.name).toLowerCase())) || null;
+}
+
+function normalizeArchivePath(value) {
+  return String(value || "")
+    .trim()
+    .replace(/\\/g, "/")
+    .replace(/^\.\/+/u, "");
+}
+
+function isExternalUrl(value) {
+  return /^[a-z][a-z0-9+.-]*:/iu.test(String(value || ""));
+}
+
+function detectDominantPngIconColor(buffer) {
+  let png;
+  try {
+    png = decodeSimplePng(buffer, { maxWidth: 512, maxHeight: 512, maxBytes: 1024 * 1024 });
+  } catch (_error) {
+    return null;
+  }
+  if (!png) return null;
+
+  const colors = new Map();
+  for (const pixel of png.pixels) {
+    if (pixel.a < 16) continue;
+    const key = `#${toHexByte(pixel.r)}${toHexByte(pixel.g)}${toHexByte(pixel.b)}`;
+    colors.set(key, (colors.get(key) || 0) + 1);
+  }
+  return [...colors.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+}
+
+function decodeSimplePng(buffer, limits) {
+  if (!Buffer.isBuffer(buffer) || buffer.length > limits.maxBytes) return null;
+  if (buffer.length < 33 || buffer.toString("hex", 0, 8) !== "89504e470d0a1a0a") return null;
+
+  let offset = 8;
+  let header = null;
+  const idatChunks = [];
+  while (offset + 12 <= buffer.length) {
+    const length = buffer.readUInt32BE(offset);
+    const type = buffer.toString("ascii", offset + 4, offset + 8);
+    const dataStart = offset + 8;
+    const dataEnd = dataStart + length;
+    if (dataEnd + 4 > buffer.length) return null;
+    const data = buffer.subarray(dataStart, dataEnd);
+    if (type === "IHDR") {
+      if (data.length < 13) return null;
+      header = {
+        width: data.readUInt32BE(0),
+        height: data.readUInt32BE(4),
+        bitDepth: data[8],
+        colorType: data[9],
+        compression: data[10],
+        filter: data[11],
+        interlace: data[12],
+      };
+    } else if (type === "IDAT") {
+      idatChunks.push(data);
+    } else if (type === "IEND") {
+      break;
+    }
+    offset = dataEnd + 4;
+  }
+
+  if (!header || !idatChunks.length) return null;
+  if (header.width < 1 || header.height < 1 || header.width > limits.maxWidth || header.height > limits.maxHeight) return null;
+  if (header.bitDepth !== 8 || header.compression !== 0 || header.filter !== 0 || header.interlace !== 0) return null;
+  const bytesPerPixel = header.colorType === 6 ? 4 : header.colorType === 2 ? 3 : null;
+  if (!bytesPerPixel) return null;
+
+  const inflated = Buffer.concat(idatChunks);
+  let raw;
+  try {
+    raw = zlib.inflateSync(inflated);
+  } catch (_error) {
+    return null;
+  }
+  const stride = header.width * bytesPerPixel;
+  const expectedSize = (stride + 1) * header.height;
+  if (raw.length < expectedSize) return null;
+
+  const pixels = [];
+  let rawOffset = 0;
+  let previous = Buffer.alloc(stride);
+  for (let y = 0; y < header.height; y += 1) {
+    const filter = raw[rawOffset];
+    rawOffset += 1;
+    if (filter > 4) return null;
+    const scanline = Buffer.from(raw.subarray(rawOffset, rawOffset + stride));
+    rawOffset += stride;
+    unfilterPngScanline(scanline, previous, filter, bytesPerPixel);
+    for (let x = 0; x < header.width; x += 1) {
+      const index = x * bytesPerPixel;
+      pixels.push({
+        r: scanline[index],
+        g: scanline[index + 1],
+        b: scanline[index + 2],
+        a: bytesPerPixel === 4 ? scanline[index + 3] : 255,
+      });
+    }
+    previous = scanline;
+  }
+
+  return { width: header.width, height: header.height, pixels };
+}
+
+function unfilterPngScanline(scanline, previous, filter, bytesPerPixel) {
+  for (let index = 0; index < scanline.length; index += 1) {
+    const left = index >= bytesPerPixel ? scanline[index - bytesPerPixel] : 0;
+    const up = previous[index] || 0;
+    const upperLeft = index >= bytesPerPixel ? previous[index - bytesPerPixel] || 0 : 0;
+    if (filter === 1) scanline[index] = (scanline[index] + left) & 0xff;
+    if (filter === 2) scanline[index] = (scanline[index] + up) & 0xff;
+    if (filter === 3) scanline[index] = (scanline[index] + Math.floor((left + up) / 2)) & 0xff;
+    if (filter === 4) scanline[index] = (scanline[index] + paethPredictor(left, up, upperLeft)) & 0xff;
+  }
+}
+
+function paethPredictor(left, up, upperLeft) {
+  const estimate = left + up - upperLeft;
+  const leftDistance = Math.abs(estimate - left);
+  const upDistance = Math.abs(estimate - up);
+  const upperLeftDistance = Math.abs(estimate - upperLeft);
+  if (leftDistance <= upDistance && leftDistance <= upperLeftDistance) return left;
+  if (upDistance <= upperLeftDistance) return up;
+  return upperLeft;
+}
+
+function toHexByte(value) {
+  return value.toString(16).padStart(2, "0");
 }
 
 function parseKmlColor(value) {

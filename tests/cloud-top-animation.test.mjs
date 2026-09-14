@@ -20,7 +20,11 @@ import {
   createDemoCloudTopProvider,
   extractWmsTimeDimension,
   lngLatBoundsToWebMercatorBbox,
+  NOWCOAST_FRAME_HEIGHT,
   NOWCOAST_FRAME_SIZE,
+  NOWCOAST_FRAME_WIDTH,
+  NOWCOAST_MORELOS_BOUNDS,
+  NOWCOAST_PREVIOUS_MORELOS_BOUNDS,
   parseWmsTimeValues,
   selectSteppedFrames,
   validateProviderUrl,
@@ -163,15 +167,45 @@ test("provider parses WMS times and builds secure nowCOAST tile URLs", () => {
   assert.match(tileUrl, /FORMAT=image%2Fpng/);
   assert.match(tileUrl, /TRANSPARENT=true/);
   const imageUrl = buildWmsImageUrl("2026-08-21T18:00:00.000Z");
-  assert.equal(NOWCOAST_FRAME_SIZE, 640);
-  assert.match(imageUrl, /WIDTH=640/);
-  assert.match(imageUrl, /HEIGHT=640/);
+  assert.equal(NOWCOAST_FRAME_SIZE, NOWCOAST_FRAME_WIDTH);
+  assert.equal(NOWCOAST_FRAME_WIDTH, 1280);
+  assert.equal(NOWCOAST_FRAME_HEIGHT, 656);
+  assert.match(imageUrl, /WIDTH=1280/);
+  assert.match(imageUrl, /HEIGHT=656/);
   assert.match(imageUrl, /BBOX=-/);
-  assert.equal(lngLatBoundsToWebMercatorBbox([-99.85, 18.02, -98.3, 19.48]).length, 4);
+  assert.equal(lngLatBoundsToWebMercatorBbox(NOWCOAST_MORELOS_BOUNDS).length, 4);
   assert.equal(validateProviderUrl(tileUrl), true);
   assert.equal(validateProviderUrl(imageUrl), true);
   assert.throws(() => validateProviderUrl("http://example.test/cloud.png"), /HTTPS/);
   assert.throws(() => validateProviderUrl("https://example.test/cloud.png"), /Dominio/);
+});
+
+test("GOES image coverage is rectangular, contains previous bounds and preserves WMS axis order", () => {
+  const [west, south, east, north] = NOWCOAST_MORELOS_BOUNDS;
+  const [previousWest, previousSouth, previousEast, previousNorth] = NOWCOAST_PREVIOUS_MORELOS_BOUNDS;
+  assert.ok(west < previousWest);
+  assert.ok(south < previousSouth);
+  assert.ok(east > previousEast);
+  assert.ok(north > previousNorth);
+  assert.ok(east > -97.48, "covers the 1366 compressed east edge with margin");
+  assert.ok(west < -100.67, "covers the 1366 compressed west edge with margin");
+  assert.ok(east - west > north - south, "geographic coverage is rectangular");
+  assert.ok(NOWCOAST_FRAME_WIDTH > NOWCOAST_FRAME_HEIGHT, "WMS request is rectangular");
+
+  const bbox = lngLatBoundsToWebMercatorBbox(NOWCOAST_MORELOS_BOUNDS);
+  assert.ok(bbox[0] < bbox[2], "EPSG:3857 west/east order is preserved");
+  assert.ok(bbox[1] < bbox[3], "EPSG:3857 south/north order is preserved");
+  const mercatorAspect = (bbox[2] - bbox[0]) / (bbox[3] - bbox[1]);
+  const imageAspect = NOWCOAST_FRAME_WIDTH / NOWCOAST_FRAME_HEIGHT;
+  assert.ok(Math.abs(mercatorAspect - imageAspect) < 0.03);
+
+  const imageUrl = new URL(buildWmsImageUrl("2026-08-21T18:00:00.000Z"));
+  assert.equal(imageUrl.searchParams.get("CRS"), "EPSG:3857");
+  assert.equal(imageUrl.searchParams.get("LAYERS"), "satellite:goes_longwave_imagery");
+  assert.equal(imageUrl.searchParams.get("STYLES"), "goes-lir");
+  assert.equal(imageUrl.searchParams.get("WIDTH"), String(NOWCOAST_FRAME_WIDTH));
+  assert.equal(imageUrl.searchParams.get("HEIGHT"), String(NOWCOAST_FRAME_HEIGHT));
+  assert.deepEqual(imageUrl.searchParams.get("BBOX").split(",").map(Number), bbox);
 });
 
 test("selects real available frames near ten-minute intervals without duplicates", () => {
@@ -433,6 +467,31 @@ test("map layer uses two buffered raster layers and respects opacity, visibility
   assert.equal(map.sources.has("cloud-top-animation-source-2"), false);
 });
 
+test("map layer toggles both GOES raster buffers without changing opacity or sources", async () => {
+  const map = createMockMap();
+  const layer = new CloudTopMapLayer(map, { opacity: 0.62 });
+  await layer.showFrame({
+    id: "frame-1",
+    timestamp: NOW,
+    url: "blob:test-1",
+    bounds: NOWCOAST_MORELOS_BOUNDS,
+  });
+  await layer.showFrame({
+    id: "frame-2",
+    timestamp: NOW,
+    url: "blob:test-2",
+    bounds: NOWCOAST_MORELOS_BOUNDS,
+  });
+  const sourceIds = layer.getSourceIds();
+  layer.setVisible(false);
+  assert.deepEqual(layer.getLayerIds().map((id) => map.layers.get(id).layout.visibility), ["none", "none"]);
+  assert.equal(map.layers.get(layer.getLayerId(layer.activeBuffer)).paint["raster-opacity"], 0.62);
+  layer.setVisible(true);
+  assert.deepEqual(layer.getLayerIds().map((id) => map.layers.get(id).layout.visibility), ["visible", "visible"]);
+  assert.deepEqual(layer.getSourceIds(), sourceIds);
+  assert.equal(map.layers.get(layer.getLayerId(layer.activeBuffer)).paint["raster-opacity"], 0.62);
+});
+
 test("image double buffer keeps one visible layer and reuses image sources safely", async () => {
   const map = createMockMap();
   const layer = new CloudTopMapLayer(map, { opacity: 0.58 });
@@ -472,8 +531,10 @@ test("map integration keeps GOES IR outside the layer catalog and removes manual
   assert.doesNotMatch(mapSource, /cloudTopCatalogLayer|weather-animation|data-weather-controls/);
   assert.doesNotMatch(mapSource, /cloud-top-play|cloud-top-previous|cloud-top-next|cloud-top-range|cloud-top-speed|cloud-top-visible/);
   assert.doesNotMatch(mapSource, /Hidrometeorologicos[\\s\\S]{0,200}GOES|Tope de nube/);
-  assert.match(mapSource, /GOES - Infrarrojo/);
-  assert.match(mapSource, /Fuente: NOAA nowCOAST/);
+  assert.match(mapSource, /<strong>GOES<\/strong>/);
+  assert.match(mapSource, /Infrarrojo de nubes/);
+  assert.match(mapSource, /NOAA nowCOAST/);
+  assert.match(mapSource, /No representa lluvia directa/);
   assert.match(mapSource, /createGoesIrFrameRenderer/);
   assert.match(mapSource, /visibleFrame/);
   assert.match(mapSource, /startProgressiveCloudTopPlayback/);

@@ -606,7 +606,11 @@ function buildVectorLegendPreview(properties = {}) {
     features.forEach((feature) => {
       const featureProperties = feature?.properties || {};
       const label = getVectorLegendPreviewLabel(featureProperties);
-      const color = getInstitutionalPreviewColor(label) || normalizeHexColor(featureProperties.__styleFill);
+      const color =
+        normalizeHexColor(featureProperties.__styleFill) ||
+        normalizeHexColor(featureProperties.__styleIcon) ||
+        normalizeHexColor(featureProperties.__styleLine) ||
+        getInstitutionalPreviewColor(label);
       if (!color) return;
       if (!classesByColor.has(color)) {
         classesByColor.set(color, {
@@ -630,7 +634,7 @@ function buildVectorLegendPreview(properties = {}) {
       .sort((a, b) => a.order - b.order || a.label.localeCompare(b.label, "es"))
       .slice(0, 24);
 
-    const legend = classes.length > 1
+    const legend = classes.length
       ? {
           type: "categorical",
           field: getVectorLegendPreviewField(classes, features),

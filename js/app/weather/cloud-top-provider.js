@@ -24,8 +24,11 @@ export const CLOUD_TOP_PROVIDER_CONFIG = {
 const NOWCOAST_WMS_URL = "https://nowcoast.noaa.gov/geoserver/ows";
 const NOWCOAST_LAYER = "satellite:goes_longwave_imagery";
 const NOWCOAST_ALLOWED_HOSTS = new Set(["nowcoast.noaa.gov"]);
-export const NOWCOAST_MORELOS_BOUNDS = [-99.85, 18.02, -98.3, 19.48];
-export const NOWCOAST_FRAME_SIZE = 640;
+export const NOWCOAST_MORELOS_BOUNDS = [-101.8, 17.5, -96.32, 20.16];
+export const NOWCOAST_PREVIOUS_MORELOS_BOUNDS = [-99.85, 18.02, -98.3, 19.48];
+export const NOWCOAST_FRAME_WIDTH = 1280;
+export const NOWCOAST_FRAME_HEIGHT = 656;
+export const NOWCOAST_FRAME_SIZE = NOWCOAST_FRAME_WIDTH;
 
 export function createCloudTopProvider(options = {}) {
   const official = createNoaaNowcoastCloudTopProvider(options);
@@ -217,7 +220,8 @@ export function buildWmsTileUrl(timestamp) {
 
 export function buildWmsImageUrl(timestamp, options = {}) {
   const bounds = options.bounds || NOWCOAST_MORELOS_BOUNDS;
-  const size = Math.max(256, Math.min(1536, Number(options.size || NOWCOAST_FRAME_SIZE)));
+  const width = clampFrameDimension(options.width || options.size || NOWCOAST_FRAME_WIDTH);
+  const height = clampFrameDimension(options.height || options.size || NOWCOAST_FRAME_HEIGHT);
   const bbox = lngLatBoundsToWebMercatorBbox(bounds);
   const params = new URLSearchParams({
     SERVICE: "WMS",
@@ -227,8 +231,8 @@ export function buildWmsImageUrl(timestamp, options = {}) {
     STYLES: "goes-lir",
     FORMAT: "image/png",
     TRANSPARENT: "true",
-    WIDTH: String(size),
-    HEIGHT: String(size),
+    WIDTH: String(width),
+    HEIGHT: String(height),
     CRS: "EPSG:3857",
     BBOX: bbox.join(","),
     TIME: timestamp,
@@ -260,9 +264,9 @@ function buildNowcoastFrame(timestamp) {
     sourceUrl: imageUrl,
     sourceTiles: [tileUrl],
     bounds: NOWCOAST_MORELOS_BOUNDS,
-    width: NOWCOAST_FRAME_SIZE,
-    height: NOWCOAST_FRAME_SIZE,
-    cacheKey: `noaa-nowcoast-satellite-goes-longwave-imagery-goes-lir-${timestamp}-${NOWCOAST_MORELOS_BOUNDS.join("_")}-${NOWCOAST_FRAME_SIZE}`,
+    width: NOWCOAST_FRAME_WIDTH,
+    height: NOWCOAST_FRAME_HEIGHT,
+    cacheKey: `noaa-nowcoast-satellite-goes-longwave-imagery-goes-lir-${timestamp}-${NOWCOAST_MORELOS_BOUNDS.join("_")}-${NOWCOAST_FRAME_WIDTH}x${NOWCOAST_FRAME_HEIGHT}`,
     originalTileTemplate: buildEnhancedWmsTileUrl(tileUrl),
     attribution: "NOAA/NOS nowCOAST, NOAA/NESDIS GOES; realce visual Band1 0-255",
     isDemo: false,
@@ -282,6 +286,12 @@ export function lngLatBoundsToWebMercatorBbox(bounds) {
   const southwest = lngLatToWebMercator(west, south);
   const northeast = lngLatToWebMercator(east, north);
   return [southwest.x, southwest.y, northeast.x, northeast.y];
+}
+
+function clampFrameDimension(value) {
+  const numeric = Math.round(Number(value));
+  if (!Number.isFinite(numeric)) return NOWCOAST_FRAME_WIDTH;
+  return Math.max(256, Math.min(1536, numeric));
 }
 
 function lngLatToWebMercator(lng, lat) {
