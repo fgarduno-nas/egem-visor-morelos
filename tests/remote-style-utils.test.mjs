@@ -10,6 +10,49 @@ const mapSource = await fs.readFile(path.resolve("js/map.js"), "utf8");
 const cssSource = await fs.readFile(path.resolve("css/style.css"), "utf8");
 const htmlSource = await fs.readFile(path.resolve("index.html"), "utf8");
 const municipiosGeojson = JSON.parse(await fs.readFile(path.resolve("data/base/municipios.geojson"), "utf8"));
+const municipiosLabelPoints = JSON.parse(await fs.readFile(path.resolve("data/base/municipios_label_points.geojson"), "utf8"));
+const vialidadesNivel1 = JSON.parse(await fs.readFile(path.resolve("data/base/vialidades/vialidades_nivel_1.geojson"), "utf8"));
+const vialidadesNivel2 = JSON.parse(await fs.readFile(path.resolve("data/base/vialidades/vialidades_nivel_2.geojson"), "utf8"));
+const vialidadesNivel3Manifest = JSON.parse(await fs.readFile(path.resolve("data/base/vialidades/vialidades_nivel_3_manifest.json"), "utf8"));
+const officialMunicipalPopulation2020 = new Map([
+  ["17001", 17598],
+  ["17002", 25232],
+  ["17003", 39174],
+  ["17004", 89834],
+  ["17005", 10520],
+  ["17006", 187118],
+  ["17007", 378476],
+  ["17008", 107053],
+  ["17009", 24515],
+  ["17010", 18402],
+  ["17011", 215357],
+  ["17012", 57682],
+  ["17013", 16694],
+  ["17014", 9653],
+  ["17015", 15802],
+  ["17016", 19219],
+  ["17017", 40018],
+  ["17018", 122263],
+  ["17019", 28122],
+  ["17020", 54987],
+  ["17021", 7617],
+  ["17022", 14853],
+  ["17023", 7943],
+  ["17024", 52399],
+  ["17025", 33789],
+  ["17026", 19408],
+  ["17027", 12750],
+  ["17028", 73539],
+  ["17029", 105780],
+  ["17030", 56083],
+  ["17031", 36094],
+  ["17032", 9965],
+  ["17033", 16574],
+  ["17034", 11347],
+  ["17035", 27805],
+  ["17036", 7855],
+]);
+const priorityMunicipalityNames = new Set(["Cuernavaca", "Cuautla", "Jojutla", "Xochitepec", "Jiutepec", "Emiliano Zapata"]);
 
 const {
   analyzeStyleField,
@@ -60,6 +103,44 @@ function walkCoordinatePairs(coordinates, callback) {
     return;
   }
   coordinates.forEach((child) => walkCoordinatePairs(child, callback));
+}
+
+function pointInRing(point, ring) {
+  const [x, y] = point;
+  let inside = false;
+  for (let index = 0; index < ring.length - 1; index += 1) {
+    const [x1, y1] = ring[index];
+    const [x2, y2] = ring[index + 1];
+    const cross = (x - x1) * (y2 - y1) - (y - y1) * (x2 - x1);
+    if (
+      Math.abs(cross) < 1e-12 &&
+      x >= Math.min(x1, x2) - 1e-12 &&
+      x <= Math.max(x1, x2) + 1e-12 &&
+      y >= Math.min(y1, y2) - 1e-12 &&
+      y <= Math.max(y1, y2) + 1e-12
+    ) {
+      return true;
+    }
+    if ((y1 > y) !== (y2 > y)) {
+      const intersectionX = ((x2 - x1) * (y - y1)) / (y2 - y1) + x1;
+      if (x < intersectionX) inside = !inside;
+    }
+  }
+  return inside;
+}
+
+function pointInPolygon(point, polygon) {
+  if (!pointInRing(point, polygon[0])) return false;
+  return !polygon.slice(1).some((hole) => pointInRing(point, hole));
+}
+
+function pointInFeature(point, featureItem) {
+  const { geometry } = featureItem;
+  if (geometry.type === "Polygon") return pointInPolygon(point, geometry.coordinates);
+  if (geometry.type === "MultiPolygon") {
+    return geometry.coordinates.some((polygon) => pointInPolygon(point, polygon));
+  }
+  return false;
 }
 
 test("preserva cero como valor valido y descarta null/cadenas vacias", () => {
@@ -332,7 +413,14 @@ test("la capa municipal oficial se carga una sola vez y conserva contrato MapLib
   municipioLayerIds.forEach((id) => assert.match(staticSource, new RegExp(id)));
   assert.match(staticSource, /source: "municipios-source"/);
   assert.match(staticSource, /"fill-opacity": 0\.01/);
-  assert.match(staticSource, /"line-color": "#efe4c6"/);
+  assert.match(mapSource, /const MUNICIPAL_BOUNDARY_COLOR = "#9ca3af";/);
+  assert.match(mapSource, /const MUNICIPAL_BOUNDARY_WIDTH = \["interpolate", \["linear"\], \["zoom"\], 6, 0\.55, 10, 0\.8, 14, 1\.1\];/);
+  assert.match(mapSource, /const MUNICIPAL_BOUNDARY_OPACITY = 0\.82;/);
+  assert.match(staticSource, /"line-color": MUNICIPAL_BOUNDARY_COLOR/);
+  assert.match(staticSource, /"line-width": MUNICIPAL_BOUNDARY_WIDTH/);
+  assert.match(staticSource, /"line-opacity": MUNICIPAL_BOUNDARY_OPACITY \* getLayerOpacity/);
+  const hitLayerSource = staticSource.match(/id: "municipios-hit"[\s\S]*?\}\);/u)?.[0] || "";
+  assert.doesNotMatch(hitLayerSource, /MUNICIPAL_BOUNDARY_COLOR|"line-color"|"line-width"/);
 });
 
 test("el GeoJSON municipal oficial usa WGS84, 36 municipios y geometria no vacia", () => {
@@ -424,16 +512,333 @@ test("el flyout no conserva reglas residuales que lo empujen fuera de la alineac
 });
 
 test("el limite estatal resaltado se define una sola vez y se restaura al frente", () => {
+  const cssAccent = cssSource.match(/--accent:\s*(#[0-9a-f]{6});/iu)?.[1]?.toLowerCase();
+
+  assert.equal(cssAccent, "#7a203a");
+  assert.match(mapSource, /const INSTITUTIONAL_BOUNDARY_COLOR = "#7a203a";/);
+  assert.match(mapSource, /const STATE_BOUNDARY_HALO_COLOR = "#fff7ef";/);
+  assert.match(mapSource, /const STATE_BOUNDARY_BASE_WIDTH = \["interpolate", \["linear"\], \["zoom"\], 6, 2\.8, 10, 3\.8, 14, 5\.2\];/);
+  assert.match(mapSource, /const STATE_BOUNDARY_HALO_WIDTH = \["interpolate", \["linear"\], \["zoom"\], 6, 4\.2, 10, 5\.8, 14, 7\.4\];/);
+  assert.match(mapSource, /const STATE_BOUNDARY_HIGHLIGHT_WIDTH = \["interpolate", \["linear"\], \["zoom"\], 6, 2\.1, 10, 3\.2, 14, 4\.6\];/);
   assert.match(mapSource, /estado-highlight-halo/);
   assert.match(mapSource, /estado-highlight/);
-  assert.match(mapSource, /"line-color": "#10212B"/);
-  assert.match(mapSource, /"line-color": "#00E5FF"/);
-  assert.match(mapSource, /const color = layer\.id === "estado" \? "#00E5FF"/);
+  assert.match(mapSource, /"line-color": INSTITUTIONAL_BOUNDARY_COLOR/);
+  assert.match(mapSource, /"line-color": STATE_BOUNDARY_HALO_COLOR/);
   assert.match(mapSource, /function restoreStateBoundaryHighlight/);
   assert.match(mapSource, /const visible = staticLayers\.find\(\(layer\) => layer\.id === "estado"\)\?\.visible !== false/);
   assert.match(mapSource, /safeSetLayoutProperty\("estado-highlight-halo", "visibility", visible \? "visible" : "none"\)/);
   assert.match(mapSource, /safeSetLayoutProperty\("estado-highlight", "visibility", visible \? "visible" : "none"\)/);
   assert.match(mapSource, /map\.moveLayer\(layerId\)/);
+});
+
+test("los limites mantienen estado inicial activo y jerarquia visual independiente de capas tematicas", () => {
+  const staticSource = extractFunctionSource(mapSource, "injectStaticSources");
+  const opacitySource = extractFunctionSource(mapSource, "applyStaticLayerOpacity");
+  const staticLayerBlock = mapSource.match(/const staticLayers = \[(?<body>[\s\S]*?)\n  \];/u)?.groups.body || "";
+
+  assert.match(staticLayerBlock, /id: "estado"[\s\S]*?visible: true/);
+  assert.match(staticLayerBlock, /id: "municipios"[\s\S]*?visible: true/);
+  assert.equal((staticSource.match(/source: "estado-source"/g) || []).length, 4);
+  assert.equal((staticSource.match(/source: "municipios-source"/g) || []).length, 2);
+  assert.equal((staticSource.match(/id: "municipios-hit"/g) || []).length, 1);
+  assert.equal((staticSource.match(/id: "municipios"/g) || []).length, 1);
+  assert.equal((staticSource.match(/id: "estado-highlight"/g) || []).length, 1);
+  assert.match(staticSource, /"line-width": STATE_BOUNDARY_HIGHLIGHT_WIDTH/);
+  assert.match(staticSource, /"line-width": MUNICIPAL_BOUNDARY_WIDTH/);
+  assert.doesNotMatch(staticSource, /state\.userLayers|activeLayer|selectedLayer|thematic/);
+  assert.match(opacitySource, /safeSetPaintProperty\("estado-highlight", "line-opacity", opacity\)/);
+  assert.match(opacitySource, /safeSetPaintProperty\("municipios", "line-opacity", MUNICIPAL_BOUNDARY_OPACITY \* opacity\)/);
+});
+
+test("los puntos derivados de etiquetas municipales son 36 puntos validos dentro de su municipio", () => {
+  assert.equal(municipiosLabelPoints.type, "FeatureCollection");
+  assert.equal(municipiosLabelPoints.metadata.source, "data/base/municipios.geojson");
+  assert.match(municipiosLabelPoints.metadata.populationSource, /INEGI Censo de Poblacion y Vivienda 2020/);
+  assert.match(municipiosLabelPoints.metadata.populationSource, /LOC=0000/);
+  assert.match(municipiosLabelPoints.metadata.populationSource, /POBTOT/);
+  assert.equal(municipiosLabelPoints.features.length, 36);
+
+  const seenCvegeo = new Set();
+  const municipiosByCvegeo = new Map(municipiosGeojson.features.map((featureItem) => [featureItem.properties.CVEGEO, featureItem]));
+  municipiosLabelPoints.features.forEach((featureItem) => {
+    assert.equal(featureItem.geometry.type, "Point");
+    assert.equal(featureItem.geometry.coordinates.length, 2);
+    assert.ok(Number.isFinite(featureItem.geometry.coordinates[0]));
+    assert.ok(Number.isFinite(featureItem.geometry.coordinates[1]));
+    assert.ok(featureItem.properties.NOMGEO?.trim());
+    assert.ok(featureItem.properties.CVEGEO?.trim());
+    assert.equal(`${featureItem.properties.CVE_ENT}${featureItem.properties.CVE_MUN}`, featureItem.properties.CVEGEO);
+    assert.equal(featureItem.properties.population, officialMunicipalPopulation2020.get(featureItem.properties.CVEGEO));
+    assert.equal(Number.isInteger(featureItem.properties.population), true);
+    assert.ok(featureItem.properties.population > 0);
+    assert.ok(Number.isInteger(featureItem.properties.labelTier));
+    assert.ok(featureItem.properties.labelTier >= 1 && featureItem.properties.labelTier <= 5);
+    assert.ok(Number.isInteger(featureItem.properties.labelPriority));
+    assert.ok(featureItem.properties.labelPriority >= 1 && featureItem.properties.labelPriority <= 36);
+    assert.equal(seenCvegeo.has(featureItem.properties.CVEGEO), false);
+    seenCvegeo.add(featureItem.properties.CVEGEO);
+    assert.equal(pointInFeature(featureItem.geometry.coordinates, municipiosByCvegeo.get(featureItem.properties.CVEGEO)), true);
+  });
+  assert.equal(seenCvegeo.size, officialMunicipalPopulation2020.size);
+
+  ["Coatetelco", "Hueyapan", "Xoxocotla"].forEach((name) => {
+    assert.ok(municipiosLabelPoints.features.some((featureItem) => featureItem.properties.NOMGEO === name), name);
+  });
+});
+
+test("los tiers municipales son progresivos y se basan en poblacion oficial", () => {
+  const byName = new Map(municipiosLabelPoints.features.map((featureItem) => [featureItem.properties.NOMGEO, featureItem.properties]));
+  const byTier = new Map([1, 2, 3, 4, 5].map((tier) => [tier, []]));
+
+  municipiosLabelPoints.features.forEach((featureItem) => {
+    const props = featureItem.properties;
+    byTier.get(props.labelTier).push(props);
+    if (priorityMunicipalityNames.has(props.NOMGEO)) {
+      assert.equal(props.labelTier, 1, props.NOMGEO);
+    } else if (props.population >= 100000) {
+      assert.equal(props.labelTier, 2, props.NOMGEO);
+    } else if (props.population >= 50000) {
+      assert.equal(props.labelTier, 3, props.NOMGEO);
+    } else if (props.population >= 25000) {
+      assert.equal(props.labelTier, 4, props.NOMGEO);
+    } else {
+      assert.equal(props.labelTier, 5, props.NOMGEO);
+    }
+  });
+
+  ["Cuernavaca", "Cuautla", "Jojutla", "Xochitepec", "Jiutepec", "Emiliano Zapata"].forEach((name) => {
+    assert.equal(byName.get(name)?.labelTier, 1, name);
+  });
+  assert.deepEqual(byTier.get(2).map((props) => props.NOMGEO).sort(), ["Temixco", "Yautepec"]);
+  assert.deepEqual(byTier.get(3).map((props) => props.NOMGEO).sort(), ["Ayala", "Tepoztlán", "Tlaltizapán de Zapata", "Yecapixtla"].sort());
+  assert.deepEqual(byTier.get(4).map((props) => props.NOMGEO).sort(), [
+    "Atlatlahucan",
+    "Axochiapan",
+    "Puente de Ixtla",
+    "Tepalcingo",
+    "Tlaquiltenango",
+    "Xoxocotla",
+    "Zacatepec",
+  ].sort());
+
+  const priorities = municipiosLabelPoints.features.map((featureItem) => featureItem.properties.labelPriority);
+  assert.equal(new Set(priorities).size, 36);
+  assert.deepEqual([...priorities].sort((a, b) => a - b), Array.from({ length: 36 }, (_, index) => index + 1));
+
+  const ordered = [...municipiosLabelPoints.features]
+    .map((featureItem) => featureItem.properties)
+    .sort((left, right) => left.labelPriority - right.labelPriority);
+  for (let index = 1; index < ordered.length; index += 1) {
+    const previous = ordered[index - 1];
+    const current = ordered[index];
+    assert.ok(previous.labelTier <= current.labelTier);
+    if (previous.labelTier === current.labelTier) {
+      assert.ok(previous.population >= current.population);
+    }
+  }
+});
+
+test("las etiquetas municipales usan layer symbol automatica sin popups ni controles nuevos", () => {
+  const staticSource = extractFunctionSource(mapSource, "injectStaticSources");
+  const orderSource = extractFunctionSource(mapSource, "ensureReferenceLayerOrder");
+  const visibleSnapshotSource = extractFunctionSource(mapSource, "captureVisibleSnapshot");
+  const popupSource = extractFunctionSource(mapSource, "bindMunicipiosPopup");
+
+  assert.match(mapSource, /const MUNICIPAL_LABEL_SOURCE_ID = "municipios-labels-source";/);
+  assert.doesNotMatch(mapSource, /const MUNICIPAL_LABEL_LAYER_ID = "municipios-labels";/);
+  assert.doesNotMatch(mapSource, /const MUNICIPAL_LABEL_MIN_ZOOM = 11\.8;/);
+  assert.match(mapSource, /const MUNICIPAL_LABEL_TIERS = Object\.freeze\(\[/);
+  assert.match(mapSource, /\{ id: "municipios-label-tier-1", tier: 1, minZoom: 8\.6 \}/);
+  assert.match(mapSource, /\{ id: "municipios-label-tier-2", tier: 2, minZoom: 9\.3 \}/);
+  assert.match(mapSource, /\{ id: "municipios-label-tier-3", tier: 3, minZoom: 9\.8 \}/);
+  assert.match(mapSource, /\{ id: "municipios-label-tier-4", tier: 4, minZoom: 10\.7 \}/);
+  assert.match(mapSource, /\{ id: "municipios-label-tier-5", tier: 5, minZoom: 11\.4 \}/);
+  assert.match(mapSource, /fetch\("data\/base\/municipios_label_points\.geojson"\)/);
+  assert.match(staticSource, /upsertGeoJsonSource\(MUNICIPAL_LABEL_SOURCE_ID, state\.staticData\.municipiosLabels\)/);
+  assert.equal((staticSource.match(/MUNICIPAL_LABEL_TIERS\.forEach/g) || []).length, 1);
+  assert.equal((staticSource.match(/id: labelTier\.id/g) || []).length, 1);
+  assert.match(staticSource, /type: "symbol"/);
+  assert.match(staticSource, /source: MUNICIPAL_LABEL_SOURCE_ID/);
+  assert.match(staticSource, /minzoom: labelTier\.minZoom/);
+  assert.match(staticSource, /filter: \["==", \["get", "labelTier"\], labelTier\.tier\]/);
+  assert.match(staticSource, /"text-field": \["get", "NOMGEO"\]/);
+  assert.match(staticSource, /"text-allow-overlap": false/);
+  assert.match(staticSource, /"text-ignore-placement": false/);
+  assert.match(staticSource, /"text-optional": true/);
+  assert.match(staticSource, /"text-padding": 8/);
+  assert.match(staticSource, /"symbol-sort-key": \["get", "labelPriority"\]/);
+  assert.doesNotMatch(staticSource, /text-allow-overlap": true/);
+  assert.match(orderSource, /REFERENCE_LABEL_LAYER_IDS\.forEach/);
+  assert.match(orderSource, /ROAD_REFERENCE_BOUNDARY_LAYER_IDS\.forEach[\s\S]*REFERENCE_LABEL_LAYER_IDS\.forEach/);
+  assert.match(mapSource, /const REFERENCE_LABEL_LAYER_IDS = MUNICIPAL_LABEL_TIERS\.map\(\(tier\) => tier\.id\)/);
+  assert.doesNotMatch(visibleSnapshotSource, /municipios-label-tier|MUNICIPAL_LABEL/);
+  assert.doesNotMatch(popupSource, /municipios-label-tier|MUNICIPAL_LABEL/);
+  assert.doesNotMatch(mapSource, /map\.on\("mouseenter", "municipios-label-tier|map\.on\("click", "municipios-label-tier"/);
+  assert.doesNotMatch(mapSource, /map\.on\("zoom"[\s\S]*municipios-label-tier|map\.on\("move"[\s\S]*municipios-label-tier/);
+  assert.doesNotMatch(staticSource, /"text-field": \["get", "NOMBRE"\]/);
+});
+
+test("las etiquetas municipales tienen umbrales explicitos crecientes sin duplicar features", () => {
+  const tierConfigMatch = /const MUNICIPAL_LABEL_TIERS = Object\.freeze\(\(\[[\s\S]*?\]\)\);|const MUNICIPAL_LABEL_TIERS = Object\.freeze\(\[[\s\S]*?\]\);/.exec(mapSource);
+  assert.ok(tierConfigMatch);
+  const tiers = [...mapSource.matchAll(/\{ id: "municipios-label-tier-(\d)", tier: (\d), minZoom: ([0-9.]+) \}/g)]
+    .map((match) => ({ idTier: Number(match[1]), tier: Number(match[2]), minZoom: Number(match[3]) }));
+  assert.equal(tiers.length, 5);
+  tiers.forEach((tier, index) => {
+    assert.equal(tier.idTier, index + 1);
+    assert.equal(tier.tier, index + 1);
+    if (index > 0) {
+      assert.ok(tier.minZoom > tiers[index - 1].minZoom);
+    }
+  });
+  assert.ok(tiers[0].minZoom <= 8.6);
+  assert.ok(tiers[4].minZoom <= 11.4);
+  assert.equal(municipiosLabelPoints.features.length, 36);
+  assert.equal(new Set(municipiosLabelPoints.features.map((featureItem) => featureItem.properties.CVEGEO)).size, 36);
+  assert.equal(municipiosLabelPoints.features.filter((featureItem) => featureItem.properties.labelTier === 1).length, 6);
+  assert.equal(municipiosLabelPoints.features.filter((featureItem) => featureItem.properties.labelTier === 5).length, 17);
+});
+
+test("las vialidades de referencia se declaran en tres niveles con rangos de zoom progresivos", () => {
+  assert.match(mapSource, /const ROAD_REFERENCE_LEVELS = Object\.freeze\(\{/);
+  assert.match(mapSource, /1: \{[\s\S]*?url: "data\/base\/vialidades\/vialidades_nivel_1\.geojson"[\s\S]*?enterZoom: 0/);
+  assert.match(mapSource, /2: \{[\s\S]*?url: "data\/base\/vialidades\/vialidades_nivel_2\.geojson"[\s\S]*?enterZoom: 12\.8/);
+  assert.match(mapSource, /3: \{[\s\S]*?manifestUrl: "data\/base\/vialidades\/vialidades_nivel_3_manifest\.json"[\s\S]*?enterZoom: 15\.2/);
+  assert.match(mapSource, /function getReferenceRoadLevelForZoom\(zoom\)/);
+  assert.match(mapSource, /if \(zoom >= ROAD_REFERENCE_LEVELS\[3\]\.enterZoom\) return 3/);
+  assert.match(mapSource, /if \(zoom >= ROAD_REFERENCE_LEVELS\[2\]\.enterZoom\) return 2/);
+  assert.match(mapSource, /return 1/);
+});
+
+test("las vialidades usan fuentes vacias iniciales y Vial_3 queda diferido hasta zoom alto", () => {
+  const loadStaticSource = extractFunctionSource(mapSource, "loadStaticData");
+  const initializeSource = extractFunctionSource(mapSource, "initializeReferenceRoads");
+  const updateSource = extractFunctionSource(mapSource, "updateReferenceRoadsForViewport");
+
+  assert.doesNotMatch(loadStaticSource, /vialidades_nivel_3|vialidades_nivel_2/);
+  assert.doesNotMatch(initializeSource, /isStyleLoaded\(\) return/);
+  assert.match(initializeSource, /data: ROAD_REFERENCE_EMPTY_DATA/);
+  assert.match(initializeSource, /bindReferenceRoadListeners\(\)/);
+  assert.match(updateSource, /if \(requiredLevel === 3\)/);
+  assert.match(updateSource, /loadVisibleRoadChunks\(\)/);
+  assert.match(updateSource, /loadReferenceRoadLevel\(requiredLevel\)/);
+  assert.match(mapSource, /const ROAD_REFERENCE_MAX_CACHED_CHUNKS = 32;/);
+  assert.match(mapSource, /function pruneReferenceRoadChunkCache\(visibleChunkIds\)/);
+  assert.match(mapSource, /chunkCache\.delete\(chunkId\)/);
+  assert.match(mapSource, /state\.referenceRoads\.listenersBound/);
+  assert.equal((mapSource.match(/map\.on\("zoomend", scheduleReferenceRoadUpdate\)/g) || []).length, 1);
+  assert.equal((mapSource.match(/map\.on\("moveend", scheduleReferenceRoadUpdate\)/g) || []).length, 1);
+});
+
+test("el orden central mantiene vialidades encima de peligros y limites encima de vialidades", () => {
+  const orderSource = extractFunctionSource(mapSource, "ensureReferenceLayerOrder");
+  const addUserLayerSource = extractFunctionSource(mapSource, "addUserLayerToMap");
+  const baseMapSource = extractFunctionSource(mapSource, "applyBaseMapVisibility");
+  const restoreSource = extractFunctionSource(mapSource, "restoreMapState");
+
+  assert.match(orderSource, /ROAD_REFERENCE_LAYER_IDS\.forEach/);
+  assert.match(orderSource, /ROAD_REFERENCE_BOUNDARY_LAYER_IDS\.forEach/);
+  assert.match(orderSource, /safeMoveLayer\(layerId\)/);
+  assert.match(mapSource, /"municipios-hit"/);
+  assert.match(mapSource, /"estado-highlight"/);
+  assert.match(addUserLayerSource, /ensureReferenceLayerOrder\(\)/);
+  assert.match(baseMapSource, /ensureReferenceLayerOrder\(\)/);
+  assert.match(restoreSource, /initializeReferenceRoads\(\)/);
+  assert.match(restoreSource, /ensureReferenceLayerOrder\(\)/);
+});
+
+test("los derivados de vialidades estan separados, en WGS84 y conservan atributos utiles", () => {
+  assert.equal(vialidadesNivel1.metadata.crs, "EPSG:4326");
+  assert.equal(vialidadesNivel2.metadata.crs, "EPSG:4326");
+  assert.equal(vialidadesNivel3Manifest.crs, "EPSG:4326");
+  assert.equal(vialidadesNivel1.features.length, 30);
+  assert.equal(vialidadesNivel2.features.length, 5454);
+  assert.equal(vialidadesNivel3Manifest.sourceFeatureCount, 78892);
+  assert.equal(vialidadesNivel3Manifest.renderFeatureCount, 78891);
+  assert.equal(vialidadesNivel3Manifest.omittedFeatures.length, 1);
+  assert.equal(vialidadesNivel3Manifest.grid.columns, 16);
+  assert.equal(vialidadesNivel3Manifest.grid.rows, 16);
+  assert.ok(vialidadesNivel3Manifest.chunks.length > 100);
+  assert.ok(vialidadesNivel3Manifest.chunks.every((chunk) => chunk.url.includes("data/base/vialidades/vialidades_nivel_3/chunk_")));
+
+  const nivel1Props = vialidadesNivel1.features[0].properties;
+  const nivel2Props = vialidadesNivel2.features[0].properties;
+  assert.deepEqual(Object.keys(nivel1Props), ["id", "nivel_vial", "nombre", "administra", "longitud_km"]);
+  ["id", "nivel_vial", "tipo_vial", "nombre", "condicion_pavimento", "recubrimiento", "administra", "jurisdiccion"].forEach((field) => {
+    assert.ok(Object.hasOwn(nivel2Props, field), `Falta ${field}`);
+  });
+});
+
+test("los derivados de vialidades no usan coordenadas UTM ni geometria vacia", () => {
+  [vialidadesNivel1, vialidadesNivel2].forEach((collection) => {
+    collection.features.forEach((featureItem) => {
+      assert.ok(featureItem.geometry);
+      walkCoordinatePairs(featureItem.geometry.coordinates, ([lon, lat]) => {
+        assert.ok(lon >= -180 && lon <= 180);
+        assert.ok(lat >= -90 && lat <= 90);
+      });
+    });
+  });
+  vialidadesNivel3Manifest.chunks.forEach((chunk) => {
+    assert.equal(chunk.bbox.length, 4);
+    assert.ok(chunk.bbox[0] >= -180 && chunk.bbox[2] <= 180);
+    assert.ok(chunk.bbox[1] >= -90 && chunk.bbox[3] <= 90);
+    assert.ok(chunk.features > 0);
+    assert.ok(chunk.bytes > 0);
+  });
+});
+
+test("el manifest de vialidades detalladas referencia solo chunks validos y acotados", async () => {
+  const baseDir = path.resolve("data/base/vialidades");
+  const chunkDir = path.resolve(baseDir, "vialidades_nivel_3");
+  const forbiddenPathPattern = /([A-Za-z]:\\|\\\\|localhost|127\.0\.0\.1)/i;
+  const forbiddenUrlPattern = /([A-Za-z]:\\|\\\\|localhost|127\.0\.0\.1|api[_-]?key|token|password|secret)/i;
+
+  assert.equal(vialidadesNivel3Manifest.chunks.length, 191);
+  assert.equal(vialidadesNivel3Manifest.omittedFeatures.length, 1);
+  assert.match(vialidadesNivel3Manifest.omittedFeatures[0].reason, /zero-length|geometr/i);
+
+  const seenChunkIds = new Set();
+  for (const chunk of vialidadesNivel3Manifest.chunks) {
+    assert.equal(seenChunkIds.has(chunk.id), false, chunk.id);
+    seenChunkIds.add(chunk.id);
+    assert.doesNotMatch(chunk.url, forbiddenUrlPattern);
+    assert.match(chunk.url, /^data\/base\/vialidades\/vialidades_nivel_3\/chunk_\d+_\d+\.geojson$/);
+
+    const chunkPath = path.resolve(chunk.url);
+    assert.ok(chunkPath.startsWith(chunkDir));
+    const stat = await fs.stat(chunkPath);
+    assert.equal(stat.size, chunk.bytes);
+    assert.ok(stat.size <= 4_000_000, `${chunk.url} excede el limite esperado`);
+
+    const text = await fs.readFile(chunkPath, "utf8");
+    assert.doesNotMatch(text, forbiddenPathPattern);
+    const collection = JSON.parse(text);
+    assert.equal(collection.type, "FeatureCollection");
+    assert.ok(Array.isArray(collection.features));
+    assert.ok(collection.features.length > 0);
+    collection.features.forEach((featureItem) => {
+      assert.ok(featureItem.geometry);
+      walkCoordinatePairs(featureItem.geometry.coordinates, ([lon, lat]) => {
+        assert.ok(lon >= -180 && lon <= 180);
+        assert.ok(lat >= -90 && lat <= 90);
+      });
+    });
+  }
+
+  const allowedFiles = new Set([
+    path.resolve(baseDir, "README.md"),
+    path.resolve(baseDir, "diagnostico_generacion.json"),
+    path.resolve(baseDir, "vialidades_nivel_1.geojson"),
+    path.resolve(baseDir, "vialidades_nivel_2.geojson"),
+    path.resolve(baseDir, "vialidades_nivel_3_manifest.json"),
+    ...vialidadesNivel3Manifest.chunks.map((chunk) => path.resolve(chunk.url)),
+  ]);
+  const diskEntries = await fs.readdir(baseDir, { recursive: true, withFileTypes: true });
+  const diskFiles = diskEntries
+    .filter((entry) => entry.isFile())
+    .map((entry) => path.resolve(entry.parentPath || baseDir, entry.name));
+  assert.deepEqual(new Set(diskFiles), allowedFiles);
 });
 
 test("la seleccion de capa queda separada de la leyenda flotante automatica", () => {
@@ -806,8 +1211,14 @@ test("la barra de herramientas aumenta iconos y reduce separacion sin perder are
   assert.match(cssSource, /@media \(max-width: 760px\) \{[\s\S]*?\.map-toolbar \{[\s\S]*?gap: 2px;[\s\S]*?\.toolbar-button,[\s\S]*?width: 32px;[\s\S]*?height: 32px;[\s\S]*?\.toolbar-icon,[\s\S]*?width: 18px;[\s\S]*?height: 18px;/);
 });
 
-test("la barra de herramientas inicia abierta y se comprime con un solo temporizador seguro", async () => {
+test("la barra de herramientas inicia comprimida y conserva un solo temporizador seguro", async () => {
   const html = await fs.readFile(path.resolve("index.html"), "utf8");
+  const overlayIdIndex = html.indexOf('id="tools-overlay"');
+  const overlayOpenTag = html.slice(html.lastIndexOf("<div", overlayIdIndex), html.indexOf(">", overlayIdIndex) + 1);
+  const triggerIdIndex = html.indexOf('id="toolbar-compact-trigger"');
+  const triggerOpenTag = html.slice(html.lastIndexOf("<button", triggerIdIndex), html.indexOf(">", triggerIdIndex) + 1);
+  const toolbarIdIndex = html.indexOf('id="map-toolbar"');
+  const toolbarOpenTag = html.slice(html.lastIndexOf("<div", toolbarIdIndex), html.indexOf(">", toolbarIdIndex) + 1);
   const setupSource = extractFunctionSource(mapSource, "setupToolbarAutoCollapse");
   const collapseSource = extractFunctionSource(mapSource, "collapseToolbar");
   const expandSource = extractFunctionSource(mapSource, "expandToolbar");
@@ -817,10 +1228,13 @@ test("la barra de herramientas inicia abierta y se comprime con un solo temporiz
   const updateToolbarSource = extractFunctionSource(mapSource, "updateToolbarState");
 
   assert.match(mapSource, /const TOOLBAR_AUTO_COLLAPSE_MS = 8000;/);
-  assert.match(mapSource, /toolbarCollapsed: false/);
+  assert.match(mapSource, /toolbarCollapsed: true/);
   assert.match(mapSource, /toolbarAutoCollapseTimer: null/);
-  assert.match(html, /id="toolbar-compact-trigger"[\s\S]*aria-expanded="false"[\s\S]*aria-controls="map-toolbar"[\s\S]*hidden/);
-  assert.match(html, /id="map-toolbar"/);
+  assert.match(overlayOpenTag, /is-toolbar-collapsed/);
+  assert.match(triggerOpenTag, /aria-expanded="false"/);
+  assert.match(triggerOpenTag, /aria-controls="map-toolbar"/);
+  assert.doesNotMatch(triggerOpenTag, /\shidden(?:\s|>)/);
+  assert.match(toolbarOpenTag, /\shidden(?:\s|>)/);
   assert.match(html, /id="toolbar-collapse"[\s\S]*aria-label="Comprimir herramientas del visor"/);
   assert.match(setupSource, /toolbarCompactTrigger\.addEventListener\("click", \(\) => expandToolbar/);
   assert.match(setupSource, /toolbarCollapse\?\.addEventListener\("click", \(\) => collapseToolbar/);

@@ -272,6 +272,63 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     },
   ];
 
+  const INSTITUTIONAL_BOUNDARY_COLOR = "#7a203a";
+  const STATE_BOUNDARY_HALO_COLOR = "#fff7ef";
+  const MUNICIPAL_BOUNDARY_COLOR = "#9ca3af";
+  const STATE_BOUNDARY_BASE_WIDTH = ["interpolate", ["linear"], ["zoom"], 6, 2.8, 10, 3.8, 14, 5.2];
+  const STATE_BOUNDARY_HALO_WIDTH = ["interpolate", ["linear"], ["zoom"], 6, 4.2, 10, 5.8, 14, 7.4];
+  const STATE_BOUNDARY_HIGHLIGHT_WIDTH = ["interpolate", ["linear"], ["zoom"], 6, 2.1, 10, 3.2, 14, 4.6];
+  const MUNICIPAL_BOUNDARY_WIDTH = ["interpolate", ["linear"], ["zoom"], 6, 0.55, 10, 0.8, 14, 1.1];
+  const STATE_BOUNDARY_BASE_OPACITY = 0.48;
+  const STATE_BOUNDARY_HALO_OPACITY = 0.64;
+  const MUNICIPAL_BOUNDARY_OPACITY = 0.82;
+  const MUNICIPAL_LABEL_SOURCE_ID = "municipios-labels-source";
+  const MUNICIPAL_LABEL_TIERS = Object.freeze([
+    { id: "municipios-label-tier-1", tier: 1, minZoom: 8.6 },
+    { id: "municipios-label-tier-2", tier: 2, minZoom: 9.3 },
+    { id: "municipios-label-tier-3", tier: 3, minZoom: 9.8 },
+    { id: "municipios-label-tier-4", tier: 4, minZoom: 10.7 },
+    { id: "municipios-label-tier-5", tier: 5, minZoom: 11.4 },
+  ]);
+  const ROAD_REFERENCE_EMPTY_DATA = Object.freeze({ type: "FeatureCollection", features: [] });
+  const ROAD_REFERENCE_LEVELS = Object.freeze({
+    1: {
+      sourceId: "vialidades-nivel-1-source",
+      layerIds: ["vialidades-nivel-1-halo", "vialidades-nivel-1"],
+      url: "data/base/vialidades/vialidades_nivel_1.geojson",
+      minZoom: 0,
+      enterZoom: 0,
+      exitZoom: 12.55,
+    },
+    2: {
+      sourceId: "vialidades-nivel-2-source",
+      layerIds: ["vialidades-nivel-2-halo", "vialidades-nivel-2"],
+      url: "data/base/vialidades/vialidades_nivel_2.geojson",
+      minZoom: 12.8,
+      enterZoom: 12.8,
+      exitZoom: 14.95,
+    },
+    3: {
+      sourceId: "vialidades-nivel-3-source",
+      layerIds: ["vialidades-nivel-3-halo", "vialidades-nivel-3"],
+      manifestUrl: "data/base/vialidades/vialidades_nivel_3_manifest.json",
+      minZoom: 15.2,
+      enterZoom: 15.2,
+      exitZoom: 14.95,
+    },
+  });
+  const ROAD_REFERENCE_LAYER_IDS = Object.values(ROAD_REFERENCE_LEVELS).flatMap((level) => level.layerIds);
+  const ROAD_REFERENCE_BOUNDARY_LAYER_IDS = [
+    "estado-fill",
+    "municipios-hit",
+    "municipios",
+    "estado",
+    "estado-highlight-halo",
+    "estado-highlight",
+  ];
+  const REFERENCE_LABEL_LAYER_IDS = MUNICIPAL_LABEL_TIERS.map((tier) => tier.id);
+  const ROAD_REFERENCE_MAX_CACHED_CHUNKS = 32;
+
   const thematicLayerGroups = [
     { id: "limites", title: "Límites" },
     { id: "geologicos", title: "Geológicos" },
@@ -290,7 +347,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     sidebarCollapsed: false,
     topbarCollapsed: loadTopbarModePreference(),
     compactMenuOpen: false,
-    toolbarCollapsed: false,
+    toolbarCollapsed: true,
     toolbarPointerInside: false,
     toolbarAutoCollapseTimer: null,
     viewportMode: null,
@@ -307,12 +364,30 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     staticData: {
       estado: null,
       municipios: null,
+      municipiosLabels: null,
     },
     users: [],
     userLayers: loadUserLayers(),
     renderedLayers: new Map(),
     pendingOpacityFrames: new Map(),
     pendingLayerLoads: new Map(),
+    referenceRoads: {
+      initialized: false,
+      listenersBound: false,
+      activeLevel: 0,
+      visibleLevel: 0,
+      pendingFrame: null,
+      levelLoads: new Map(),
+      chunkLoads: new Map(),
+      chunkCache: new Map(),
+      visibleChunkIds: new Set(),
+      level3Manifest: null,
+      level3ManifestLoad: null,
+      metrics: {
+        requestedFiles: [],
+        sourceUpdates: 0,
+      },
+    },
     cloudTop: {
       provider: null,
       activeProvider: null,
@@ -803,17 +878,19 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
 
   async function loadStaticData() {
     try {
-      const [estadoResponse, municipiosResponse] = await Promise.all([
+      const [estadoResponse, municipiosResponse, municipiosLabelsResponse] = await Promise.all([
         fetch("data/base/estado.geojson"),
         fetch("data/base/municipios.geojson"),
+        fetch("data/base/municipios_label_points.geojson"),
       ]);
 
-      if (!estadoResponse.ok || !municipiosResponse.ok) {
+      if (!estadoResponse.ok || !municipiosResponse.ok || !municipiosLabelsResponse.ok) {
         throw new Error("No se pudieron cargar los archivos base.");
       }
 
       state.staticData.estado = await estadoResponse.json();
       state.staticData.municipios = await municipiosResponse.json();
+      state.staticData.municipiosLabels = await municipiosLabelsResponse.json();
     } catch (error) {
       console.error("Error cargando datos base:", error);
       updateInfoPanel({
@@ -1779,10 +1856,11 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
   }
 
   function injectStaticSources() {
-    if (!state.staticData.estado || !state.staticData.municipios) return;
+    if (!state.staticData.estado || !state.staticData.municipios || !state.staticData.municipiosLabels) return;
 
     upsertGeoJsonSource("estado-source", state.staticData.estado);
     upsertGeoJsonSource("municipios-source", state.staticData.municipios);
+    upsertGeoJsonSource(MUNICIPAL_LABEL_SOURCE_ID, state.staticData.municipiosLabels);
 
     addLayerIfMissing({
       id: "estado-fill",
@@ -1799,9 +1877,9 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       type: "line",
       source: "estado-source",
       paint: {
-        "line-color": "#10212B",
-        "line-width": ["interpolate", ["linear"], ["zoom"], 6, 4, 10, 5, 14, 6],
-        "line-opacity": 0.44 * getLayerOpacity(staticLayers.find((layer) => layer.id === "estado")),
+        "line-color": INSTITUTIONAL_BOUNDARY_COLOR,
+        "line-width": STATE_BOUNDARY_BASE_WIDTH,
+        "line-opacity": STATE_BOUNDARY_BASE_OPACITY * getLayerOpacity(staticLayers.find((layer) => layer.id === "estado")),
       },
     });
 
@@ -1810,9 +1888,9 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       type: "line",
       source: "estado-source",
       paint: {
-        "line-color": "#10212B",
-        "line-width": ["interpolate", ["linear"], ["zoom"], 6, 5, 10, 7, 14, 9],
-        "line-opacity": 0.86 * getLayerOpacity(staticLayers.find((layer) => layer.id === "estado")),
+        "line-color": STATE_BOUNDARY_HALO_COLOR,
+        "line-width": STATE_BOUNDARY_HALO_WIDTH,
+        "line-opacity": STATE_BOUNDARY_HALO_OPACITY * getLayerOpacity(staticLayers.find((layer) => layer.id === "estado")),
       },
     });
 
@@ -1821,8 +1899,8 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       type: "line",
       source: "estado-source",
       paint: {
-        "line-color": "#00E5FF",
-        "line-width": ["interpolate", ["linear"], ["zoom"], 6, 2.2, 10, 3.6, 14, 5],
+        "line-color": INSTITUTIONAL_BOUNDARY_COLOR,
+        "line-width": STATE_BOUNDARY_HIGHLIGHT_WIDTH,
         "line-opacity": 1 * getLayerOpacity(staticLayers.find((layer) => layer.id === "estado")),
       },
     });
@@ -1842,16 +1920,304 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       type: "line",
       source: "municipios-source",
       paint: {
-        "line-color": "#efe4c6",
-        "line-width": 1,
-        "line-opacity": getLayerOpacity(staticLayers.find((layer) => layer.id === "municipios")),
+        "line-color": MUNICIPAL_BOUNDARY_COLOR,
+        "line-width": MUNICIPAL_BOUNDARY_WIDTH,
+        "line-opacity": MUNICIPAL_BOUNDARY_OPACITY * getLayerOpacity(staticLayers.find((layer) => layer.id === "municipios")),
       },
+    });
+
+    MUNICIPAL_LABEL_TIERS.forEach((labelTier) => {
+      addLayerIfMissing({
+        id: labelTier.id,
+        type: "symbol",
+        source: MUNICIPAL_LABEL_SOURCE_ID,
+        minzoom: labelTier.minZoom,
+        filter: ["==", ["get", "labelTier"], labelTier.tier],
+        layout: {
+          "text-field": ["get", "NOMGEO"],
+          "text-font": ["Open Sans Semibold"],
+          "text-size": ["interpolate", ["linear"], ["zoom"], labelTier.minZoom, 10.5, 12, 12, 14, 13.5, 17, 15],
+          "text-anchor": "center",
+          "text-allow-overlap": false,
+          "text-ignore-placement": false,
+          "text-optional": true,
+          "text-padding": 8,
+          "symbol-sort-key": ["get", "labelPriority"],
+        },
+        paint: {
+          "text-color": INSTITUTIONAL_BOUNDARY_COLOR,
+          "text-halo-color": "#fff7ef",
+          "text-halo-width": 1.4,
+          "text-halo-blur": 0.25,
+        },
+      });
     });
 
     setStaticVisibility("estado", staticLayers.find((layer) => layer.id === "estado").visible);
     setStaticVisibility("municipios", staticLayers.find((layer) => layer.id === "municipios").visible);
+    ensureReferenceLayerOrder();
     restoreStateBoundaryHighlight();
     bindMunicipiosPopup();
+  }
+
+  function initializeReferenceRoads() {
+    Object.entries(ROAD_REFERENCE_LEVELS).forEach(([levelKey, config]) => {
+      if (!map.getSource(config.sourceId)) {
+        map.addSource(config.sourceId, {
+          type: "geojson",
+          data: ROAD_REFERENCE_EMPTY_DATA,
+        });
+      }
+      addReferenceRoadLayers(Number(levelKey), config);
+    });
+    state.referenceRoads.initialized = true;
+    bindReferenceRoadListeners();
+    ensureReferenceLayerOrder();
+  }
+
+  function addReferenceRoadLayers(level, config) {
+    const haloId = config.layerIds[0];
+    const lineId = config.layerIds[1];
+    const visibility = "none";
+    const widths = {
+      1: {
+        halo: ["interpolate", ["linear"], ["zoom"], 6, 4.2, 10, 5.2, 13, 6.2],
+        line: ["interpolate", ["linear"], ["zoom"], 6, 1.7, 10, 2.4, 13, 3.1],
+      },
+      2: {
+        halo: ["interpolate", ["linear"], ["zoom"], 12, 3.2, 14, 4.1, 16, 4.8],
+        line: ["interpolate", ["linear"], ["zoom"], 12, 1.2, 14, 1.8, 16, 2.4],
+      },
+      3: {
+        halo: ["interpolate", ["linear"], ["zoom"], 15, 1.8, 17, 2.3, 19, 2.8],
+        line: ["interpolate", ["linear"], ["zoom"], 15, 0.6, 17, 0.9, 19, 1.15],
+      },
+    };
+    const colors = {
+      1: { halo: "#f8fafc", line: "#374151", haloOpacity: 0.72, lineOpacity: 0.86 },
+      2: { halo: "#ffffff", line: "#4b5563", haloOpacity: 0.58, lineOpacity: 0.74 },
+      3: { halo: "#ffffff", line: "#6b7280", haloOpacity: 0.44, lineOpacity: 0.56 },
+    };
+    addLayerIfMissing({
+      id: haloId,
+      type: "line",
+      source: config.sourceId,
+      layout: {
+        visibility,
+        "line-cap": "round",
+        "line-join": "round",
+      },
+      paint: {
+        "line-color": colors[level].halo,
+        "line-width": widths[level].halo,
+        "line-opacity": colors[level].haloOpacity,
+      },
+    });
+    addLayerIfMissing({
+      id: lineId,
+      type: "line",
+      source: config.sourceId,
+      layout: {
+        visibility,
+        "line-cap": "round",
+        "line-join": "round",
+      },
+      paint: {
+        "line-color": colors[level].line,
+        "line-width": widths[level].line,
+        "line-opacity": colors[level].lineOpacity,
+      },
+    });
+  }
+
+  function bindReferenceRoadListeners() {
+    if (state.referenceRoads.listenersBound) return;
+    state.referenceRoads.listenersBound = true;
+    map.on("zoomend", scheduleReferenceRoadUpdate);
+    map.on("moveend", scheduleReferenceRoadUpdate);
+  }
+
+  function scheduleReferenceRoadUpdate() {
+    if (state.referenceRoads.pendingFrame) return;
+    state.referenceRoads.pendingFrame = window.requestAnimationFrame(() => {
+      state.referenceRoads.pendingFrame = null;
+      updateReferenceRoadsForViewport();
+    });
+  }
+
+  async function updateReferenceRoadsForViewport() {
+    if (!state.referenceRoads.initialized) return;
+    const requiredLevel = getReferenceRoadLevelForZoom(map.getZoom());
+    state.referenceRoads.activeLevel = requiredLevel;
+    try {
+      if (requiredLevel === 3) {
+        const data = await loadVisibleRoadChunks();
+        if (state.referenceRoads.activeLevel === 3) {
+          setReferenceRoadSourceData(3, data);
+          setReferenceRoadVisibility(3);
+        }
+        return;
+      }
+      const data = await loadReferenceRoadLevel(requiredLevel);
+      if (state.referenceRoads.activeLevel === requiredLevel) {
+        setReferenceRoadSourceData(requiredLevel, data);
+        setReferenceRoadVisibility(requiredLevel);
+      }
+    } catch (error) {
+      console.warn("No se pudieron actualizar las vialidades de referencia:", error);
+    } finally {
+      ensureReferenceLayerOrder();
+    }
+  }
+
+  function getReferenceRoadLevelForZoom(zoom) {
+    const current = state.referenceRoads.visibleLevel || 1;
+    if (current === 3 && zoom >= ROAD_REFERENCE_LEVELS[3].exitZoom) return 3;
+    if (zoom >= ROAD_REFERENCE_LEVELS[3].enterZoom) return 3;
+    if (current === 2 && zoom >= ROAD_REFERENCE_LEVELS[2].exitZoom) return 2;
+    if (zoom >= ROAD_REFERENCE_LEVELS[2].enterZoom) return 2;
+    return 1;
+  }
+
+  async function loadReferenceRoadLevel(level) {
+    const config = ROAD_REFERENCE_LEVELS[level];
+    if (!config?.url) return ROAD_REFERENCE_EMPTY_DATA;
+    if (state.referenceRoads.levelLoads.has(level)) {
+      return state.referenceRoads.levelLoads.get(level);
+    }
+    const load = fetchReferenceRoadJson(config.url);
+    state.referenceRoads.levelLoads.set(level, load);
+    return load;
+  }
+
+  async function loadVisibleRoadChunks() {
+    const manifest = await loadReferenceRoadManifest();
+    const visibleChunks = getVisibleRoadChunks(manifest);
+    if (!visibleChunks.length) return ROAD_REFERENCE_EMPTY_DATA;
+
+    const chunkCollections = await Promise.all(visibleChunks.map((chunk) => loadReferenceRoadChunk(chunk)));
+    const features = [];
+    const seen = new Set();
+    chunkCollections.forEach((collection) => {
+      (collection?.features || []).forEach((feature) => {
+        const key = feature?.properties?.id ?? `${feature?.properties?.nombre || "vialidad"}-${JSON.stringify(feature?.geometry?.coordinates?.[0] || [])}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        features.push(feature);
+      });
+    });
+    state.referenceRoads.visibleChunkIds = new Set(visibleChunks.map((chunk) => chunk.id));
+    pruneReferenceRoadChunkCache(state.referenceRoads.visibleChunkIds);
+    return {
+      type: "FeatureCollection",
+      features,
+    };
+  }
+
+  async function loadReferenceRoadManifest() {
+    if (state.referenceRoads.level3Manifest) return state.referenceRoads.level3Manifest;
+    if (!state.referenceRoads.level3ManifestLoad) {
+      state.referenceRoads.level3ManifestLoad = fetchReferenceRoadJson(ROAD_REFERENCE_LEVELS[3].manifestUrl)
+        .then((manifest) => {
+          state.referenceRoads.level3Manifest = manifest;
+          return manifest;
+        });
+    }
+    return state.referenceRoads.level3ManifestLoad;
+  }
+
+  async function loadReferenceRoadChunk(chunk) {
+    if (state.referenceRoads.chunkCache.has(chunk.id)) {
+      return state.referenceRoads.chunkCache.get(chunk.id);
+    }
+    if (!state.referenceRoads.chunkLoads.has(chunk.id)) {
+      const load = fetchReferenceRoadJson(chunk.url).then((collection) => {
+        state.referenceRoads.chunkCache.set(chunk.id, collection);
+        return collection;
+      });
+      state.referenceRoads.chunkLoads.set(chunk.id, load);
+    }
+    return state.referenceRoads.chunkLoads.get(chunk.id);
+  }
+
+  function pruneReferenceRoadChunkCache(visibleChunkIds) {
+    if (state.referenceRoads.chunkCache.size <= ROAD_REFERENCE_MAX_CACHED_CHUNKS) return;
+    [...state.referenceRoads.chunkCache.keys()].forEach((chunkId) => {
+      if (state.referenceRoads.chunkCache.size <= ROAD_REFERENCE_MAX_CACHED_CHUNKS) return;
+      if (visibleChunkIds.has(chunkId)) return;
+      state.referenceRoads.chunkCache.delete(chunkId);
+      state.referenceRoads.chunkLoads.delete(chunkId);
+    });
+  }
+
+  async function fetchReferenceRoadJson(url) {
+    const startedAt = performance.now();
+    const response = await fetch(url);
+    const bytes = Number(response.headers.get("content-length")) || null;
+    if (!response.ok) {
+      throw new Error(`No se pudo cargar ${url} (${response.status}).`);
+    }
+    const data = await response.json();
+    state.referenceRoads.metrics.requestedFiles.push({
+      url,
+      bytes,
+      elapsedMs: Math.round(performance.now() - startedAt),
+    });
+    return data;
+  }
+
+  function getVisibleRoadChunks(manifest) {
+    const bounds = map.getBounds();
+    const zoom = map.getZoom();
+    const paddingFactor = zoom >= 17 ? 0.18 : 0.28;
+    const west = bounds.getWest();
+    const east = bounds.getEast();
+    const south = bounds.getSouth();
+    const north = bounds.getNorth();
+    const lonPad = (east - west) * paddingFactor;
+    const latPad = (north - south) * paddingFactor;
+    const viewport = [west - lonPad, south - latPad, east + lonPad, north + latPad];
+    return (manifest?.chunks || []).filter((chunk) => bboxesIntersect(viewport, chunk.bbox));
+  }
+
+  function bboxesIntersect(a, b) {
+    return !(a[2] < b[0] || a[0] > b[2] || a[3] < b[1] || a[1] > b[3]);
+  }
+
+  function setReferenceRoadSourceData(level, data) {
+    const config = ROAD_REFERENCE_LEVELS[level];
+    const source = map.getSource(config.sourceId);
+    if (!source) return;
+    source.setData(data || ROAD_REFERENCE_EMPTY_DATA);
+    state.referenceRoads.metrics.sourceUpdates += 1;
+  }
+
+  function setReferenceRoadVisibility(activeLevel) {
+    Object.entries(ROAD_REFERENCE_LEVELS).forEach(([levelKey, config]) => {
+      const visible = Number(levelKey) === activeLevel;
+      config.layerIds.forEach((layerId) => {
+        safeSetLayoutProperty(layerId, "visibility", visible ? "visible" : "none");
+      });
+    });
+    state.referenceRoads.visibleLevel = activeLevel;
+  }
+
+  function ensureReferenceLayerOrder() {
+    ROAD_REFERENCE_LAYER_IDS.forEach((layerId) => {
+      if (map.getLayer(layerId)) {
+        safeMoveLayer(layerId);
+      }
+    });
+    ROAD_REFERENCE_BOUNDARY_LAYER_IDS.forEach((layerId) => {
+      if (map.getLayer(layerId)) {
+        safeMoveLayer(layerId);
+      }
+    });
+    REFERENCE_LABEL_LAYER_IDS.forEach((layerId) => {
+      if (map.getLayer(layerId)) {
+        safeMoveLayer(layerId);
+      }
+    });
   }
 
   function restoreStateBoundaryHighlight() {
@@ -1914,8 +2280,11 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     applyVisibleSnapshot();
     applyBaseMapVisibility(state.activeBaseMap);
     injectStaticSources();
+    initializeReferenceRoads();
     injectMeasurementSources();
     renderVisibleLayers();
+    ensureReferenceLayerOrder();
+    updateReferenceRoadsForViewport();
     renderLayerCatalog(elements.layerSearch.value.trim().toLowerCase());
     updateToolbarState();
   }
@@ -2853,6 +3222,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     if (layer.data) {
       addGeoJsonLayerToMap(layer);
     }
+    ensureReferenceLayerOrder();
   }
 
   function buildNoAplicaDisplayColorExpression(sourceExpression) {
@@ -3063,15 +3433,15 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
 
     if (layerId === "estado") {
       safeSetPaintProperty("estado-fill", "fill-opacity", 0);
-      safeSetPaintProperty("estado", "line-opacity", 0.44 * opacity);
-      safeSetPaintProperty("estado-highlight-halo", "line-opacity", 0.86 * opacity);
+      safeSetPaintProperty("estado", "line-opacity", STATE_BOUNDARY_BASE_OPACITY * opacity);
+      safeSetPaintProperty("estado-highlight-halo", "line-opacity", STATE_BOUNDARY_HALO_OPACITY * opacity);
       safeSetPaintProperty("estado-highlight", "line-opacity", opacity);
       return;
     }
 
     if (layerId === "municipios") {
       safeSetPaintProperty("municipios-hit", "fill-opacity", 0.01 * opacity);
-      safeSetPaintProperty("municipios", "line-opacity", opacity);
+      safeSetPaintProperty("municipios", "line-opacity", MUNICIPAL_BOUNDARY_OPACITY * opacity);
     }
   }
 
@@ -5486,6 +5856,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
 
     return {
       version: 8,
+      glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
       sources,
       layers,
     };
@@ -5518,6 +5889,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
         safeSetLayoutProperty(entry.layerId, "visibility", visibility);
       });
     });
+    ensureReferenceLayerOrder();
   }
 
   function removeLayerBundle(layerId) {

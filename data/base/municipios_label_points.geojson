@@ -1,0 +1,733 @@
+{
+  "type": "FeatureCollection",
+  "metadata": {
+    "source": "data/base/municipios.geojson",
+    "method": "representative point on largest municipal polygon, validated with point-in-polygon",
+    "crs": "EPSG:4326",
+    "populationSource": "INEGI Censo de Poblacion y Vivienda 2020, ITER Morelos; archivo conjunto_de_datos_iter_17CSV20.csv; filas LOC=0000 y MUN!=000; campo POBTOT.",
+    "labelTierRule": "Tier 1: municipios prioritarios explicitos; Tier 2: POBTOT >= 100000; Tier 3: POBTOT >= 50000; Tier 4: POBTOT >= 25000; Tier 5: resto.",
+    "labelPriorityRule": "Primero tier ascendente; dentro de cada tier, mayor POBTOT primero."
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "CVEGEO": "17001",
+        "CVE_ENT": "17",
+        "CVE_MUN": "001",
+        "NOMGEO": "Amacuzac",
+        "NOM_ENT": "MORELOS",
+        "population": 17598,
+        "labelTier": 5,
+        "labelPriority": 24
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -99.386685,
+          18.590001
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "CVEGEO": "17002",
+        "CVE_ENT": "17",
+        "CVE_MUN": "002",
+        "NOMGEO": "Atlatlahucan",
+        "NOM_ENT": "MORELOS",
+        "population": 25232,
+        "labelTier": 4,
+        "labelPriority": 19
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -98.894501,
+          18.93505
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "CVEGEO": "17003",
+        "CVE_ENT": "17",
+        "CVE_MUN": "003",
+        "NOMGEO": "Axochiapan",
+        "NOM_ENT": "MORELOS",
+        "population": 39174,
+        "labelTier": 4,
+        "labelPriority": 14
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -98.752114,
+          18.525239
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "CVEGEO": "17004",
+        "CVE_ENT": "17",
+        "CVE_MUN": "004",
+        "NOMGEO": "Ayala",
+        "NOM_ENT": "MORELOS",
+        "population": 89834,
+        "labelTier": 3,
+        "labelPriority": 9
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -98.97897,
+          18.716218
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "CVEGEO": "17005",
+        "CVE_ENT": "17",
+        "CVE_MUN": "005",
+        "NOMGEO": "Coatlán del Río",
+        "NOM_ENT": "MORELOS",
+        "population": 10520,
+        "labelTier": 5,
+        "labelPriority": 31
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -99.445777,
+          18.73183
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "CVEGEO": "17006",
+        "CVE_ENT": "17",
+        "CVE_MUN": "006",
+        "NOMGEO": "Cuautla",
+        "NOM_ENT": "MORELOS",
+        "population": 187118,
+        "labelTier": 1,
+        "labelPriority": 3
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -98.961804,
+          18.82706
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "CVEGEO": "17007",
+        "CVE_ENT": "17",
+        "CVE_MUN": "007",
+        "NOMGEO": "Cuernavaca",
+        "NOM_ENT": "MORELOS",
+        "population": 378476,
+        "labelTier": 1,
+        "labelPriority": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -99.263027,
+          18.938879
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "CVEGEO": "17008",
+        "CVE_ENT": "17",
+        "CVE_MUN": "008",
+        "NOMGEO": "Emiliano Zapata",
+        "NOM_ENT": "MORELOS",
+        "population": 107053,
+        "labelTier": 1,
+        "labelPriority": 4
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -99.180898,
+          18.813726
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "CVEGEO": "17009",
+        "CVE_ENT": "17",
+        "CVE_MUN": "009",
+        "NOMGEO": "Huitzilac",
+        "NOM_ENT": "MORELOS",
+        "population": 24515,
+        "labelTier": 5,
+        "labelPriority": 20
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -99.236627,
+          19.057592
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "CVEGEO": "17010",
+        "CVE_ENT": "17",
+        "CVE_MUN": "010",
+        "NOMGEO": "Jantetelco",
+        "NOM_ENT": "MORELOS",
+        "population": 18402,
+        "labelTier": 5,
+        "labelPriority": 23
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -98.764711,
+          18.685405
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "CVEGEO": "17011",
+        "CVE_ENT": "17",
+        "CVE_MUN": "011",
+        "NOMGEO": "Jiutepec",
+        "NOM_ENT": "MORELOS",
+        "population": 215357,
+        "labelTier": 1,
+        "labelPriority": 2
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -99.166451,
+          18.885158
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "CVEGEO": "17012",
+        "CVE_ENT": "17",
+        "CVE_MUN": "012",
+        "NOMGEO": "Jojutla",
+        "NOM_ENT": "MORELOS",
+        "population": 57682,
+        "labelTier": 1,
+        "labelPriority": 6
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -99.222533,
+          18.584546
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "CVEGEO": "17013",
+        "CVE_ENT": "17",
+        "CVE_MUN": "013",
+        "NOMGEO": "Jonacatepec de Leandro Valle",
+        "NOM_ENT": "MORELOS",
+        "population": 16694,
+        "labelTier": 5,
+        "labelPriority": 25
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -98.809414,
+          18.663757
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "CVEGEO": "17014",
+        "CVE_ENT": "17",
+        "CVE_MUN": "014",
+        "NOMGEO": "Mazatepec",
+        "NOM_ENT": "MORELOS",
+        "population": 9653,
+        "labelTier": 5,
+        "labelPriority": 33
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -99.365417,
+          18.685914
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "CVEGEO": "17015",
+        "CVE_ENT": "17",
+        "CVE_MUN": "015",
+        "NOMGEO": "Miacatlán",
+        "NOM_ENT": "MORELOS",
+        "population": 15802,
+        "labelTier": 5,
+        "labelPriority": 27
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -99.369478,
+          18.825307
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "CVEGEO": "17016",
+        "CVE_ENT": "17",
+        "CVE_MUN": "016",
+        "NOMGEO": "Ocuituco",
+        "NOM_ENT": "MORELOS",
+        "population": 19219,
+        "labelTier": 5,
+        "labelPriority": 22
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -98.780961,
+          18.881572
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "CVEGEO": "17017",
+        "CVE_ENT": "17",
+        "CVE_MUN": "017",
+        "NOMGEO": "Puente de Ixtla",
+        "NOM_ENT": "MORELOS",
+        "population": 40018,
+        "labelTier": 4,
+        "labelPriority": 13
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -99.295762,
+          18.551013
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "CVEGEO": "17018",
+        "CVE_ENT": "17",
+        "CVE_MUN": "018",
+        "NOMGEO": "Temixco",
+        "NOM_ENT": "MORELOS",
+        "population": 122263,
+        "labelTier": 2,
+        "labelPriority": 7
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -99.272243,
+          18.842531
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "CVEGEO": "17019",
+        "CVE_ENT": "17",
+        "CVE_MUN": "019",
+        "NOMGEO": "Tepalcingo",
+        "NOM_ENT": "MORELOS",
+        "population": 28122,
+        "labelTier": 4,
+        "labelPriority": 17
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -98.894252,
+          18.574775
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "CVEGEO": "17020",
+        "CVE_ENT": "17",
+        "CVE_MUN": "020",
+        "NOMGEO": "Tepoztlán",
+        "NOM_ENT": "MORELOS",
+        "population": 54987,
+        "labelTier": 3,
+        "labelPriority": 11
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -99.105275,
+          18.984388
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "CVEGEO": "17021",
+        "CVE_ENT": "17",
+        "CVE_MUN": "021",
+        "NOMGEO": "Tetecala",
+        "NOM_ENT": "MORELOS",
+        "population": 7617,
+        "labelTier": 5,
+        "labelPriority": 36
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -99.412394,
+          18.692736
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "CVEGEO": "17022",
+        "CVE_ENT": "17",
+        "CVE_MUN": "022",
+        "NOMGEO": "Tetela del Volcán",
+        "NOM_ENT": "MORELOS",
+        "population": 14853,
+        "labelTier": 5,
+        "labelPriority": 28
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -98.711976,
+          18.912655
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "CVEGEO": "17023",
+        "CVE_ENT": "17",
+        "CVE_MUN": "023",
+        "NOMGEO": "Tlalnepantla",
+        "NOM_ENT": "MORELOS",
+        "population": 7943,
+        "labelTier": 5,
+        "labelPriority": 34
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -98.99024,
+          19.038706
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "CVEGEO": "17024",
+        "CVE_ENT": "17",
+        "CVE_MUN": "024",
+        "NOMGEO": "Tlaltizapán de Zapata",
+        "NOM_ENT": "MORELOS",
+        "population": 52399,
+        "labelTier": 3,
+        "labelPriority": 12
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -99.108246,
+          18.704952
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "CVEGEO": "17025",
+        "CVE_ENT": "17",
+        "CVE_MUN": "025",
+        "NOMGEO": "Tlaquiltenango",
+        "NOM_ENT": "MORELOS",
+        "population": 33789,
+        "labelTier": 4,
+        "labelPriority": 16
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -99.074729,
+          18.499132
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "CVEGEO": "17026",
+        "CVE_ENT": "17",
+        "CVE_MUN": "026",
+        "NOMGEO": "Tlayacapan",
+        "NOM_ENT": "MORELOS",
+        "population": 19408,
+        "labelTier": 5,
+        "labelPriority": 21
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -98.975033,
+          18.954027
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "CVEGEO": "17027",
+        "CVE_ENT": "17",
+        "CVE_MUN": "027",
+        "NOMGEO": "Totolapan",
+        "NOM_ENT": "MORELOS",
+        "population": 12750,
+        "labelTier": 5,
+        "labelPriority": 29
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -98.918032,
+          19.000436
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "CVEGEO": "17028",
+        "CVE_ENT": "17",
+        "CVE_MUN": "028",
+        "NOMGEO": "Xochitepec",
+        "NOM_ENT": "MORELOS",
+        "population": 73539,
+        "labelTier": 1,
+        "labelPriority": 5
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -99.235274,
+          18.761898
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "CVEGEO": "17029",
+        "CVE_ENT": "17",
+        "CVE_MUN": "029",
+        "NOMGEO": "Yautepec",
+        "NOM_ENT": "MORELOS",
+        "population": 105780,
+        "labelTier": 2,
+        "labelPriority": 8
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -99.052353,
+          18.872235
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "CVEGEO": "17030",
+        "CVE_ENT": "17",
+        "CVE_MUN": "030",
+        "NOMGEO": "Yecapixtla",
+        "NOM_ENT": "MORELOS",
+        "population": 56083,
+        "labelTier": 3,
+        "labelPriority": 10
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -98.856812,
+          18.852698
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "CVEGEO": "17031",
+        "CVE_ENT": "17",
+        "CVE_MUN": "031",
+        "NOMGEO": "Zacatepec",
+        "NOM_ENT": "MORELOS",
+        "population": 36094,
+        "labelTier": 4,
+        "labelPriority": 15
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -99.202714,
+          18.655654
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "CVEGEO": "17032",
+        "CVE_ENT": "17",
+        "CVE_MUN": "032",
+        "NOMGEO": "Zacualpan de Amilpas",
+        "NOM_ENT": "MORELOS",
+        "population": 9965,
+        "labelTier": 5,
+        "labelPriority": 32
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -98.753798,
+          18.806876
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "CVEGEO": "17033",
+        "CVE_ENT": "17",
+        "CVE_MUN": "033",
+        "NOMGEO": "Temoac",
+        "NOM_ENT": "MORELOS",
+        "population": 16574,
+        "labelTier": 5,
+        "labelPriority": 26
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -98.790494,
+          18.759241
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "CVEGEO": "17034",
+        "CVE_ENT": "17",
+        "CVE_MUN": "034",
+        "NOMGEO": "Coatetelco",
+        "NOM_ENT": "MORELOS",
+        "population": 11347,
+        "labelTier": 5,
+        "labelPriority": 30
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -99.311832,
+          18.734937
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "CVEGEO": "17035",
+        "CVE_ENT": "17",
+        "CVE_MUN": "035",
+        "NOMGEO": "Xoxocotla",
+        "NOM_ENT": "MORELOS",
+        "population": 27805,
+        "labelTier": 4,
+        "labelPriority": 18
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -99.24685,
+          18.683353
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "CVEGEO": "17036",
+        "CVE_ENT": "17",
+        "CVE_MUN": "036",
+        "NOMGEO": "Hueyapan",
+        "NOM_ENT": "MORELOS",
+        "population": 7855,
+        "labelTier": 5,
+        "labelPriority": 35
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -98.692604,
+          18.876093
+        ]
+      }
+    }
+  ]
+}

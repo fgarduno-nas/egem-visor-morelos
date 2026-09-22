@@ -1,0 +1,38 @@
+{
+  "1": {
+    "features": 30,
+    "omitted": 0,
+    "vertices": 24370,
+    "bytes": 561320,
+    "gzip9": 163407
+  },
+  "2": {
+    "features": 5454,
+    "omitted": 0,
+    "vertices": 56254,
+    "bytes": 4492253,
+    "gzip9": 588086
+  },
+  "3": {
+    "sourceFeatures": 78892,
+    "features": 78891,
+    "omitted": 1,
+    "vertices": 465682,
+    "chunks": 191,
+    "featureRefs": 81147,
+    "bytesChunks": 55236996,
+    "gzip9Chunks": 5289673,
+    "manifestBytes": 33810,
+    "manifestGzip9": 5295,
+    "bbox": [
+      -99.494084,
+      18.381479,
+      -98.662661,
+      19.129909
+    ],
+    "grid": "16x16",
+    "maxChunkBytes": 3467585,
+    "maxChunkGzip9": 269298,
+    "maxChunkFeatures": 5491
+  }
+}

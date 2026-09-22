@@ -187,7 +187,7 @@
           Mostrar panel
         </button>
 
-        <div class="map-overlay map-overlay--top-right" id="tools-overlay">
+        <div class="map-overlay map-overlay--top-right is-toolbar-collapsed" id="tools-overlay">
           <button
             class="toolbar-compact-trigger"
             id="toolbar-compact-trigger"
@@ -195,14 +195,13 @@
             aria-label="Mostrar herramientas del visor"
             aria-expanded="false"
             aria-controls="map-toolbar"
-            hidden
           >
             <span class="toolbar-compact-trigger__icon" aria-hidden="true">
               <svg viewBox="0 0 24 24"><path d="M4 7h8v2H4V7zm0 4h14v2H4v-2zm0 4h10v2H4v-2zm15.5-8.5 1.5 1.5-3.75 3.75V14h-2.25v-2.25L18.75 8 17.25 6.5l1.06-1.06a.75.75 0 0 1 1.06 0l.13.13z"/></svg>
             </span>
             <span>Herramientas</span>
           </button>
-          <div class="map-toolbar" id="map-toolbar" aria-label="Herramientas del visor">
+          <div class="map-toolbar" id="map-toolbar" aria-label="Herramientas del visor" hidden>
             <div class="basemap-control">
               <button
                 class="toolbar-button toolbar-button--basemap"
