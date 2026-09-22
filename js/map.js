@@ -290,6 +290,19 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     { id: "municipios-label-tier-4", tier: 4, minZoom: 10.7 },
     { id: "municipios-label-tier-5", tier: 5, minZoom: 11.4 },
   ]);
+  const LOCALITY_LABEL_SOURCE_ID = "localidades-labels-source";
+  const LOCALITY_LABEL_DATA_URL = "data/base/localidades_morelos.geojson";
+  const LOCALITY_LABEL_EMPTY_DATA = Object.freeze({ type: "FeatureCollection", features: [] });
+  const LOCALITY_LABEL_PRELOAD_ZOOM = 9.35;
+  const LOCALITY_LABEL_TIERS = Object.freeze([
+    { id: "localidades-label-tier-1", level: 1, type: "cabecera", minZoom: 9.55 },
+    { id: "localidades-label-tier-2", level: 2, type: "cabecera", minZoom: 9.8 },
+    { id: "localidades-label-tier-3", level: 3, type: "localidad", minZoom: 10.2 },
+    { id: "localidades-label-tier-4", level: 4, type: "localidad", minZoom: 10.7 },
+    { id: "localidades-label-tier-5a", level: 5, type: "localidad", minZoom: 11.1, minPopulation: 250 },
+    { id: "localidades-label-tier-5b", level: 5, type: "localidad", minZoom: 12.35, maxPopulation: 249 },
+  ]);
+  const LOCALITY_LABEL_MIN_ZOOMS = Object.freeze(LOCALITY_LABEL_TIERS.map((tier) => tier.minZoom));
   const ROAD_REFERENCE_EMPTY_DATA = Object.freeze({ type: "FeatureCollection", features: [] });
   const ROAD_REFERENCE_LEVELS = Object.freeze({
     1: {
@@ -326,7 +339,8 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     "estado-highlight-halo",
     "estado-highlight",
   ];
-  const REFERENCE_LABEL_LAYER_IDS = MUNICIPAL_LABEL_TIERS.map((tier) => tier.id);
+  const LOCALITY_LABEL_LAYER_IDS = LOCALITY_LABEL_TIERS.map((tier) => tier.id);
+  const REFERENCE_LABEL_LAYER_IDS = [...LOCALITY_LABEL_LAYER_IDS, ...MUNICIPAL_LABEL_TIERS.map((tier) => tier.id)];
   const ROAD_REFERENCE_MAX_CACHED_CHUNKS = 32;
 
   const thematicLayerGroups = [
@@ -385,6 +399,23 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       level3ManifestLoad: null,
       metrics: {
         requestedFiles: [],
+        sourceUpdates: 0,
+      },
+    },
+    localityLabels: {
+      initialized: false,
+      listenersBound: false,
+      pendingFrame: null,
+      sourceData: null,
+      sourceApplied: false,
+      loadPromise: null,
+      loadError: null,
+      metrics: {
+        requestedFiles: [],
+        originalFeatures: 0,
+        deduplicatedFeatures: 0,
+        fetchMs: null,
+        prepareMs: null,
         sourceUpdates: 0,
       },
     },
@@ -1955,9 +1986,267 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
 
     setStaticVisibility("estado", staticLayers.find((layer) => layer.id === "estado").visible);
     setStaticVisibility("municipios", staticLayers.find((layer) => layer.id === "municipios").visible);
+    initializeLocalityLabels();
     ensureReferenceLayerOrder();
     restoreStateBoundaryHighlight();
     bindMunicipiosPopup();
+  }
+
+  function initializeLocalityLabels() {
+    const sourceData = state.localityLabels.sourceData || LOCALITY_LABEL_EMPTY_DATA;
+    upsertGeoJsonSource(LOCALITY_LABEL_SOURCE_ID, sourceData);
+    state.localityLabels.sourceApplied = Boolean(state.localityLabels.sourceData);
+    LOCALITY_LABEL_TIERS.forEach((labelTier) => {
+      addLayerIfMissing({
+        id: labelTier.id,
+        type: "symbol",
+        source: LOCALITY_LABEL_SOURCE_ID,
+        minzoom: labelTier.minZoom,
+        filter: getLocalityLabelFilter(labelTier),
+        layout: {
+          "text-field": ["get", "NOM_LOC"],
+          "text-font": ["Open Sans Semibold"],
+          "text-size":
+            labelTier.type === "cabecera"
+              ? ["interpolate", ["linear"], ["zoom"], labelTier.minZoom, 12, 13.4, 13, 16, 13.5]
+              : ["interpolate", ["linear"], ["zoom"], labelTier.minZoom, 10.5, 14.5, 11.7, 17, 12.5],
+          "text-anchor": "center",
+          "text-allow-overlap": false,
+          "text-ignore-placement": false,
+          "text-optional": true,
+          "text-padding": labelTier.level === 5 ? 1 : labelTier.type === "cabecera" ? 7 : 6,
+          "symbol-sort-key": ["get", "__labelSortKey"],
+          "text-letter-spacing": labelTier.type === "cabecera" ? 0.02 : 0,
+          ...(labelTier.level === 5
+            ? {
+                "text-variable-anchor": ["top", "bottom", "left", "right"],
+                "text-radial-offset": 0.35,
+              }
+            : {}),
+        },
+        paint: getLocalityLabelPaint(),
+      });
+    });
+    state.localityLabels.initialized = true;
+    bindLocalityLabelListeners();
+    updateLocalityLabelPaint();
+    scheduleLocalityLabelUpdate();
+  }
+
+  function bindLocalityLabelListeners() {
+    if (state.localityLabels.listenersBound) return;
+    state.localityLabels.listenersBound = true;
+    map.on("zoomend", scheduleLocalityLabelUpdate);
+    map.on("moveend", scheduleLocalityLabelUpdate);
+  }
+
+  function getLocalityLabelFilter(labelTier) {
+    const filters = [["==", ["get", "__effectiveMinZoom"], labelTier.minZoom]];
+    if (Number.isFinite(labelTier.minPopulation)) {
+      filters.push([
+        "any",
+        [">=", ["to-number", ["get", "POBTOT"]], labelTier.minPopulation],
+        ["==", ["get", "__labelKind"], "cabecera"],
+      ]);
+    }
+    if (Number.isFinite(labelTier.maxPopulation)) {
+      filters.push([
+        "any",
+        ["<=", ["to-number", ["get", "POBTOT"]], labelTier.maxPopulation],
+        ["==", ["get", "__labelKind"], "cabecera"],
+      ]);
+    }
+    return filters.length === 1 ? filters[0] : ["all", ...filters];
+  }
+
+  function scheduleLocalityLabelUpdate() {
+    if (state.localityLabels.pendingFrame) return;
+    state.localityLabels.pendingFrame = window.requestAnimationFrame(() => {
+      state.localityLabels.pendingFrame = null;
+      updateLocalityLabelsForZoom();
+    });
+  }
+
+  async function updateLocalityLabelsForZoom() {
+    if (!state.localityLabels.initialized) return;
+    if (map.getZoom() < LOCALITY_LABEL_PRELOAD_ZOOM) return;
+    try {
+      const data = await loadLocalityLabels();
+      setLocalityLabelSourceData(data);
+    } catch (error) {
+      state.localityLabels.loadError = error;
+      console.warn("No se pudieron cargar las localidades de Morelos:", error);
+    } finally {
+      ensureReferenceLayerOrder();
+    }
+  }
+
+  async function loadLocalityLabels() {
+    if (state.localityLabels.sourceData) return state.localityLabels.sourceData;
+    if (state.localityLabels.loadPromise) return state.localityLabels.loadPromise;
+    const startedAt = performance.now();
+    state.localityLabels.metrics.requestedFiles.push(LOCALITY_LABEL_DATA_URL);
+    state.localityLabels.loadPromise = fetch(LOCALITY_LABEL_DATA_URL)
+      .then(async (response) => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const fetchedAt = performance.now();
+        const collection = await response.json();
+        const parsedAt = performance.now();
+        const prepared = prepareLocalityLabelData(collection);
+        state.localityLabels.metrics.fetchMs = Math.round((fetchedAt - startedAt) * 10) / 10;
+        state.localityLabels.metrics.prepareMs = Math.round((performance.now() - parsedAt) * 10) / 10;
+        state.localityLabels.sourceData = prepared;
+        return prepared;
+      })
+      .catch((error) => {
+        state.localityLabels.loadPromise = null;
+        throw error;
+      });
+    return state.localityLabels.loadPromise;
+  }
+
+  function prepareLocalityLabelData(collection) {
+    const municipalityMetadata = new Map(
+      (state.staticData.municipiosLabels?.features || []).map((feature) => {
+        const properties = feature.properties || {};
+        return [
+          getMunicipalityKey(properties),
+          {
+            name: normalizeLabelName(properties.NOMGEO),
+            minZoom: getMunicipalLabelMinZoom(properties.labelTier),
+          },
+        ];
+      }),
+    );
+    const sortedFeatures = [...(collection?.features || [])].sort((left, right) => {
+      const leftProps = left.properties || {};
+      const rightProps = right.properties || {};
+      if (Boolean(leftProps.esCabecera) !== Boolean(rightProps.esCabecera)) return leftProps.esCabecera ? -1 : 1;
+      const populationDelta = Number(rightProps.POBTOT || 0) - Number(leftProps.POBTOT || 0);
+      if (populationDelta) return populationDelta;
+      return String(leftProps.CVEGEO || "").localeCompare(String(rightProps.CVEGEO || ""));
+    });
+    const seenMunicipalLocalityNames = new Set();
+    const features = [];
+    for (const feature of sortedFeatures) {
+      const properties = feature.properties || {};
+      const municipalityKey = getMunicipalityKey(properties);
+      const normalizedLocality = normalizeLabelName(properties.NOM_LOC);
+      const municipality = municipalityMetadata.get(municipalityKey);
+      if (properties.esCabecera && municipality?.name && normalizedLocality === municipality.name) {
+        continue;
+      }
+      const repeatedKey = `${municipalityKey}|${normalizedLocality}`;
+      if (seenMunicipalLocalityNames.has(repeatedKey)) continue;
+      seenMunicipalLocalityNames.add(repeatedKey);
+      const labelLevel = getLocalityLabelLevel(properties);
+      const effectiveMinZoom = getLocalityEffectiveMinZoom(properties, labelLevel, municipality);
+      features.push({
+        ...feature,
+        properties: {
+          ...properties,
+          __labelLevel: labelLevel,
+          __labelKind: properties.esCabecera ? "cabecera" : "localidad",
+          __effectiveMinZoom: effectiveMinZoom,
+          __labelSortKey: getLocalityLabelSortKey(properties, labelLevel),
+        },
+      });
+    }
+    state.localityLabels.metrics.originalFeatures = collection?.features?.length || 0;
+    state.localityLabels.metrics.deduplicatedFeatures = features.length;
+    return {
+      type: "FeatureCollection",
+      features,
+    };
+  }
+
+  function getLocalityLabelLevel(properties) {
+    const population = Number(properties.POBTOT || 0);
+    if ((properties.esCabecera && population >= 25000) || population >= 50000) return 1;
+    if (properties.esCabecera || population >= 25000) return 2;
+    if (population >= 5000) return 3;
+    if (population >= 1000) return 4;
+    return 5;
+  }
+
+  function getMunicipalityKey(properties) {
+    return `${String(properties.CVE_ENT || "").padStart(2, "0")}|${String(properties.CVE_MUN || "").padStart(3, "0")}`;
+  }
+
+  function getMunicipalLabelMinZoom(labelTier) {
+    return MUNICIPAL_LABEL_TIERS.find((tier) => tier.tier === Number(labelTier))?.minZoom ?? LOCALITY_LABEL_MIN_ZOOMS[0];
+  }
+
+  function getLocalityLevelMinZoom(properties, labelLevel) {
+    if (labelLevel !== 5) {
+      return LOCALITY_LABEL_TIERS.find((tier) => tier.level === labelLevel)?.minZoom ?? LOCALITY_LABEL_MIN_ZOOMS[0];
+    }
+    const population = Number(properties.POBTOT || 0);
+    return population >= 250 ? 11.1 : 12.35;
+  }
+
+  function getNextLocalityLabelMinZoomAfter(minZoom) {
+    return LOCALITY_LABEL_MIN_ZOOMS.find((threshold) => threshold > minZoom) ?? LOCALITY_LABEL_MIN_ZOOMS[LOCALITY_LABEL_MIN_ZOOMS.length - 1];
+  }
+
+  function getLocalityEffectiveMinZoom(properties, labelLevel, municipality) {
+    const baseMinZoom = getLocalityLevelMinZoom(properties, labelLevel);
+    if (!properties.esCabecera || !Number.isFinite(municipality?.minZoom)) return baseMinZoom;
+    return Math.max(baseMinZoom, getNextLocalityLabelMinZoomAfter(municipality.minZoom));
+  }
+
+  function getLocalityLabelSortKey(properties, labelLevel) {
+    if (labelLevel !== 5) return labelLevel * 100000 + Number(properties.labelPriority || 99999);
+    const population = Number(properties.POBTOT || 0);
+    const cabeceraRank = properties.esCabecera ? 0 : 1;
+    const populationRank = Math.max(0, 999999 - population);
+    const priorityRank = Number(properties.labelPriority || 99999);
+    const cvegeoRank = Number(String(properties.CVEGEO || "").replace(/\D/g, "").slice(-6) || 0);
+    return cabeceraRank * 1000000000 + populationRank * 1000 + priorityRank + cvegeoRank / 1000000;
+  }
+
+  function normalizeLabelName(value) {
+    return String(value || "")
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[.,;:()[\]{}'"’`´_-]+/g, " ")
+      .replace(/\s+/g, " ");
+  }
+
+  function setLocalityLabelSourceData(data) {
+    if (state.localityLabels.sourceApplied && data === state.localityLabels.sourceData) return;
+    const source = map.getSource(LOCALITY_LABEL_SOURCE_ID);
+    if (!source) return;
+    source.setData(data || LOCALITY_LABEL_EMPTY_DATA);
+    state.localityLabels.sourceApplied = data === state.localityLabels.sourceData;
+    state.localityLabels.metrics.sourceUpdates += 1;
+  }
+
+  function getLocalityLabelPaint() {
+    const isDarkBase = state.activeBaseMap === "oscuro";
+    const isImageBase = state.activeBaseMap === "satelite" || state.activeBaseMap === "topografico";
+    const cabeceraColor = isDarkBase || isImageBase ? "#fff7ef" : "#4b1025";
+    const localidadColor = isDarkBase || isImageBase ? "#f8fafc" : "#374151";
+    const haloColor = isDarkBase || isImageBase ? "#111827" : "#ffffff";
+    return {
+      "text-color": ["case", ["==", ["get", "__labelKind"], "cabecera"], cabeceraColor, localidadColor],
+      "text-halo-color": haloColor,
+      "text-halo-width": ["case", ["==", ["get", "__labelKind"], "cabecera"], 1.7, 1.35],
+      "text-halo-blur": ["case", ["==", ["get", "__labelKind"], "cabecera"], 0.25, 0.2],
+      "text-opacity": ["case", ["==", ["get", "__labelKind"], "cabecera"], 0.96, 0.88],
+    };
+  }
+
+  function updateLocalityLabelPaint() {
+    LOCALITY_LABEL_TIERS.forEach((labelTier) => {
+      if (!map.getLayer(labelTier.id)) return;
+      const paint = getLocalityLabelPaint();
+      Object.entries(paint).forEach(([property, value]) => {
+        safeSetPaintProperty(labelTier.id, property, value);
+      });
+    });
   }
 
   function initializeReferenceRoads() {
@@ -5900,6 +6189,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
         safeSetLayoutProperty(entry.layerId, "visibility", visibility);
       });
     });
+    updateLocalityLabelPaint();
     ensureReferenceLayerOrder();
   }
 

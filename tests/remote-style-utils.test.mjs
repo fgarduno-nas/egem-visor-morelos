@@ -11,6 +11,7 @@ const cssSource = await fs.readFile(path.resolve("css/style.css"), "utf8");
 const htmlSource = await fs.readFile(path.resolve("index.html"), "utf8");
 const municipiosGeojson = JSON.parse(await fs.readFile(path.resolve("data/base/municipios.geojson"), "utf8"));
 const municipiosLabelPoints = JSON.parse(await fs.readFile(path.resolve("data/base/municipios_label_points.geojson"), "utf8"));
+const localidadesMorelos = JSON.parse(await fs.readFile(path.resolve("data/base/localidades_morelos.geojson"), "utf8"));
 const vialidadesNivel1 = JSON.parse(await fs.readFile(path.resolve("data/base/vialidades/vialidades_nivel_1.geojson"), "utf8"));
 const vialidadesNivel2 = JSON.parse(await fs.readFile(path.resolve("data/base/vialidades/vialidades_nivel_2.geojson"), "utf8"));
 const vialidadesNivel3Manifest = JSON.parse(await fs.readFile(path.resolve("data/base/vialidades/vialidades_nivel_3_manifest.json"), "utf8"));
@@ -94,6 +95,16 @@ function extractFunctionSource(source, name) {
     if (depth === 0) return source.slice(start, index + 1);
   }
   throw new Error(`No se pudo extraer ${name}`);
+}
+
+function normalizeTestLabelName(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[.,;:()[\]{}'"’`´_-]+/g, " ")
+    .replace(/\s+/g, " ");
 }
 
 function walkCoordinatePairs(coordinates, callback) {
@@ -670,7 +681,7 @@ test("las etiquetas municipales usan layer symbol automatica sin popups ni contr
   assert.doesNotMatch(staticSource, /text-allow-overlap": true/);
   assert.match(orderSource, /REFERENCE_LABEL_LAYER_IDS\.forEach/);
   assert.match(orderSource, /ROAD_REFERENCE_BOUNDARY_LAYER_IDS\.forEach[\s\S]*REFERENCE_LABEL_LAYER_IDS\.forEach/);
-  assert.match(mapSource, /const REFERENCE_LABEL_LAYER_IDS = MUNICIPAL_LABEL_TIERS\.map\(\(tier\) => tier\.id\)/);
+  assert.match(mapSource, /const REFERENCE_LABEL_LAYER_IDS = \[\.\.\.LOCALITY_LABEL_LAYER_IDS, \.\.\.MUNICIPAL_LABEL_TIERS\.map\(\(tier\) => tier\.id\)\];/);
   assert.doesNotMatch(visibleSnapshotSource, /municipios-label-tier|MUNICIPAL_LABEL/);
   assert.doesNotMatch(popupSource, /municipios-label-tier|MUNICIPAL_LABEL/);
   assert.doesNotMatch(mapSource, /map\.on\("mouseenter", "municipios-label-tier|map\.on\("click", "municipios-label-tier"/);
@@ -697,6 +708,201 @@ test("las etiquetas municipales tienen umbrales explicitos crecientes sin duplic
   assert.equal(new Set(municipiosLabelPoints.features.map((featureItem) => featureItem.properties.CVEGEO)).size, 36);
   assert.equal(municipiosLabelPoints.features.filter((featureItem) => featureItem.properties.labelTier === 1).length, 6);
   assert.equal(municipiosLabelPoints.features.filter((featureItem) => featureItem.properties.labelTier === 5).length, 17);
+});
+
+test("las etiquetas de localidades se cargan diferidas y se preparan sin tocar el GeoJSON fuente", () => {
+  const loadStaticSource = extractFunctionSource(mapSource, "loadStaticData");
+  const initializeSource = extractFunctionSource(mapSource, "initializeLocalityLabels");
+  const updateSource = extractFunctionSource(mapSource, "updateLocalityLabelsForZoom");
+  const loadSource = extractFunctionSource(mapSource, "loadLocalityLabels");
+  const prepareSource = extractFunctionSource(mapSource, "prepareLocalityLabelData");
+  const setSource = extractFunctionSource(mapSource, "setLocalityLabelSourceData");
+
+  assert.match(mapSource, /const LOCALITY_LABEL_SOURCE_ID = "localidades-labels-source";/);
+  assert.match(mapSource, /const LOCALITY_LABEL_DATA_URL = "data\/base\/localidades_morelos\.geojson";/);
+  assert.match(mapSource, /const LOCALITY_LABEL_PRELOAD_ZOOM = 9\.35;/);
+  assert.match(mapSource, /const LOCALITY_LABEL_EMPTY_DATA = Object\.freeze\(\{ type: "FeatureCollection", features: \[\] \}\);/);
+  assert.doesNotMatch(loadStaticSource, /localidades_morelos\.geojson/);
+
+  assert.match(initializeSource, /upsertGeoJsonSource\(LOCALITY_LABEL_SOURCE_ID, sourceData\)/);
+  assert.match(initializeSource, /bindLocalityLabelListeners\(\)/);
+  assert.match(initializeSource, /scheduleLocalityLabelUpdate\(\)/);
+  assert.match(updateSource, /map\.getZoom\(\) < LOCALITY_LABEL_PRELOAD_ZOOM/);
+  assert.match(updateSource, /loadLocalityLabels\(\)/);
+  assert.match(loadSource, /state\.localityLabels\.sourceData/);
+  assert.match(loadSource, /state\.localityLabels\.loadPromise/);
+  assert.match(loadSource, /fetch\(LOCALITY_LABEL_DATA_URL\)/);
+  assert.match(loadSource, /state\.localityLabels\.metrics\.requestedFiles\.push\(LOCALITY_LABEL_DATA_URL\)/);
+  assert.match(loadSource, /prepareLocalityLabelData\(collection\)/);
+
+  assert.match(prepareSource, /const sortedFeatures = \[\.\.\.\(collection\?\.features \|\| \[\]\)\]\.sort/);
+  assert.match(prepareSource, /const municipalityMetadata = new Map/);
+  assert.match(prepareSource, /getMunicipalityKey\(properties\)/);
+  assert.match(prepareSource, /normalizedLocality === municipality\.name/);
+  assert.match(prepareSource, /seenMunicipalLocalityNames\.has\(repeatedKey\)/);
+  assert.match(prepareSource, /__labelLevel: labelLevel/);
+  assert.match(prepareSource, /__labelKind: properties\.esCabecera \? "cabecera" : "localidad"/);
+  assert.match(prepareSource, /__effectiveMinZoom: effectiveMinZoom/);
+  assert.match(prepareSource, /__labelSortKey: getLocalityLabelSortKey\(properties, labelLevel\)/);
+  assert.match(prepareSource, /originalFeatures = collection\?\.features\?\.length \|\| 0/);
+  assert.match(prepareSource, /deduplicatedFeatures = features\.length/);
+  assert.match(mapSource, /sourceApplied: false/);
+  assert.match(initializeSource, /state\.localityLabels\.sourceApplied = Boolean\(state\.localityLabels\.sourceData\)/);
+  assert.match(setSource, /if \(state\.localityLabels\.sourceApplied && data === state\.localityLabels\.sourceData\) return/);
+  assert.match(setSource, /state\.localityLabels\.sourceApplied = data === state\.localityLabels\.sourceData/);
+});
+
+test("las localidades usan cinco niveles progresivos sin popups marcadores ni controles", () => {
+  const initializeSource = extractFunctionSource(mapSource, "initializeLocalityLabels");
+  const orderSource = extractFunctionSource(mapSource, "ensureReferenceLayerOrder");
+  const visibleSnapshotSource = extractFunctionSource(mapSource, "captureVisibleSnapshot");
+  const popupSource = extractFunctionSource(mapSource, "bindMunicipiosPopup");
+
+  assert.match(mapSource, /\{ id: "localidades-label-tier-1", level: 1, type: "cabecera", minZoom: 9\.55 \}/);
+  assert.match(mapSource, /\{ id: "localidades-label-tier-2", level: 2, type: "cabecera", minZoom: 9\.8 \}/);
+  assert.match(mapSource, /\{ id: "localidades-label-tier-3", level: 3, type: "localidad", minZoom: 10\.2 \}/);
+  assert.match(mapSource, /\{ id: "localidades-label-tier-4", level: 4, type: "localidad", minZoom: 10\.7 \}/);
+  assert.match(mapSource, /\{ id: "localidades-label-tier-5a", level: 5, type: "localidad", minZoom: 11\.1, minPopulation: 250 \}/);
+  assert.match(mapSource, /\{ id: "localidades-label-tier-5b", level: 5, type: "localidad", minZoom: 12\.35, maxPopulation: 249 \}/);
+  assert.match(initializeSource, /type: "symbol"/);
+  assert.match(initializeSource, /source: LOCALITY_LABEL_SOURCE_ID/);
+  assert.match(initializeSource, /filter: getLocalityLabelFilter\(labelTier\)/);
+  assert.match(initializeSource, /"text-field": \["get", "NOM_LOC"\]/);
+  assert.match(initializeSource, /"text-font": \["Open Sans Semibold"\]/);
+  assert.doesNotMatch(initializeSource, /Open Sans Regular/);
+  assert.match(initializeSource, /"text-size":[\s\S]*\["interpolate", \["linear"\], \["zoom"\], labelTier\.minZoom, 12, 13\.4, 13, 16, 13\.5\]/);
+  assert.match(initializeSource, /"text-size":[\s\S]*\["interpolate", \["linear"\], \["zoom"\], labelTier\.minZoom, 10\.5, 14\.5, 11\.7, 17, 12\.5\]/);
+  assert.doesNotMatch(initializeSource, /"text-size": \["case"/);
+  assert.match(initializeSource, /"text-allow-overlap": false/);
+  assert.match(initializeSource, /"text-ignore-placement": false/);
+  assert.match(initializeSource, /"text-optional": true/);
+  assert.match(initializeSource, /"text-padding": labelTier\.level === 5 \? 1 : labelTier\.type === "cabecera" \? 7 : 6/);
+  assert.match(initializeSource, /"symbol-sort-key": \["get", "__labelSortKey"\]/);
+  assert.match(initializeSource, /"text-letter-spacing": labelTier\.type === "cabecera" \? 0\.02 : 0/);
+  assert.match(initializeSource, /"text-variable-anchor": \["top", "bottom", "left", "right"\]/);
+  assert.match(initializeSource, /"text-radial-offset": 0\.35/);
+  assert.match(initializeSource, /paint: getLocalityLabelPaint\(\)/);
+  assert.doesNotMatch(initializeSource, /type: "circle"|type: "fill"|type: "line"/);
+
+  assert.match(mapSource, /const LOCALITY_LABEL_LAYER_IDS = LOCALITY_LABEL_TIERS\.map\(\(tier\) => tier\.id\);/);
+  assert.match(mapSource, /const REFERENCE_LABEL_LAYER_IDS = \[\.\.\.LOCALITY_LABEL_LAYER_IDS, \.\.\.MUNICIPAL_LABEL_TIERS\.map\(\(tier\) => tier\.id\)\];/);
+  assert.match(orderSource, /ROAD_REFERENCE_LAYER_IDS\.forEach[\s\S]*ROAD_REFERENCE_BOUNDARY_LAYER_IDS\.forEach[\s\S]*REFERENCE_LABEL_LAYER_IDS\.forEach/);
+  assert.doesNotMatch(visibleSnapshotSource, /localidades-label|LOCALITY_LABEL/);
+  assert.doesNotMatch(popupSource, /localidades-label|LOCALITY_LABEL/);
+  assert.doesNotMatch(mapSource, /map\.on\("click", "localidades-label|map\.on\("mouseenter", "localidades-label|map\.on\("mouseleave", "localidades-label/);
+  assert.doesNotMatch(mapSource, /localStorage\.setItem\([^)]*localidad|sessionStorage\.setItem\([^)]*localidad/i);
+});
+
+test("el nivel fino de localidades se divide por poblacion sin duplicar interacciones ni estilos", () => {
+  const filterSource = extractFunctionSource(mapSource, "getLocalityLabelFilter");
+  const initializeSource = extractFunctionSource(mapSource, "initializeLocalityLabels");
+
+  assert.match(mapSource, /\{ id: "localidades-label-tier-5a", level: 5, type: "localidad", minZoom: 11\.1, minPopulation: 250 \}/);
+  assert.match(mapSource, /\{ id: "localidades-label-tier-5b", level: 5, type: "localidad", minZoom: 12\.35, maxPopulation: 249 \}/);
+  assert.match(filterSource, /const filters = \[\["==", \["get", "__effectiveMinZoom"\], labelTier\.minZoom\]\]/);
+  assert.match(filterSource, /Number\.isFinite\(labelTier\.minPopulation\)/);
+  assert.match(filterSource, /\[">=", \["to-number", \["get", "POBTOT"\]\], labelTier\.minPopulation\]/);
+  assert.match(filterSource, /\["==", \["get", "__labelKind"\], "cabecera"\]/);
+  assert.match(filterSource, /Number\.isFinite\(labelTier\.maxPopulation\)/);
+  assert.match(filterSource, /\["<=", \["to-number", \["get", "POBTOT"\]\], labelTier\.maxPopulation\]/);
+  assert.match(filterSource, /return filters\.length === 1 \? filters\[0\] : \["all", \.\.\.filters\]/);
+  assert.match(initializeSource, /"text-padding": labelTier\.level === 5 \? 1 : labelTier\.type === "cabecera" \? 7 : 6/);
+  assert.match(initializeSource, /labelTier\.level === 5[\s\S]*"text-variable-anchor": \["top", "bottom", "left", "right"\][\s\S]*"text-radial-offset": 0\.35/);
+  assert.match(initializeSource, /"text-allow-overlap": false/);
+  assert.match(initializeSource, /"text-ignore-placement": false/);
+  assert.doesNotMatch(mapSource, /map\.on\("click", "localidades-label-tier-5a|map\.on\("click", "localidades-label-tier-5b/);
+});
+
+test("las reglas de escala de localidades conservan cabeceras y homonimos entre municipios", () => {
+  const levelSource = extractFunctionSource(mapSource, "getLocalityLabelLevel");
+  const minZoomSource = extractFunctionSource(mapSource, "getLocalityEffectiveMinZoom");
+  const nextZoomSource = extractFunctionSource(mapSource, "getNextLocalityLabelMinZoomAfter");
+  const sortKeySource = extractFunctionSource(mapSource, "getLocalityLabelSortKey");
+  const normalizeSource = extractFunctionSource(mapSource, "normalizeLabelName");
+  const paintSource = extractFunctionSource(mapSource, "getLocalityLabelPaint");
+
+  assert.match(levelSource, /properties\.esCabecera && population >= 25000\) \|\| population >= 50000\) return 1/);
+  assert.match(levelSource, /if \(properties\.esCabecera \|\| population >= 25000\) return 2/);
+  assert.match(levelSource, /if \(population >= 5000\) return 3/);
+  assert.match(levelSource, /if \(population >= 1000\) return 4/);
+  assert.match(levelSource, /return 5/);
+  assert.match(mapSource, /const LOCALITY_LABEL_MIN_ZOOMS = Object\.freeze\(LOCALITY_LABEL_TIERS\.map\(\(tier\) => tier\.minZoom\)\);/);
+  assert.match(minZoomSource, /if \(!properties\.esCabecera \|\| !Number\.isFinite\(municipality\?\.minZoom\)\) return baseMinZoom/);
+  assert.match(minZoomSource, /Math\.max\(baseMinZoom, getNextLocalityLabelMinZoomAfter\(municipality\.minZoom\)\)/);
+  assert.match(nextZoomSource, /LOCALITY_LABEL_MIN_ZOOMS\.find\(\(threshold\) => threshold > minZoom\)/);
+  assert.match(sortKeySource, /labelLevel !== 5[\s\S]*labelLevel \* 100000 \+ Number\(properties\.labelPriority \|\| 99999\)/);
+  assert.match(sortKeySource, /const population = Number\(properties\.POBTOT \|\| 0\)/);
+  assert.match(sortKeySource, /const cabeceraRank = properties\.esCabecera \? 0 : 1/);
+  assert.match(sortKeySource, /const populationRank = Math\.max\(0, 999999 - population\)/);
+  assert.match(sortKeySource, /const priorityRank = Number\(properties\.labelPriority \|\| 99999\)/);
+  assert.match(sortKeySource, /const cvegeoRank = Number\(String\(properties\.CVEGEO \|\| ""\)\.replace\(\/\\D\/g, ""\)\.slice\(-6\) \|\| 0\)/);
+  assert.match(normalizeSource, /\.toLowerCase\(\)/);
+  assert.match(normalizeSource, /\.normalize\("NFD"\)/);
+  assert.match(normalizeSource, /\.replace\(\/\[\\u0300-\\u036f\]\/g, ""\)/);
+  assert.match(normalizeSource, /[.,;:()[\\\]{}'"’`´_-]/);
+  assert.match(normalizeSource, /\.replace\(\/\\s\+\/g, " "\)/);
+  assert.match(paintSource, /state\.activeBaseMap === "oscuro"/);
+  assert.match(paintSource, /state\.activeBaseMap === "satelite" \|\| state\.activeBaseMap === "topografico"/);
+  assert.match(paintSource, /"text-color": \["case", \["==", \["get", "__labelKind"\], "cabecera"\], cabeceraColor, localidadColor\]/);
+  assert.match(paintSource, /"text-halo-width": \["case", \["==", \["get", "__labelKind"\], "cabecera"\], 1\.7, 1\.35\]/);
+  assert.doesNotMatch(mapSource, /function getLocalityLabelTextSize/);
+  assert.match(mapSource, /updateLocalityLabelPaint\(\);[\s\S]*ensureReferenceLayerOrder\(\);/);
+});
+
+test("cabeceras con nombre distinto nunca aparecen antes ni al mismo umbral que su municipio", () => {
+  const municipalZoomByTier = new Map([[1, 8.6], [2, 9.3], [3, 9.8], [4, 10.7], [5, 11.4]]);
+  const localityThresholds = [9.55, 9.8, 10.2, 10.7, 11.1, 12.35];
+  const baseLocalityMinZoom = (properties) => {
+    const population = Number(properties.POBTOT || 0);
+    if ((properties.esCabecera && population >= 25000) || population >= 50000) return 9.55;
+    if (population >= 25000) return 9.8;
+    if (population >= 5000) return 10.2;
+    if (population >= 1000) return 10.7;
+    return population >= 250 ? 11.1 : 12.35;
+  };
+  const nextAfter = (minZoom) => localityThresholds.find((threshold) => threshold > minZoom) ?? localityThresholds.at(-1);
+  const cabeceras = municipiosLabelPoints.features.map((municipalityFeature) => {
+    const municipality = municipalityFeature.properties;
+    const cabecera = localidadesMorelos.features.find((localityFeature) =>
+      localityFeature.properties.CVE_ENT === municipality.CVE_ENT
+      && localityFeature.properties.CVE_MUN === municipality.CVE_MUN
+      && localityFeature.properties.esCabecera
+    );
+    assert.ok(cabecera, `Falta cabecera para ${municipality.NOMGEO}`);
+    const municipalityMinZoom = municipalZoomByTier.get(Number(municipality.labelTier));
+    const cabeceraMinZoom = baseLocalityMinZoom(cabecera.properties);
+    const equivalent = normalizeTestLabelName(municipality.NOMGEO) === normalizeTestLabelName(cabecera.properties.NOM_LOC);
+    return {
+      municipality: municipality.NOMGEO,
+      cabecera: cabecera.properties.NOM_LOC,
+      equivalent,
+      municipalityMinZoom,
+      cabeceraMinZoom,
+      effectiveMinZoom: equivalent ? null : Math.max(cabeceraMinZoom, nextAfter(municipalityMinZoom)),
+    };
+  });
+
+  assert.equal(cabeceras.length, 36);
+  assert.ok(cabeceras.filter((entry) => entry.equivalent).length > 0);
+  assert.deepEqual(
+    cabeceras.filter((entry) => !entry.equivalent && entry.cabeceraMinZoom <= entry.municipalityMinZoom).map((entry) => entry.municipality).sort(),
+    ["Coatetelco", "Hueyapan", "Xoxocotla", "Zacatepec"],
+  );
+  for (const entry of cabeceras) {
+    if (entry.equivalent) {
+      assert.equal(entry.effectiveMinZoom, null, `${entry.municipality} conserva supresion por equivalencia`);
+      continue;
+    }
+    assert.ok(
+      entry.effectiveMinZoom > entry.municipalityMinZoom,
+      `${entry.cabecera} debe aparecer despues de ${entry.municipality}`,
+    );
+  }
+  assert.equal(cabeceras.find((entry) => entry.municipality === "Xoxocotla").effectiveMinZoom, 11.1);
+  assert.equal(cabeceras.find((entry) => entry.municipality === "Coatetelco").effectiveMinZoom, 12.35);
+  assert.equal(cabeceras.find((entry) => entry.municipality === "Ayala").effectiveMinZoom, 10.2);
+  assert.equal(cabeceras.find((entry) => entry.municipality === "Yautepec").effectiveMinZoom, 9.55);
+  assert.equal(cabeceras.find((entry) => entry.municipality === "Hueyapan").effectiveMinZoom, 12.35);
 });
 
 test("las vialidades de referencia se declaran en tres niveles con rangos de zoom progresivos", () => {

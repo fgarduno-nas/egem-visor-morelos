@@ -1,0 +1,1817 @@
+{
+  "dataset": "Localidades oficiales de Morelos 2020",
+  "source": "INEGI, Censo de Poblacion y Vivienda 2020, ITER",
+  "sourceUrl": "https://www.inegi.org.mx/contenidos/programas/ccpv/2020/datosabiertos/iter/iter_17_cpv2020_csv.zip",
+  "zipName": "iter_17_cpv2020_csv.zip",
+  "csvName": "conjunto_de_datos_iter_17CSV20.csv",
+  "zipSha256": "158567bec3feef647ddc4cf803bc8ae57f230e3c61b49626efd850c2ae6a5e7f",
+  "processedAtUtc": "2026-09-22T18:36:32.521Z",
+  "encodingDetected": "utf8",
+  "sourceFieldsFound": [
+    "ENTIDAD",
+    "NOM_ENT",
+    "MUN",
+    "NOM_MUN",
+    "LOC",
+    "NOM_LOC",
+    "LONGITUD",
+    "LATITUD",
+    "ALTITUD",
+    "POBTOT",
+    "POBFEM",
+    "POBMAS",
+    "P_0A2",
+    "P_0A2_F",
+    "P_0A2_M",
+    "P_3YMAS",
+    "P_3YMAS_F",
+    "P_3YMAS_M",
+    "P_5YMAS",
+    "P_5YMAS_F",
+    "P_5YMAS_M",
+    "P_12YMAS",
+    "P_12YMAS_F",
+    "P_12YMAS_M",
+    "P_15YMAS",
+    "P_15YMAS_F",
+    "P_15YMAS_M",
+    "P_18YMAS",
+    "P_18YMAS_F",
+    "P_18YMAS_M",
+    "P_3A5",
+    "P_3A5_F",
+    "P_3A5_M",
+    "P_6A11",
+    "P_6A11_F",
+    "P_6A11_M",
+    "P_8A14",
+    "P_8A14_F",
+    "P_8A14_M",
+    "P_12A14",
+    "P_12A14_F",
+    "P_12A14_M",
+    "P_15A17",
+    "P_15A17_F",
+    "P_15A17_M",
+    "P_18A24",
+    "P_18A24_F",
+    "P_18A24_M",
+    "P_15A49_F",
+    "P_60YMAS",
+    "P_60YMAS_F",
+    "P_60YMAS_M",
+    "REL_H_M",
+    "POB0_14",
+    "POB15_64",
+    "POB65_MAS",
+    "P_0A4",
+    "P_0A4_F",
+    "P_0A4_M",
+    "P_5A9",
+    "P_5A9_F",
+    "P_5A9_M",
+    "P_10A14",
+    "P_10A14_F",
+    "P_10A14_M",
+    "P_15A19",
+    "P_15A19_F",
+    "P_15A19_M",
+    "P_20A24",
+    "P_20A24_F",
+    "P_20A24_M",
+    "P_25A29",
+    "P_25A29_F",
+    "P_25A29_M",
+    "P_30A34",
+    "P_30A34_F",
+    "P_30A34_M",
+    "P_35A39",
+    "P_35A39_F",
+    "P_35A39_M",
+    "P_40A44",
+    "P_40A44_F",
+    "P_40A44_M",
+    "P_45A49",
+    "P_45A49_F",
+    "P_45A49_M",
+    "P_50A54",
+    "P_50A54_F",
+    "P_50A54_M",
+    "P_55A59",
+    "P_55A59_F",
+    "P_55A59_M",
+    "P_60A64",
+    "P_60A64_F",
+    "P_60A64_M",
+    "P_65A69",
+    "P_65A69_F",
+    "P_65A69_M",
+    "P_70A74",
+    "P_70A74_F",
+    "P_70A74_M",
+    "P_75A79",
+    "P_75A79_F",
+    "P_75A79_M",
+    "P_80A84",
+    "P_80A84_F",
+    "P_80A84_M",
+    "P_85YMAS",
+    "P_85YMAS_F",
+    "P_85YMAS_M",
+    "PROM_HNV",
+    "PNACENT",
+    "PNACENT_F",
+    "PNACENT_M",
+    "PNACOE",
+    "PNACOE_F",
+    "PNACOE_M",
+    "PRES2015",
+    "PRES2015_F",
+    "PRES2015_M",
+    "PRESOE15",
+    "PRESOE15_F",
+    "PRESOE15_M",
+    "P3YM_HLI",
+    "P3YM_HLI_F",
+    "P3YM_HLI_M",
+    "P3HLINHE",
+    "P3HLINHE_F",
+    "P3HLINHE_M",
+    "P3HLI_HE",
+    "P3HLI_HE_F",
+    "P3HLI_HE_M",
+    "P5_HLI",
+    "P5_HLI_NHE",
+    "P5_HLI_HE",
+    "PHOG_IND",
+    "POB_AFRO",
+    "POB_AFRO_F",
+    "POB_AFRO_M",
+    "PCON_DISC",
+    "PCDISC_MOT",
+    "PCDISC_VIS",
+    "PCDISC_LENG",
+    "PCDISC_AUD",
+    "PCDISC_MOT2",
+    "PCDISC_MEN",
+    "PCON_LIMI",
+    "PCLIM_CSB",
+    "PCLIM_VIS",
+    "PCLIM_HACO",
+    "PCLIM_OAUD",
+    "PCLIM_MOT2",
+    "PCLIM_RE_CO",
+    "PCLIM_PMEN",
+    "PSIND_LIM",
+    "P3A5_NOA",
+    "P3A5_NOA_F",
+    "P3A5_NOA_M",
+    "P6A11_NOA",
+    "P6A11_NOAF",
+    "P6A11_NOAM",
+    "P12A14NOA",
+    "P12A14NOAF",
+    "P12A14NOAM",
+    "P15A17A",
+    "P15A17A_F",
+    "P15A17A_M",
+    "P18A24A",
+    "P18A24A_F",
+    "P18A24A_M",
+    "P8A14AN",
+    "P8A14AN_F",
+    "P8A14AN_M",
+    "P15YM_AN",
+    "P15YM_AN_F",
+    "P15YM_AN_M",
+    "P15YM_SE",
+    "P15YM_SE_F",
+    "P15YM_SE_M",
+    "P15PRI_IN",
+    "P15PRI_INF",
+    "P15PRI_INM",
+    "P15PRI_CO",
+    "P15PRI_COF",
+    "P15PRI_COM",
+    "P15SEC_IN",
+    "P15SEC_INF",
+    "P15SEC_INM",
+    "P15SEC_CO",
+    "P15SEC_COF",
+    "P15SEC_COM",
+    "P18YM_PB",
+    "P18YM_PB_F",
+    "P18YM_PB_M",
+    "GRAPROES",
+    "GRAPROES_F",
+    "GRAPROES_M",
+    "PEA",
+    "PEA_F",
+    "PEA_M",
+    "PE_INAC",
+    "PE_INAC_F",
+    "PE_INAC_M",
+    "POCUPADA",
+    "POCUPADA_F",
+    "POCUPADA_M",
+    "PDESOCUP",
+    "PDESOCUP_F",
+    "PDESOCUP_M",
+    "PSINDER",
+    "PDER_SS",
+    "PDER_IMSS",
+    "PDER_ISTE",
+    "PDER_ISTEE",
+    "PAFIL_PDOM",
+    "PDER_SEGP",
+    "PDER_IMSSB",
+    "PAFIL_IPRIV",
+    "PAFIL_OTRAI",
+    "P12YM_SOLT",
+    "P12YM_CASA",
+    "P12YM_SEPA",
+    "PCATOLICA",
+    "PRO_CRIEVA",
+    "POTRAS_REL",
+    "PSIN_RELIG",
+    "TOTHOG",
+    "HOGJEF_F",
+    "HOGJEF_M",
+    "POBHOG",
+    "PHOGJEF_F",
+    "PHOGJEF_M",
+    "VIVTOT",
+    "TVIVHAB",
+    "TVIVPAR",
+    "VIVPAR_HAB",
+    "VIVPARH_CV",
+    "TVIVPARHAB",
+    "VIVPAR_DES",
+    "VIVPAR_UT",
+    "OCUPVIVPAR",
+    "PROM_OCUP",
+    "PRO_OCUP_C",
+    "VPH_PISODT",
+    "VPH_PISOTI",
+    "VPH_1DOR",
+    "VPH_2YMASD",
+    "VPH_1CUART",
+    "VPH_2CUART",
+    "VPH_3YMASC",
+    "VPH_C_ELEC",
+    "VPH_S_ELEC",
+    "VPH_AGUADV",
+    "VPH_AEASP",
+    "VPH_AGUAFV",
+    "VPH_TINACO",
+    "VPH_CISTER",
+    "VPH_EXCSA",
+    "VPH_LETR",
+    "VPH_DRENAJ",
+    "VPH_NODREN",
+    "VPH_C_SERV",
+    "VPH_NDEAED",
+    "VPH_DSADMA",
+    "VPH_NDACMM",
+    "VPH_SNBIEN",
+    "VPH_REFRI",
+    "VPH_LAVAD",
+    "VPH_HMICRO",
+    "VPH_AUTOM",
+    "VPH_MOTO",
+    "VPH_BICI",
+    "VPH_RADIO",
+    "VPH_TV",
+    "VPH_PC",
+    "VPH_TELEF",
+    "VPH_CEL",
+    "VPH_INTER",
+    "VPH_STVP",
+    "VPH_SPMVPI",
+    "VPH_CVJ",
+    "VPH_SINRTV",
+    "VPH_SINLTC",
+    "VPH_SINCINT",
+    "VPH_SINTIC",
+    "TAMLOC"
+  ],
+  "sourceFieldsUsed": [
+    "ENTIDAD",
+    "NOM_ENT",
+    "MUN",
+    "NOM_MUN",
+    "LOC",
+    "NOM_LOC",
+    "LONGITUD",
+    "LATITUD",
+    "ALTITUD",
+    "POBTOT"
+  ],
+  "originalRecords": 1678,
+  "removedRecords": {
+    "entidadNoMorelos": 0,
+    "totalEstatal": 1,
+    "totalMunicipalLoc0000": 36,
+    "agregadoLoc9998": 32,
+    "agregadoLoc9999": 31,
+    "nombreInvalido": 0,
+    "coordenadasInvalidas": 0,
+    "coordenadasFueraDeMargen": 0
+  },
+  "finalRecords": 1578,
+  "localidadesPorTier": {
+    "1": 5,
+    "2": 1,
+    "3": 54,
+    "4": 151,
+    "5": 1367
+  },
+  "cabecerasConfirmadas": [
+    {
+      "CVE_MUN": "001",
+      "NOM_MUN": "Amacuzac",
+      "CVE_LOC": "0001",
+      "NOM_LOC": "Amacuzac",
+      "CVEGEO": "170010001",
+      "validadaPor": "LOC=0001 coincide con NOM_MUN en ITER 2020"
+    },
+    {
+      "CVE_MUN": "002",
+      "NOM_MUN": "Atlatlahucan",
+      "CVE_LOC": "0001",
+      "NOM_LOC": "Atlatlahucan",
+      "CVEGEO": "170020001",
+      "validadaPor": "LOC=0001 coincide con NOM_MUN en ITER 2020"
+    },
+    {
+      "CVE_MUN": "003",
+      "NOM_MUN": "Axochiapan",
+      "CVE_LOC": "0001",
+      "NOM_LOC": "Axochiapan",
+      "CVEGEO": "170030001",
+      "validadaPor": "LOC=0001 coincide con NOM_MUN en ITER 2020"
+    },
+    {
+      "CVE_MUN": "004",
+      "NOM_MUN": "Ayala",
+      "CVE_LOC": "0001",
+      "NOM_LOC": "Ciudad Ayala",
+      "CVEGEO": "170040001",
+      "validadaPor": "LOC=0001 en ITER 2020; nombre difiere de NOM_MUN, revisar en etapa cartografica"
+    },
+    {
+      "CVE_MUN": "005",
+      "NOM_MUN": "Coatlán del Río",
+      "CVE_LOC": "0001",
+      "NOM_LOC": "Coatlán del Río",
+      "CVEGEO": "170050001",
+      "validadaPor": "LOC=0001 coincide con NOM_MUN en ITER 2020"
+    },
+    {
+      "CVE_MUN": "006",
+      "NOM_MUN": "Cuautla",
+      "CVE_LOC": "0001",
+      "NOM_LOC": "Cuautla",
+      "CVEGEO": "170060001",
+      "validadaPor": "LOC=0001 coincide con NOM_MUN en ITER 2020"
+    },
+    {
+      "CVE_MUN": "007",
+      "NOM_MUN": "Cuernavaca",
+      "CVE_LOC": "0001",
+      "NOM_LOC": "Cuernavaca",
+      "CVEGEO": "170070001",
+      "validadaPor": "LOC=0001 coincide con NOM_MUN en ITER 2020"
+    },
+    {
+      "CVE_MUN": "008",
+      "NOM_MUN": "Emiliano Zapata",
+      "CVE_LOC": "0001",
+      "NOM_LOC": "Emiliano Zapata",
+      "CVEGEO": "170080001",
+      "validadaPor": "LOC=0001 coincide con NOM_MUN en ITER 2020"
+    },
+    {
+      "CVE_MUN": "009",
+      "NOM_MUN": "Huitzilac",
+      "CVE_LOC": "0001",
+      "NOM_LOC": "Huitzilac",
+      "CVEGEO": "170090001",
+      "validadaPor": "LOC=0001 coincide con NOM_MUN en ITER 2020"
+    },
+    {
+      "CVE_MUN": "010",
+      "NOM_MUN": "Jantetelco",
+      "CVE_LOC": "0001",
+      "NOM_LOC": "Jantetelco",
+      "CVEGEO": "170100001",
+      "validadaPor": "LOC=0001 coincide con NOM_MUN en ITER 2020"
+    },
+    {
+      "CVE_MUN": "011",
+      "NOM_MUN": "Jiutepec",
+      "CVE_LOC": "0001",
+      "NOM_LOC": "Jiutepec",
+      "CVEGEO": "170110001",
+      "validadaPor": "LOC=0001 coincide con NOM_MUN en ITER 2020"
+    },
+    {
+      "CVE_MUN": "012",
+      "NOM_MUN": "Jojutla",
+      "CVE_LOC": "0001",
+      "NOM_LOC": "Jojutla",
+      "CVEGEO": "170120001",
+      "validadaPor": "LOC=0001 coincide con NOM_MUN en ITER 2020"
+    },
+    {
+      "CVE_MUN": "013",
+      "NOM_MUN": "Jonacatepec de Leandro Valle",
+      "CVE_LOC": "0001",
+      "NOM_LOC": "Jonacatepec de Leandro Valle",
+      "CVEGEO": "170130001",
+      "validadaPor": "LOC=0001 coincide con NOM_MUN en ITER 2020"
+    },
+    {
+      "CVE_MUN": "014",
+      "NOM_MUN": "Mazatepec",
+      "CVE_LOC": "0001",
+      "NOM_LOC": "Mazatepec",
+      "CVEGEO": "170140001",
+      "validadaPor": "LOC=0001 coincide con NOM_MUN en ITER 2020"
+    },
+    {
+      "CVE_MUN": "015",
+      "NOM_MUN": "Miacatlán",
+      "CVE_LOC": "0001",
+      "NOM_LOC": "Miacatlán",
+      "CVEGEO": "170150001",
+      "validadaPor": "LOC=0001 coincide con NOM_MUN en ITER 2020"
+    },
+    {
+      "CVE_MUN": "016",
+      "NOM_MUN": "Ocuituco",
+      "CVE_LOC": "0001",
+      "NOM_LOC": "Ocuituco",
+      "CVEGEO": "170160001",
+      "validadaPor": "LOC=0001 coincide con NOM_MUN en ITER 2020"
+    },
+    {
+      "CVE_MUN": "017",
+      "NOM_MUN": "Puente de Ixtla",
+      "CVE_LOC": "0001",
+      "NOM_LOC": "Puente de Ixtla",
+      "CVEGEO": "170170001",
+      "validadaPor": "LOC=0001 coincide con NOM_MUN en ITER 2020"
+    },
+    {
+      "CVE_MUN": "018",
+      "NOM_MUN": "Temixco",
+      "CVE_LOC": "0001",
+      "NOM_LOC": "Temixco",
+      "CVEGEO": "170180001",
+      "validadaPor": "LOC=0001 coincide con NOM_MUN en ITER 2020"
+    },
+    {
+      "CVE_MUN": "019",
+      "NOM_MUN": "Tepalcingo",
+      "CVE_LOC": "0001",
+      "NOM_LOC": "Tepalcingo",
+      "CVEGEO": "170190001",
+      "validadaPor": "LOC=0001 coincide con NOM_MUN en ITER 2020"
+    },
+    {
+      "CVE_MUN": "020",
+      "NOM_MUN": "Tepoztlán",
+      "CVE_LOC": "0001",
+      "NOM_LOC": "Tepoztlán",
+      "CVEGEO": "170200001",
+      "validadaPor": "LOC=0001 coincide con NOM_MUN en ITER 2020"
+    },
+    {
+      "CVE_MUN": "021",
+      "NOM_MUN": "Tetecala",
+      "CVE_LOC": "0001",
+      "NOM_LOC": "Tetecala",
+      "CVEGEO": "170210001",
+      "validadaPor": "LOC=0001 coincide con NOM_MUN en ITER 2020"
+    },
+    {
+      "CVE_MUN": "022",
+      "NOM_MUN": "Tetela del Volcán",
+      "CVE_LOC": "0001",
+      "NOM_LOC": "Tetela del Volcán",
+      "CVEGEO": "170220001",
+      "validadaPor": "LOC=0001 coincide con NOM_MUN en ITER 2020"
+    },
+    {
+      "CVE_MUN": "023",
+      "NOM_MUN": "Tlalnepantla",
+      "CVE_LOC": "0001",
+      "NOM_LOC": "Tlalnepantla",
+      "CVEGEO": "170230001",
+      "validadaPor": "LOC=0001 coincide con NOM_MUN en ITER 2020"
+    },
+    {
+      "CVE_MUN": "024",
+      "NOM_MUN": "Tlaltizapán de Zapata",
+      "CVE_LOC": "0001",
+      "NOM_LOC": "Tlaltizapán",
+      "CVEGEO": "170240001",
+      "validadaPor": "LOC=0001 en ITER 2020; nombre difiere de NOM_MUN, revisar en etapa cartografica"
+    },
+    {
+      "CVE_MUN": "025",
+      "NOM_MUN": "Tlaquiltenango",
+      "CVE_LOC": "0001",
+      "NOM_LOC": "Tlaquiltenango",
+      "CVEGEO": "170250001",
+      "validadaPor": "LOC=0001 coincide con NOM_MUN en ITER 2020"
+    },
+    {
+      "CVE_MUN": "026",
+      "NOM_MUN": "Tlayacapan",
+      "CVE_LOC": "0001",
+      "NOM_LOC": "Tlayacapan",
+      "CVEGEO": "170260001",
+      "validadaPor": "LOC=0001 coincide con NOM_MUN en ITER 2020"
+    },
+    {
+      "CVE_MUN": "027",
+      "NOM_MUN": "Totolapan",
+      "CVE_LOC": "0001",
+      "NOM_LOC": "Totolapan",
+      "CVEGEO": "170270001",
+      "validadaPor": "LOC=0001 coincide con NOM_MUN en ITER 2020"
+    },
+    {
+      "CVE_MUN": "028",
+      "NOM_MUN": "Xochitepec",
+      "CVE_LOC": "0001",
+      "NOM_LOC": "Xochitepec",
+      "CVEGEO": "170280001",
+      "validadaPor": "LOC=0001 coincide con NOM_MUN en ITER 2020"
+    },
+    {
+      "CVE_MUN": "029",
+      "NOM_MUN": "Yautepec",
+      "CVE_LOC": "0001",
+      "NOM_LOC": "Yautepec de Zaragoza",
+      "CVEGEO": "170290001",
+      "validadaPor": "LOC=0001 en ITER 2020; nombre difiere de NOM_MUN, revisar en etapa cartografica"
+    },
+    {
+      "CVE_MUN": "030",
+      "NOM_MUN": "Yecapixtla",
+      "CVE_LOC": "0001",
+      "NOM_LOC": "Yecapixtla",
+      "CVEGEO": "170300001",
+      "validadaPor": "LOC=0001 coincide con NOM_MUN en ITER 2020"
+    },
+    {
+      "CVE_MUN": "031",
+      "NOM_MUN": "Zacatepec",
+      "CVE_LOC": "0001",
+      "NOM_LOC": "Zacatepec de Hidalgo",
+      "CVEGEO": "170310001",
+      "validadaPor": "LOC=0001 en ITER 2020; nombre difiere de NOM_MUN, revisar en etapa cartografica"
+    },
+    {
+      "CVE_MUN": "032",
+      "NOM_MUN": "Zacualpan de Amilpas",
+      "CVE_LOC": "0001",
+      "NOM_LOC": "Zacualpan de Amilpas",
+      "CVEGEO": "170320001",
+      "validadaPor": "LOC=0001 coincide con NOM_MUN en ITER 2020"
+    },
+    {
+      "CVE_MUN": "033",
+      "NOM_MUN": "Temoac",
+      "CVE_LOC": "0001",
+      "NOM_LOC": "Temoac",
+      "CVEGEO": "170330001",
+      "validadaPor": "LOC=0001 coincide con NOM_MUN en ITER 2020"
+    },
+    {
+      "CVE_MUN": "034",
+      "NOM_MUN": "Coatetelco",
+      "CVE_LOC": "0001",
+      "NOM_LOC": "Coatetelco Centro",
+      "CVEGEO": "170340001",
+      "validadaPor": "LOC=0001 en ITER 2020; nombre difiere de NOM_MUN, revisar en etapa cartografica"
+    },
+    {
+      "CVE_MUN": "035",
+      "NOM_MUN": "Xoxocotla",
+      "CVE_LOC": "0001",
+      "NOM_LOC": "Xoxocotla Centro",
+      "CVEGEO": "170350001",
+      "validadaPor": "LOC=0001 en ITER 2020; nombre difiere de NOM_MUN, revisar en etapa cartografica"
+    },
+    {
+      "CVE_MUN": "036",
+      "NOM_MUN": "Hueyapan",
+      "CVE_LOC": "0001",
+      "NOM_LOC": "Barrio de San Miguel",
+      "CVEGEO": "170360001",
+      "validadaPor": "LOC=0001 en ITER 2020; nombre difiere de NOM_MUN, revisar en etapa cartografica"
+    }
+  ],
+  "cabecerasCount": 36,
+  "coordinateBounds": {
+    "minLongitude": -99.4938225,
+    "maxLongitude": -98.66500611,
+    "minLatitude": 18.38151389,
+    "maxLatitude": 19.09558139
+  },
+  "populationRange": {
+    "min": 1,
+    "max": 341029
+  },
+  "zeroPopulationRecords": [],
+  "nullAltitudeRecords": [],
+  "duplicateKeys": [],
+  "repeatedNamesWithinMunicipality": [
+    {
+      "CVE_MUN": "004",
+      "normalizedName": "ANENECUILCO",
+      "cvegeos": [
+        "170040004",
+        "170040126",
+        "170040149"
+      ]
+    },
+    {
+      "CVE_MUN": "004",
+      "normalizedName": "JALOXTOC",
+      "cvegeos": [
+        "170040012",
+        "170040171"
+      ]
+    },
+    {
+      "CVE_MUN": "004",
+      "normalizedName": "MOYOTEPEC",
+      "cvegeos": [
+        "170040014",
+        "170040162"
+      ]
+    },
+    {
+      "CVE_MUN": "004",
+      "normalizedName": "EL JAGUEY",
+      "cvegeos": [
+        "170040079",
+        "170040140"
+      ]
+    },
+    {
+      "CVE_MUN": "006",
+      "normalizedName": "AMPLIACION IZTACCIHUATL",
+      "cvegeos": [
+        "170060136",
+        "170060137"
+      ]
+    },
+    {
+      "CVE_MUN": "008",
+      "normalizedName": "TETECALITA",
+      "cvegeos": [
+        "170080003",
+        "170080069"
+      ]
+    },
+    {
+      "CVE_MUN": "013",
+      "normalizedName": "TETELILLA",
+      "cvegeos": [
+        "170130006",
+        "170130051"
+      ]
+    },
+    {
+      "CVE_MUN": "017",
+      "normalizedName": "COLONIA EMILIANO ZAPATA",
+      "cvegeos": [
+        "170170135",
+        "170170136"
+      ]
+    },
+    {
+      "CVE_MUN": "018",
+      "normalizedName": "CUENTEPEC",
+      "cvegeos": [
+        "170180004",
+        "170180071"
+      ]
+    },
+    {
+      "CVE_MUN": "019",
+      "normalizedName": "IXTLILCO EL GRANDE",
+      "cvegeos": [
+        "170190005",
+        "170190046"
+      ]
+    },
+    {
+      "CVE_MUN": "024",
+      "normalizedName": "CAMPO LA ORGANERA",
+      "cvegeos": [
+        "170240043",
+        "170240087"
+      ]
+    },
+    {
+      "CVE_MUN": "028",
+      "normalizedName": "XOCHITEPEC",
+      "cvegeos": [
+        "170280001",
+        "170280115"
+      ]
+    },
+    {
+      "CVE_MUN": "029",
+      "normalizedName": "OACALCO",
+      "cvegeos": [
+        "170290012",
+        "170290181"
+      ]
+    },
+    {
+      "CVE_MUN": "030",
+      "normalizedName": "XOCHITLAN",
+      "cvegeos": [
+        "170300018",
+        "170300116"
+      ]
+    },
+    {
+      "CVE_MUN": "033",
+      "normalizedName": "BARRIO SAN MARTIN",
+      "cvegeos": [
+        "170330017",
+        "170330022"
+      ]
+    }
+  ],
+  "repeatedNamesAcrossMunicipalities": [
+    {
+      "normalizedName": "CAMPO NUEVO",
+      "occurrences": [
+        {
+          "CVE_MUN": "001",
+          "CVEGEO": "170010012"
+        },
+        {
+          "CVE_MUN": "004",
+          "CVEGEO": "170040064"
+        },
+        {
+          "CVE_MUN": "006",
+          "CVEGEO": "170060139"
+        },
+        {
+          "CVE_MUN": "029",
+          "CVEGEO": "170290157"
+        },
+        {
+          "CVE_MUN": "030",
+          "CVEGEO": "170300065"
+        }
+      ]
+    },
+    {
+      "normalizedName": "LOS LIMONES",
+      "occurrences": [
+        {
+          "CVE_MUN": "001",
+          "CVEGEO": "170010021"
+        },
+        {
+          "CVE_MUN": "007",
+          "CVEGEO": "170070115"
+        },
+        {
+          "CVE_MUN": "030",
+          "CVEGEO": "170300006"
+        }
+      ]
+    },
+    {
+      "normalizedName": "COLONIA CUAUHTEMOC",
+      "occurrences": [
+        {
+          "CVE_MUN": "001",
+          "CVEGEO": "170010059"
+        },
+        {
+          "CVE_MUN": "005",
+          "CVEGEO": "170050006"
+        },
+        {
+          "CVE_MUN": "007",
+          "CVEGEO": "170070114"
+        }
+      ]
+    },
+    {
+      "normalizedName": "COLONIA EL MIRADOR",
+      "occurrences": [
+        {
+          "CVE_MUN": "001",
+          "CVEGEO": "170010060"
+        },
+        {
+          "CVE_MUN": "007",
+          "CVEGEO": "170070131"
+        }
+      ]
+    },
+    {
+      "normalizedName": "LA PENA",
+      "occurrences": [
+        {
+          "CVE_MUN": "001",
+          "CVEGEO": "170010063"
+        },
+        {
+          "CVE_MUN": "012",
+          "CVEGEO": "170120023"
+        }
+      ]
+    },
+    {
+      "normalizedName": "RANCHO TEMECATITLA",
+      "occurrences": [
+        {
+          "CVE_MUN": "002",
+          "CVEGEO": "170020039"
+        },
+        {
+          "CVE_MUN": "027",
+          "CVEGEO": "170270028"
+        }
+      ]
+    },
+    {
+      "normalizedName": "LOS CERRITOS",
+      "occurrences": [
+        {
+          "CVE_MUN": "002",
+          "CVEGEO": "170020044"
+        },
+        {
+          "CVE_MUN": "006",
+          "CVEGEO": "170060073"
+        }
+      ]
+    },
+    {
+      "normalizedName": "COLONIA LA GUADALUPANA",
+      "occurrences": [
+        {
+          "CVE_MUN": "002",
+          "CVEGEO": "170020067"
+        },
+        {
+          "CVE_MUN": "003",
+          "CVEGEO": "170030081"
+        }
+      ]
+    },
+    {
+      "normalizedName": "LINDA VISTA",
+      "occurrences": [
+        {
+          "CVE_MUN": "002",
+          "CVEGEO": "170020080"
+        },
+        {
+          "CVE_MUN": "004",
+          "CVEGEO": "170040199"
+        }
+      ]
+    },
+    {
+      "normalizedName": "PALO BLANCO",
+      "occurrences": [
+        {
+          "CVE_MUN": "003",
+          "CVEGEO": "170030008"
+        },
+        {
+          "CVE_MUN": "004",
+          "CVEGEO": "170040017"
+        }
+      ]
+    },
+    {
+      "normalizedName": "LA NOPALERA",
+      "occurrences": [
+        {
+          "CVE_MUN": "003",
+          "CVEGEO": "170030017"
+        },
+        {
+          "CVE_MUN": "010",
+          "CVEGEO": "170100056"
+        },
+        {
+          "CVE_MUN": "029",
+          "CVEGEO": "170290011"
+        }
+      ]
+    },
+    {
+      "normalizedName": "SANTA MARIA",
+      "occurrences": [
+        {
+          "CVE_MUN": "003",
+          "CVEGEO": "170030044"
+        },
+        {
+          "CVE_MUN": "007",
+          "CVEGEO": "170070119"
+        }
+      ]
+    },
+    {
+      "normalizedName": "COLONIA MORELOS",
+      "occurrences": [
+        {
+          "CVE_MUN": "003",
+          "CVEGEO": "170030084"
+        },
+        {
+          "CVE_MUN": "005",
+          "CVEGEO": "170050007"
+        },
+        {
+          "CVE_MUN": "024",
+          "CVEGEO": "170240054"
+        }
+      ]
+    },
+    {
+      "normalizedName": "BENITO JUAREZ",
+      "occurrences": [
+        {
+          "CVE_MUN": "004",
+          "CVEGEO": "170040006"
+        },
+        {
+          "CVE_MUN": "005",
+          "CVEGEO": "170050003"
+        }
+      ]
+    },
+    {
+      "normalizedName": "NINOS HEROES",
+      "occurrences": [
+        {
+          "CVE_MUN": "004",
+          "CVEGEO": "170040015"
+        },
+        {
+          "CVE_MUN": "006",
+          "CVEGEO": "170060157"
+        }
+      ]
+    },
+    {
+      "normalizedName": "EL JAGUEY",
+      "occurrences": [
+        {
+          "CVE_MUN": "004",
+          "CVEGEO": "170040079"
+        },
+        {
+          "CVE_MUN": "004",
+          "CVEGEO": "170040140"
+        },
+        {
+          "CVE_MUN": "024",
+          "CVEGEO": "170240057"
+        },
+        {
+          "CVE_MUN": "029",
+          "CVEGEO": "170290063"
+        }
+      ]
+    },
+    {
+      "normalizedName": "LA JOYA",
+      "occurrences": [
+        {
+          "CVE_MUN": "004",
+          "CVEGEO": "170040083"
+        },
+        {
+          "CVE_MUN": "010",
+          "CVEGEO": "170100026"
+        },
+        {
+          "CVE_MUN": "019",
+          "CVEGEO": "170190051"
+        },
+        {
+          "CVE_MUN": "020",
+          "CVEGEO": "170200105"
+        },
+        {
+          "CVE_MUN": "029",
+          "CVEGEO": "170290024"
+        }
+      ]
+    },
+    {
+      "normalizedName": "LOMA BONITA",
+      "occurrences": [
+        {
+          "CVE_MUN": "004",
+          "CVEGEO": "170040084"
+        },
+        {
+          "CVE_MUN": "008",
+          "CVEGEO": "170080055"
+        },
+        {
+          "CVE_MUN": "020",
+          "CVEGEO": "170200099"
+        },
+        {
+          "CVE_MUN": "028",
+          "CVEGEO": "170280096"
+        },
+        {
+          "CVE_MUN": "030",
+          "CVEGEO": "170300032"
+        }
+      ]
+    },
+    {
+      "normalizedName": "EL POZO",
+      "occurrences": [
+        {
+          "CVE_MUN": "004",
+          "CVEGEO": "170040109"
+        },
+        {
+          "CVE_MUN": "019",
+          "CVEGEO": "170190040"
+        }
+      ]
+    },
+    {
+      "normalizedName": "EL MIRADOR",
+      "occurrences": [
+        {
+          "CVE_MUN": "004",
+          "CVEGEO": "170040142"
+        },
+        {
+          "CVE_MUN": "015",
+          "CVEGEO": "170150029"
+        },
+        {
+          "CVE_MUN": "017",
+          "CVEGEO": "170170115"
+        },
+        {
+          "CVE_MUN": "024",
+          "CVEGEO": "170240099"
+        }
+      ]
+    },
+    {
+      "normalizedName": "COLONIA LAS FLORES",
+      "occurrences": [
+        {
+          "CVE_MUN": "004",
+          "CVEGEO": "170040164"
+        },
+        {
+          "CVE_MUN": "007",
+          "CVEGEO": "170070133"
+        },
+        {
+          "CVE_MUN": "028",
+          "CVEGEO": "170280111"
+        }
+      ]
+    },
+    {
+      "normalizedName": "CAMPO SANTA ROSA",
+      "occurrences": [
+        {
+          "CVE_MUN": "004",
+          "CVEGEO": "170040177"
+        },
+        {
+          "CVE_MUN": "006",
+          "CVEGEO": "170060141"
+        }
+      ]
+    },
+    {
+      "normalizedName": "COLONIA SAN JOSE",
+      "occurrences": [
+        {
+          "CVE_MUN": "005",
+          "CVEGEO": "170050020"
+        },
+        {
+          "CVE_MUN": "028",
+          "CVEGEO": "170280118"
+        }
+      ]
+    },
+    {
+      "normalizedName": "EL AMATE",
+      "occurrences": [
+        {
+          "CVE_MUN": "005",
+          "CVEGEO": "170050027"
+        },
+        {
+          "CVE_MUN": "020",
+          "CVEGEO": "170200048"
+        },
+        {
+          "CVE_MUN": "025",
+          "CVEGEO": "170250061"
+        }
+      ]
+    },
+    {
+      "normalizedName": "3 DE MAYO",
+      "occurrences": [
+        {
+          "CVE_MUN": "006",
+          "CVEGEO": "170060047"
+        },
+        {
+          "CVE_MUN": "026",
+          "CVEGEO": "170260054"
+        }
+      ]
+    },
+    {
+      "normalizedName": "LA ESPERANZA",
+      "occurrences": [
+        {
+          "CVE_MUN": "006",
+          "CVEGEO": "170060099"
+        },
+        {
+          "CVE_MUN": "028",
+          "CVEGEO": "170280087"
+        }
+      ]
+    },
+    {
+      "normalizedName": "LA LOMA",
+      "occurrences": [
+        {
+          "CVE_MUN": "006",
+          "CVEGEO": "170060100"
+        },
+        {
+          "CVE_MUN": "018",
+          "CVEGEO": "170180074"
+        },
+        {
+          "CVE_MUN": "026",
+          "CVEGEO": "170260056"
+        }
+      ]
+    },
+    {
+      "normalizedName": "RANCHO SANTA TERESA",
+      "occurrences": [
+        {
+          "CVE_MUN": "006",
+          "CVEGEO": "170060108"
+        },
+        {
+          "CVE_MUN": "030",
+          "CVEGEO": "170300102"
+        }
+      ]
+    },
+    {
+      "normalizedName": "CAMPO LA CALAVERA",
+      "occurrences": [
+        {
+          "CVE_MUN": "006",
+          "CVEGEO": "170060115"
+        },
+        {
+          "CVE_MUN": "028",
+          "CVEGEO": "170280119"
+        }
+      ]
+    },
+    {
+      "normalizedName": "EL POLVORIN",
+      "occurrences": [
+        {
+          "CVE_MUN": "006",
+          "CVEGEO": "170060124"
+        },
+        {
+          "CVE_MUN": "017",
+          "CVEGEO": "170170098"
+        }
+      ]
+    },
+    {
+      "normalizedName": "COLONIA EL PARAISO",
+      "occurrences": [
+        {
+          "CVE_MUN": "006",
+          "CVEGEO": "170060133"
+        },
+        {
+          "CVE_MUN": "031",
+          "CVEGEO": "170310030"
+        }
+      ]
+    },
+    {
+      "normalizedName": "EMILIANO ZAPATA",
+      "occurrences": [
+        {
+          "CVE_MUN": "008",
+          "CVEGEO": "170080001"
+        },
+        {
+          "CVE_MUN": "015",
+          "CVEGEO": "170150020"
+        },
+        {
+          "CVE_MUN": "019",
+          "CVEGEO": "170190015"
+        },
+        {
+          "CVE_MUN": "026",
+          "CVEGEO": "170260009"
+        }
+      ]
+    },
+    {
+      "normalizedName": "CAMPO EL ORGANO",
+      "occurrences": [
+        {
+          "CVE_MUN": "008",
+          "CVEGEO": "170080036"
+        },
+        {
+          "CVE_MUN": "024",
+          "CVEGEO": "170240068"
+        }
+      ]
+    },
+    {
+      "normalizedName": "TLACOTEPEC",
+      "occurrences": [
+        {
+          "CVE_MUN": "009",
+          "CVEGEO": "170090092"
+        },
+        {
+          "CVE_MUN": "032",
+          "CVEGEO": "170320006"
+        }
+      ]
+    },
+    {
+      "normalizedName": "AMILCINGO",
+      "occurrences": [
+        {
+          "CVE_MUN": "010",
+          "CVEGEO": "170100029"
+        },
+        {
+          "CVE_MUN": "020",
+          "CVEGEO": "170200027"
+        },
+        {
+          "CVE_MUN": "033",
+          "CVEGEO": "170330002"
+        }
+      ]
+    },
+    {
+      "normalizedName": "LA NORMAL",
+      "occurrences": [
+        {
+          "CVE_MUN": "010",
+          "CVEGEO": "170100031"
+        },
+        {
+          "CVE_MUN": "033",
+          "CVEGEO": "170330010"
+        }
+      ]
+    },
+    {
+      "normalizedName": "RANCHO LA HUERTA",
+      "occurrences": [
+        {
+          "CVE_MUN": "010",
+          "CVEGEO": "170100043"
+        },
+        {
+          "CVE_MUN": "019",
+          "CVEGEO": "170190016"
+        }
+      ]
+    },
+    {
+      "normalizedName": "COLONIA LOMA BONITA",
+      "occurrences": [
+        {
+          "CVE_MUN": "011",
+          "CVEGEO": "170110069"
+        },
+        {
+          "CVE_MUN": "012",
+          "CVEGEO": "170120116"
+        },
+        {
+          "CVE_MUN": "028",
+          "CVEGEO": "170280085"
+        }
+      ]
+    },
+    {
+      "normalizedName": "FRANCISCO VILLA",
+      "occurrences": [
+        {
+          "CVE_MUN": "011",
+          "CVEGEO": "170110077"
+        },
+        {
+          "CVE_MUN": "028",
+          "CVEGEO": "170280005"
+        }
+      ]
+    },
+    {
+      "normalizedName": "LA QUEBRADORA",
+      "occurrences": [
+        {
+          "CVE_MUN": "011",
+          "CVEGEO": "170110086"
+        },
+        {
+          "CVE_MUN": "031",
+          "CVEGEO": "170310023"
+        }
+      ]
+    },
+    {
+      "normalizedName": "UNIDAD HABITACIONAL JOSE MARIA MORELOS Y PAVON",
+      "occurrences": [
+        {
+          "CVE_MUN": "012",
+          "CVEGEO": "170120018"
+        },
+        {
+          "CVE_MUN": "028",
+          "CVEGEO": "170280030"
+        }
+      ]
+    },
+    {
+      "normalizedName": "COLONIA BUENOS AIRES",
+      "occurrences": [
+        {
+          "CVE_MUN": "012",
+          "CVEGEO": "170120020"
+        },
+        {
+          "CVE_MUN": "017",
+          "CVEGEO": "170170143"
+        },
+        {
+          "CVE_MUN": "019",
+          "CVEGEO": "170190031"
+        }
+      ]
+    },
+    {
+      "normalizedName": "BARRANCA DEL MUERTO",
+      "occurrences": [
+        {
+          "CVE_MUN": "012",
+          "CVEGEO": "170120068"
+        },
+        {
+          "CVE_MUN": "029",
+          "CVEGEO": "170290076"
+        }
+      ]
+    },
+    {
+      "normalizedName": "AMPLIACION VICENTE GUERRERO",
+      "occurrences": [
+        {
+          "CVE_MUN": "012",
+          "CVEGEO": "170120075"
+        },
+        {
+          "CVE_MUN": "029",
+          "CVEGEO": "170290069"
+        }
+      ]
+    },
+    {
+      "normalizedName": "COLONIA EMILIANO ZAPATA",
+      "occurrences": [
+        {
+          "CVE_MUN": "013",
+          "CVEGEO": "170130026"
+        },
+        {
+          "CVE_MUN": "017",
+          "CVEGEO": "170170135"
+        },
+        {
+          "CVE_MUN": "017",
+          "CVEGEO": "170170136"
+        },
+        {
+          "CVE_MUN": "019",
+          "CVEGEO": "170190043"
+        },
+        {
+          "CVE_MUN": "032",
+          "CVEGEO": "170320032"
+        }
+      ]
+    },
+    {
+      "normalizedName": "EL PEDREGAL",
+      "occurrences": [
+        {
+          "CVE_MUN": "013",
+          "CVEGEO": "170130048"
+        },
+        {
+          "CVE_MUN": "020",
+          "CVEGEO": "170200077"
+        },
+        {
+          "CVE_MUN": "023",
+          "CVEGEO": "170230007"
+        },
+        {
+          "CVE_MUN": "028",
+          "CVEGEO": "170280020"
+        }
+      ]
+    },
+    {
+      "normalizedName": "COLONIA LA TRILLA",
+      "occurrences": [
+        {
+          "CVE_MUN": "014",
+          "CVEGEO": "170140027"
+        },
+        {
+          "CVE_MUN": "015",
+          "CVEGEO": "170150060"
+        }
+      ]
+    },
+    {
+      "normalizedName": "PALO GRANDE",
+      "occurrences": [
+        {
+          "CVE_MUN": "015",
+          "CVEGEO": "170150005"
+        },
+        {
+          "CVE_MUN": "025",
+          "CVEGEO": "170250053"
+        }
+      ]
+    },
+    {
+      "normalizedName": "RANCHO VIEJO",
+      "occurrences": [
+        {
+          "CVE_MUN": "015",
+          "CVEGEO": "170150008"
+        },
+        {
+          "CVE_MUN": "025",
+          "CVEGEO": "170250017"
+        }
+      ]
+    },
+    {
+      "normalizedName": "EL RODEO",
+      "occurrences": [
+        {
+          "CVE_MUN": "015",
+          "CVEGEO": "170150010"
+        },
+        {
+          "CVE_MUN": "017",
+          "CVEGEO": "170170057"
+        }
+      ]
+    },
+    {
+      "normalizedName": "LA PRESITA",
+      "occurrences": [
+        {
+          "CVE_MUN": "015",
+          "CVEGEO": "170150044"
+        },
+        {
+          "CVE_MUN": "019",
+          "CVEGEO": "170190034"
+        }
+      ]
+    },
+    {
+      "normalizedName": "EL LLANO",
+      "occurrences": [
+        {
+          "CVE_MUN": "015",
+          "CVEGEO": "170150052"
+        },
+        {
+          "CVE_MUN": "017",
+          "CVEGEO": "170170052"
+        },
+        {
+          "CVE_MUN": "034",
+          "CVEGEO": "170340010"
+        }
+      ]
+    },
+    {
+      "normalizedName": "EL ENCINAL",
+      "occurrences": [
+        {
+          "CVE_MUN": "016",
+          "CVEGEO": "170160053"
+        },
+        {
+          "CVE_MUN": "022",
+          "CVEGEO": "170220055"
+        }
+      ]
+    },
+    {
+      "normalizedName": "AMPLIACION MIGUEL HIDALGO",
+      "occurrences": [
+        {
+          "CVE_MUN": "017",
+          "CVEGEO": "170170108"
+        },
+        {
+          "CVE_MUN": "028",
+          "CVEGEO": "170280081"
+        }
+      ]
+    },
+    {
+      "normalizedName": "AMPLIACION BENITO JUAREZ",
+      "occurrences": [
+        {
+          "CVE_MUN": "017",
+          "CVEGEO": "170170130"
+        },
+        {
+          "CVE_MUN": "024",
+          "CVEGEO": "170240118"
+        }
+      ]
+    },
+    {
+      "normalizedName": "COLONIA AQUILES SERDAN",
+      "occurrences": [
+        {
+          "CVE_MUN": "018",
+          "CVEGEO": "170180048"
+        },
+        {
+          "CVE_MUN": "030",
+          "CVEGEO": "170300099"
+        }
+      ]
+    },
+    {
+      "normalizedName": "ADOLFO LOPEZ MATEOS",
+      "occurrences": [
+        {
+          "CVE_MUN": "019",
+          "CVEGEO": "170190007"
+        },
+        {
+          "CVE_MUN": "030",
+          "CVEGEO": "170300021"
+        }
+      ]
+    },
+    {
+      "normalizedName": "ACHICHIPICO",
+      "occurrences": [
+        {
+          "CVE_MUN": "020",
+          "CVEGEO": "170200021"
+        },
+        {
+          "CVE_MUN": "030",
+          "CVEGEO": "170300002"
+        }
+      ]
+    },
+    {
+      "normalizedName": "COLONIA BENITO JUAREZ",
+      "occurrences": [
+        {
+          "CVE_MUN": "020",
+          "CVEGEO": "170200070"
+        },
+        {
+          "CVE_MUN": "034",
+          "CVEGEO": "170340006"
+        }
+      ]
+    },
+    {
+      "normalizedName": "EL TEXCAL",
+      "occurrences": [
+        {
+          "CVE_MUN": "020",
+          "CVEGEO": "170200071"
+        },
+        {
+          "CVE_MUN": "024",
+          "CVEGEO": "170240084"
+        }
+      ]
+    },
+    {
+      "normalizedName": "SAN PABLO",
+      "occurrences": [
+        {
+          "CVE_MUN": "022",
+          "CVEGEO": "170220048"
+        },
+        {
+          "CVE_MUN": "029",
+          "CVEGEO": "170290072"
+        }
+      ]
+    },
+    {
+      "normalizedName": "LOS PRESIDENTES",
+      "occurrences": [
+        {
+          "CVE_MUN": "024",
+          "CVEGEO": "170240125"
+        },
+        {
+          "CVE_MUN": "025",
+          "CVEGEO": "170250081"
+        }
+      ]
+    },
+    {
+      "normalizedName": "LOS CIRUELOS",
+      "occurrences": [
+        {
+          "CVE_MUN": "026",
+          "CVEGEO": "170260014"
+        },
+        {
+          "CVE_MUN": "030",
+          "CVEGEO": "170300045"
+        }
+      ]
+    },
+    {
+      "normalizedName": "COLONIA 3 DE MAYO",
+      "occurrences": [
+        {
+          "CVE_MUN": "026",
+          "CVEGEO": "170260018"
+        },
+        {
+          "CVE_MUN": "034",
+          "CVEGEO": "170340005"
+        }
+      ]
+    },
+    {
+      "normalizedName": "CAMPO LA TEHUIXTLERA",
+      "occurrences": [
+        {
+          "CVE_MUN": "028",
+          "CVEGEO": "170280108"
+        },
+        {
+          "CVE_MUN": "029",
+          "CVEGEO": "170290133"
+        }
+      ]
+    },
+    {
+      "normalizedName": "COLONIA GUADALUPE VICTORIA",
+      "occurrences": [
+        {
+          "CVE_MUN": "031",
+          "CVEGEO": "170310022"
+        },
+        {
+          "CVE_MUN": "032",
+          "CVEGEO": "170320027"
+        }
+      ]
+    }
+  ],
+  "warnings": [
+    {
+      "code": "CABECERA_NOMBRE_DIFIERE_DE_MUNICIPIO",
+      "message": "Algunas localidades LOC=0001 no coinciden literalmente con NOM_MUN.",
+      "items": [
+        {
+          "CVE_MUN": "004",
+          "NOM_MUN": "Ayala",
+          "CVE_LOC": "0001",
+          "NOM_LOC": "Ciudad Ayala",
+          "CVEGEO": "170040001",
+          "validadaPor": "LOC=0001 en ITER 2020; nombre difiere de NOM_MUN, revisar en etapa cartografica"
+        },
+        {
+          "CVE_MUN": "024",
+          "NOM_MUN": "Tlaltizapán de Zapata",
+          "CVE_LOC": "0001",
+          "NOM_LOC": "Tlaltizapán",
+          "CVEGEO": "170240001",
+          "validadaPor": "LOC=0001 en ITER 2020; nombre difiere de NOM_MUN, revisar en etapa cartografica"
+        },
+        {
+          "CVE_MUN": "029",
+          "NOM_MUN": "Yautepec",
+          "CVE_LOC": "0001",
+          "NOM_LOC": "Yautepec de Zaragoza",
+          "CVEGEO": "170290001",
+          "validadaPor": "LOC=0001 en ITER 2020; nombre difiere de NOM_MUN, revisar en etapa cartografica"
+        },
+        {
+          "CVE_MUN": "031",
+          "NOM_MUN": "Zacatepec",
+          "CVE_LOC": "0001",
+          "NOM_LOC": "Zacatepec de Hidalgo",
+          "CVEGEO": "170310001",
+          "validadaPor": "LOC=0001 en ITER 2020; nombre difiere de NOM_MUN, revisar en etapa cartografica"
+        },
+        {
+          "CVE_MUN": "034",
+          "NOM_MUN": "Coatetelco",
+          "CVE_LOC": "0001",
+          "NOM_LOC": "Coatetelco Centro",
+          "CVEGEO": "170340001",
+          "validadaPor": "LOC=0001 en ITER 2020; nombre difiere de NOM_MUN, revisar en etapa cartografica"
+        },
+        {
+          "CVE_MUN": "035",
+          "NOM_MUN": "Xoxocotla",
+          "CVE_LOC": "0001",
+          "NOM_LOC": "Xoxocotla Centro",
+          "CVEGEO": "170350001",
+          "validadaPor": "LOC=0001 en ITER 2020; nombre difiere de NOM_MUN, revisar en etapa cartografica"
+        },
+        {
+          "CVE_MUN": "036",
+          "NOM_MUN": "Hueyapan",
+          "CVE_LOC": "0001",
+          "NOM_LOC": "Barrio de San Miguel",
+          "CVEGEO": "170360001",
+          "validadaPor": "LOC=0001 en ITER 2020; nombre difiere de NOM_MUN, revisar en etapa cartografica"
+        }
+      ]
+    }
+  ],
+  "coordinateConversionMethod": "LONGITUD y LATITUD se leen desde ITER en formato DMS; se extraen grados, minutos y segundos, se convierten a decimal con grados + minutos/60 + segundos/3600, y se aplica signo negativo a W.",
+  "filters": "ENTIDAD=17, MUN distinto de 000, LOC distinto de 0000/9998/9999, nombre no vacio, coordenadas DMS validas y bbox razonable de Morelos con margen.",
+  "validationSummary": {
+    "allPoints": true,
+    "allCoordinatesLonLat": true,
+    "uniqueCvegeo": true,
+    "noNullCoordinates": true,
+    "noEmptyNames": true,
+    "labelTierRange": true,
+    "labelPriorityConsecutive": true,
+    "tierCountsMatchTotal": true,
+    "noAggregateLocCodes": true
+  }
+}
