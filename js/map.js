@@ -1981,22 +1981,27 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     const visibility = "none";
     const widths = {
       1: {
-        halo: ["interpolate", ["linear"], ["zoom"], 6, 4.2, 10, 5.2, 13, 6.2],
-        line: ["interpolate", ["linear"], ["zoom"], 6, 1.7, 10, 2.4, 13, 3.1],
+        halo: 0,
+        line: ["interpolate", ["linear"], ["zoom"], 6, 1, 10, 1.35, 13, 1.6],
       },
       2: {
-        halo: ["interpolate", ["linear"], ["zoom"], 12, 3.2, 14, 4.1, 16, 4.8],
-        line: ["interpolate", ["linear"], ["zoom"], 12, 1.2, 14, 1.8, 16, 2.4],
+        halo: 0,
+        line: ["interpolate", ["linear"], ["zoom"], 12, 0.8, 14, 1.1, 16, 1.35],
       },
       3: {
-        halo: ["interpolate", ["linear"], ["zoom"], 15, 1.8, 17, 2.3, 19, 2.8],
-        line: ["interpolate", ["linear"], ["zoom"], 15, 0.6, 17, 0.9, 19, 1.15],
+        halo: 0,
+        line: ["interpolate", ["linear"], ["zoom"], 15, 1, 17, 1.28, 19, 1.48],
       },
     };
     const colors = {
-      1: { halo: "#f8fafc", line: "#374151", haloOpacity: 0.72, lineOpacity: 0.86 },
-      2: { halo: "#ffffff", line: "#4b5563", haloOpacity: 0.58, lineOpacity: 0.74 },
-      3: { halo: "#ffffff", line: "#6b7280", haloOpacity: 0.44, lineOpacity: 0.56 },
+      1: { halo: "#ffffff", line: "#2563eb", haloOpacity: 0, lineOpacity: 0.82 },
+      2: { halo: "#ffffff", line: "#3b82f6", haloOpacity: 0, lineOpacity: 0.74 },
+      3: { halo: "#ffffff", line: "#60a5fa", haloOpacity: 0, lineOpacity: 0.66 },
+    };
+    const dashArrays = {
+      1: null,
+      2: [2.2, 1.4],
+      3: [1, 1.5],
     };
     addLayerIfMissing({
       id: haloId,
@@ -2011,8 +2016,18 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
         "line-color": colors[level].halo,
         "line-width": widths[level].halo,
         "line-opacity": colors[level].haloOpacity,
+        "line-blur": 0,
       },
     });
+    const linePaint = {
+      "line-color": colors[level].line,
+      "line-width": widths[level].line,
+      "line-opacity": colors[level].lineOpacity,
+      "line-blur": 0,
+    };
+    if (dashArrays[level]) {
+      linePaint["line-dasharray"] = dashArrays[level];
+    }
     addLayerIfMissing({
       id: lineId,
       type: "line",
@@ -2022,11 +2037,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
         "line-cap": "round",
         "line-join": "round",
       },
-      paint: {
-        "line-color": colors[level].line,
-        "line-width": widths[level].line,
-        "line-opacity": colors[level].lineOpacity,
-      },
+      paint: linePaint,
     });
   }
 

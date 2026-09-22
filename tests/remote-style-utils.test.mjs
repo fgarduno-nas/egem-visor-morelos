@@ -747,6 +747,39 @@ test("el orden central mantiene vialidades encima de peligros y limites encima d
   assert.match(restoreSource, /ensureReferenceLayerOrder\(\)/);
 });
 
+test("las vialidades usan jerarquia visual discreta sin competir con limites", () => {
+  const roadLayerSource = extractFunctionSource(mapSource, "addReferenceRoadLayers");
+
+  assert.match(mapSource, /layerIds: \["vialidades-nivel-1-halo", "vialidades-nivel-1"\]/);
+  assert.match(mapSource, /layerIds: \["vialidades-nivel-2-halo", "vialidades-nivel-2"\]/);
+  assert.match(mapSource, /layerIds: \["vialidades-nivel-3-halo", "vialidades-nivel-3"\]/);
+
+  assert.match(roadLayerSource, /1: \{\s*halo: 0,\s*line: \["interpolate", \["linear"\], \["zoom"\], 6, 1, 10, 1\.35, 13, 1\.6\]/);
+  assert.match(roadLayerSource, /2: \{\s*halo: 0,\s*line: \["interpolate", \["linear"\], \["zoom"\], 12, 0\.8, 14, 1\.1, 16, 1\.35\]/);
+  assert.match(roadLayerSource, /3: \{\s*halo: 0,\s*line: \["interpolate", \["linear"\], \["zoom"\], 15, 1, 17, 1\.28, 19, 1\.48\]/);
+
+  assert.match(roadLayerSource, /1: \{ halo: "#ffffff", line: "#2563eb", haloOpacity: 0, lineOpacity: 0\.82 \}/);
+  assert.match(roadLayerSource, /2: \{ halo: "#ffffff", line: "#3b82f6", haloOpacity: 0, lineOpacity: 0\.74 \}/);
+  assert.match(roadLayerSource, /3: \{ halo: "#ffffff", line: "#60a5fa", haloOpacity: 0, lineOpacity: 0\.66 \}/);
+
+  assert.match(roadLayerSource, /1: null/);
+  assert.match(roadLayerSource, /2: \[2\.2, 1\.4\]/);
+  assert.match(roadLayerSource, /3: \[1, 1\.5\]/);
+  assert.match(roadLayerSource, /linePaint\["line-dasharray"\] = dashArrays\[level\]/);
+
+  assert.match(roadLayerSource, /"line-cap": "round"/);
+  assert.match(roadLayerSource, /"line-join": "round"/);
+  assert.match(roadLayerSource, /"line-blur": 0/);
+  assert.doesNotMatch(roadLayerSource, /line-gap-width/);
+  assert.doesNotMatch(roadLayerSource, /#000000|#000\b|black/i);
+  assert.doesNotMatch(roadLayerSource, /#7a203a/i);
+
+  assert.match(mapSource, /const INSTITUTIONAL_BOUNDARY_COLOR = "#7a203a";/);
+  assert.match(mapSource, /const MUNICIPAL_BOUNDARY_COLOR = "#9ca3af";/);
+  assert.match(mapSource, /const STATE_BOUNDARY_BASE_WIDTH = \["interpolate", \["linear"\], \["zoom"\], 6, 2\.8, 10, 3\.8, 14, 5\.2\]/);
+  assert.match(mapSource, /const MUNICIPAL_BOUNDARY_WIDTH = \["interpolate", \["linear"\], \["zoom"\], 6, 0\.55, 10, 0\.8, 14, 1\.1\]/);
+});
+
 test("los derivados de vialidades estan separados, en WGS84 y conservan atributos utiles", () => {
   assert.equal(vialidadesNivel1.metadata.crs, "EPSG:4326");
   assert.equal(vialidadesNivel2.metadata.crs, "EPSG:4326");
