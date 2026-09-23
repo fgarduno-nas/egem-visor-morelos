@@ -1,8 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { execFile } from "node:child_process";
+import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { promisify } from "node:util";
 
+const execFileAsync = promisify(execFile);
 const modulePath = path.resolve("js/app/utils/remote-style-utils.js");
 const moduleSource = await fs.readFile(modulePath, "utf8");
 const moduleUrl = `data:text/javascript;base64,${Buffer.from(moduleSource).toString("base64")}`;
@@ -15,6 +19,9 @@ const localidadesMorelos = JSON.parse(await fs.readFile(path.resolve("data/base/
 const vialidadesNivel1 = JSON.parse(await fs.readFile(path.resolve("data/base/vialidades/vialidades_nivel_1.geojson"), "utf8"));
 const vialidadesNivel2 = JSON.parse(await fs.readFile(path.resolve("data/base/vialidades/vialidades_nivel_2.geojson"), "utf8"));
 const vialidadesNivel3Manifest = JSON.parse(await fs.readFile(path.resolve("data/base/vialidades/vialidades_nivel_3_manifest.json"), "utf8"));
+const vialidadesNameDiagnostic = JSON.parse(await fs.readFile(path.resolve("data/base/vialidades/diagnostico_nombres_viales.json"), "utf8"));
+const vialidadesNameCorrections = JSON.parse(await fs.readFile(path.resolve("data/base/vialidades/correcciones_nombres_viales.json"), "utf8"));
+const vialidadesDisplayNames = JSON.parse(await fs.readFile(path.resolve("data/base/vialidades/nombres_viales_mostrar.json"), "utf8"));
 const officialMunicipalPopulation2020 = new Map([
   ["17001", 17598],
   ["17002", 25232],
@@ -678,6 +685,11 @@ test("las etiquetas municipales usan layer symbol automatica sin popups ni contr
   assert.match(staticSource, /"text-optional": true/);
   assert.match(staticSource, /"text-padding": 8/);
   assert.match(staticSource, /"symbol-sort-key": \["get", "labelPriority"\]/);
+  assert.match(staticSource, /"text-color": "#ffffff"/);
+  assert.match(staticSource, /"text-halo-color": "rgba\(74, 18, 40, 0\.92\)"/);
+  assert.match(staticSource, /"text-halo-width": 1\.75/);
+  assert.match(staticSource, /"text-halo-blur": 0\.35/);
+  assert.doesNotMatch(staticSource, /"text-halo-width": 0/);
   assert.doesNotMatch(staticSource, /text-allow-overlap": true/);
   assert.match(orderSource, /REFERENCE_LABEL_LAYER_IDS\.forEach/);
   assert.match(orderSource, /ROAD_REFERENCE_BOUNDARY_LAYER_IDS\.forEach[\s\S]*REFERENCE_LABEL_LAYER_IDS\.forEach/);
@@ -770,8 +782,8 @@ test("las localidades usan cinco niveles progresivos sin popups marcadores ni co
   assert.match(initializeSource, /"text-field": \["get", "NOM_LOC"\]/);
   assert.match(initializeSource, /"text-font": \["Open Sans Semibold"\]/);
   assert.doesNotMatch(initializeSource, /Open Sans Regular/);
-  assert.match(initializeSource, /"text-size":[\s\S]*\["interpolate", \["linear"\], \["zoom"\], labelTier\.minZoom, 12, 13\.4, 13, 16, 13\.5\]/);
-  assert.match(initializeSource, /"text-size":[\s\S]*\["interpolate", \["linear"\], \["zoom"\], labelTier\.minZoom, 10\.5, 14\.5, 11\.7, 17, 12\.5\]/);
+  assert.match(initializeSource, /"text-size":[\s\S]*\["interpolate", \["linear"\], \["zoom"\], labelTier\.minZoom, 13\.5, 13\.4, 14\.5, 16, 15\]/);
+  assert.match(initializeSource, /"text-size":[\s\S]*\["interpolate", \["linear"\], \["zoom"\], labelTier\.minZoom, 11\.5, 14\.5, 12\.7, 17, 13\.5\]/);
   assert.doesNotMatch(initializeSource, /"text-size": \["case"/);
   assert.match(initializeSource, /"text-allow-overlap": false/);
   assert.match(initializeSource, /"text-ignore-placement": false/);
@@ -814,6 +826,7 @@ test("el nivel fino de localidades se divide por poblacion sin duplicar interacc
 });
 
 test("las reglas de escala de localidades conservan cabeceras y homonimos entre municipios", () => {
+  const staticSource = extractFunctionSource(mapSource, "injectStaticSources");
   const levelSource = extractFunctionSource(mapSource, "getLocalityLabelLevel");
   const minZoomSource = extractFunctionSource(mapSource, "getLocalityEffectiveMinZoom");
   const nextZoomSource = extractFunctionSource(mapSource, "getNextLocalityLabelMinZoomAfter");
@@ -845,6 +858,9 @@ test("las reglas de escala de localidades conservan cabeceras y homonimos entre 
   assert.match(paintSource, /state\.activeBaseMap === "satelite" \|\| state\.activeBaseMap === "topografico"/);
   assert.match(paintSource, /"text-color": \["case", \["==", \["get", "__labelKind"\], "cabecera"\], cabeceraColor, localidadColor\]/);
   assert.match(paintSource, /"text-halo-width": \["case", \["==", \["get", "__labelKind"\], "cabecera"\], 1\.7, 1\.35\]/);
+  assert.doesNotMatch(paintSource, /rgba\(74, 18, 40, 0\.92\)|1\.75|0\.35/);
+  assert.match(mapSource, /"text-size": \["interpolate", \["linear"\], \["zoom"\], labelTier\.minZoom, 12\.5, 12, 14, 14, 15\.5, 17, 17\]/);
+  assert.doesNotMatch(staticSource, /"text-halo-width": 0/);
   assert.doesNotMatch(mapSource, /function getLocalityLabelTextSize/);
   assert.match(mapSource, /updateLocalityLabelPaint\(\);[\s\S]*ensureReferenceLayerOrder\(\);/);
 });
@@ -953,37 +969,70 @@ test("el orden central mantiene vialidades encima de peligros y limites encima d
   assert.match(restoreSource, /ensureReferenceLayerOrder\(\)/);
 });
 
-test("las vialidades usan jerarquia visual discreta sin competir con limites", () => {
+test("las vialidades usan casing negro, centro blanco punteado y etiquetas oficiales", () => {
   const roadLayerSource = extractFunctionSource(mapSource, "addReferenceRoadLayers");
+  const vial3CasingOpacity = ["interpolate", ["linear"], ["zoom"], 15.2, 0.48, 16, 0.38, 17, 0.27, 18, 0.16];
+  const vial3CenterOpacity = ["interpolate", ["linear"], ["zoom"], 15.2, 0.82, 16, 0.74, 17, 0.62, 18, 0.48];
+  const assertDecreasingOpacityStops = (expression) => {
+    const stops = expression.slice(3);
+    const opacities = stops.filter((_, index) => index % 2 === 1);
+    opacities.forEach((opacity) => {
+      assert.ok(opacity >= 0 && opacity <= 1, `opacidad fuera de rango: ${opacity}`);
+    });
+    for (let index = 1; index < opacities.length; index += 1) {
+      assert.ok(opacities[index] < opacities[index - 1], "la opacidad de Vial_3 debe disminuir al aumentar zoom");
+    }
+  };
 
-  assert.match(mapSource, /layerIds: \["vialidades-nivel-1-halo", "vialidades-nivel-1"\]/);
-  assert.match(mapSource, /layerIds: \["vialidades-nivel-2-halo", "vialidades-nivel-2"\]/);
-  assert.match(mapSource, /layerIds: \["vialidades-nivel-3-halo", "vialidades-nivel-3"\]/);
+  assert.match(mapSource, /layerIds: \["vialidades-nivel-1-casing", "vialidades-nivel-1-center", "vialidades-nivel-1-label"\]/);
+  assert.match(mapSource, /layerIds: \["vialidades-nivel-2-casing", "vialidades-nivel-2-center", "vialidades-nivel-2-label"\]/);
+  assert.match(mapSource, /layerIds: \["vialidades-nivel-3-casing", "vialidades-nivel-3-center", "vialidades-nivel-3-label"\]/);
 
-  assert.match(roadLayerSource, /1: \{\s*halo: 0,\s*line: \["interpolate", \["linear"\], \["zoom"\], 6, 1, 10, 1\.35, 13, 1\.6\]/);
-  assert.match(roadLayerSource, /2: \{\s*halo: 0,\s*line: \["interpolate", \["linear"\], \["zoom"\], 12, 0\.8, 14, 1\.1, 16, 1\.35\]/);
-  assert.match(roadLayerSource, /3: \{\s*halo: 0,\s*line: \["interpolate", \["linear"\], \["zoom"\], 15, 1, 17, 1\.28, 19, 1\.48\]/);
+  assert.match(roadLayerSource, /1: \{ casing: 3\.6, center: 1\.45 \}/);
+  assert.match(roadLayerSource, /2: \{ casing: 5, center: 1\.8 \}/);
+  assert.match(roadLayerSource, /3: \{ casing: 7, center: 2\.4 \}/);
+  assert.doesNotMatch(roadLayerSource, /"line-width": \["interpolate", \["linear"\], \["zoom"\]/);
 
-  assert.match(roadLayerSource, /1: \{ halo: "#ffffff", line: "#2563eb", haloOpacity: 0, lineOpacity: 0\.82 \}/);
-  assert.match(roadLayerSource, /2: \{ halo: "#ffffff", line: "#3b82f6", haloOpacity: 0, lineOpacity: 0\.74 \}/);
-  assert.match(roadLayerSource, /3: \{ halo: "#ffffff", line: "#60a5fa", haloOpacity: 0, lineOpacity: 0\.66 \}/);
+  assert.match(roadLayerSource, /1: \{ casing: 0\.34, center: 0\.56 \}/);
+  assert.match(roadLayerSource, /2: \{ casing: 0\.62, center: 0\.82 \}/);
+  assert.match(roadLayerSource, /casing: \["interpolate", \["linear"\], \["zoom"\], 15\.2, 0\.48, 16, 0\.38, 17, 0\.27, 18, 0\.16\]/);
+  assert.match(roadLayerSource, /center: \["interpolate", \["linear"\], \["zoom"\], 15\.2, 0\.82, 16, 0\.74, 17, 0\.62, 18, 0\.48\]/);
+  assertDecreasingOpacityStops(vial3CasingOpacity);
+  assertDecreasingOpacityStops(vial3CenterOpacity);
 
-  assert.match(roadLayerSource, /1: null/);
-  assert.match(roadLayerSource, /2: \[2\.2, 1\.4\]/);
-  assert.match(roadLayerSource, /3: \[1, 1\.5\]/);
-  assert.match(roadLayerSource, /linePaint\["line-dasharray"\] = dashArrays\[level\]/);
+  assert.match(roadLayerSource, /1: \[2\.4, 1\.6\]/);
+  assert.match(roadLayerSource, /2: \[2, 1\.6\]/);
+  assert.match(roadLayerSource, /3: \[1\.4, 1\.5\]/);
+  assert.match(roadLayerSource, /"line-color": "#000000"/);
+  assert.match(roadLayerSource, /"line-color": "#ffffff"/);
+  assert.match(roadLayerSource, /"line-dasharray": centerDashArrays\[level\]/);
 
   assert.match(roadLayerSource, /"line-cap": "round"/);
   assert.match(roadLayerSource, /"line-join": "round"/);
   assert.match(roadLayerSource, /"line-blur": 0/);
   assert.doesNotMatch(roadLayerSource, /line-gap-width/);
-  assert.doesNotMatch(roadLayerSource, /#000000|#000\b|black/i);
   assert.doesNotMatch(roadLayerSource, /#7a203a/i);
+  assert.doesNotMatch(roadLayerSource, /#2563eb|#3b82f6|#60a5fa/i);
+
+  assert.match(roadLayerSource, /type: "symbol"/);
+  assert.match(roadLayerSource, /"symbol-placement": "line"/);
+  assert.match(roadLayerSource, /"text-field": \[\s*"case"[\s\S]*?\["get", "nombre_mostrar"\][\s\S]*?\["get", "nombre"\][\s\S]*?""/);
+  assert.match(roadLayerSource, /"text-keep-upright": true/);
+  assert.match(roadLayerSource, /"text-rotation-alignment": "map"/);
+  assert.match(roadLayerSource, /"text-allow-overlap": false/);
+  assert.match(roadLayerSource, /\["has", "nombre_mostrar"\]/);
+  assert.match(roadLayerSource, /\["!=", \["downcase", \["get", "nombre_mostrar"\]\], "sin nombre"\]/);
+  assert.match(roadLayerSource, /\["!=", \["downcase", \["get", "nombre_mostrar"\]\], "s\/n"\]/);
+  assert.match(roadLayerSource, /\["!=", \["downcase", \["get", "nombre"\]\], "sin nombre"\]/);
+  assert.match(roadLayerSource, /\["!=", \["downcase", \["get", "nombre"\]\], "s\/n"\]/);
 
   assert.match(mapSource, /const INSTITUTIONAL_BOUNDARY_COLOR = "#7a203a";/);
   assert.match(mapSource, /const MUNICIPAL_BOUNDARY_COLOR = "#9ca3af";/);
   assert.match(mapSource, /const STATE_BOUNDARY_BASE_WIDTH = \["interpolate", \["linear"\], \["zoom"\], 6, 2\.8, 10, 3\.8, 14, 5\.2\]/);
   assert.match(mapSource, /const MUNICIPAL_BOUNDARY_WIDTH = \["interpolate", \["linear"\], \["zoom"\], 6, 0\.55, 10, 0\.8, 14, 1\.1\]/);
+  assert.match(mapSource, /const ROAD_REFERENCE_DISPLAY_NAMES_URL = "data\/base\/vialidades\/nombres_viales_mostrar\.json"/);
+  assert.match(mapSource, /function applyReferenceRoadDisplayNames\(level, collection\)/);
+  assert.match(mapSource, /properties\.nombre_mostrar = displayName/);
 });
 
 test("los derivados de vialidades estan separados, en WGS84 y conservan atributos utiles", () => {
@@ -1006,6 +1055,92 @@ test("los derivados de vialidades estan separados, en WGS84 y conservan atributo
   ["id", "nivel_vial", "tipo_vial", "nombre", "condicion_pavimento", "recubrimiento", "administra", "jurisdiccion"].forEach((field) => {
     assert.ok(Object.hasOwn(nivel2Props, field), `Falta ${field}`);
   });
+});
+
+test("la auditoria de nombres viales cubre todos los niveles y conserva trazabilidad", async () => {
+  const usefulName = (value) => {
+    const normalized = String(value || "").trim().toLowerCase();
+    return Boolean(normalized) && normalized !== "sin nombre" && normalized !== "s/n";
+  };
+  const level3Collections = await Promise.all(
+    vialidadesNivel3Manifest.chunks.map(async (chunk) => JSON.parse(await fs.readFile(path.resolve(chunk.url), "utf8")))
+  );
+  const level3Features = level3Collections.flatMap((collection) => collection.features || []);
+  const level1Named = vialidadesNivel1.features.filter((featureItem) => usefulName(featureItem.properties?.nombre));
+  const level2Named = vialidadesNivel2.features.filter((featureItem) => usefulName(featureItem.properties?.nombre));
+  const level3Named = level3Features.filter((featureItem) => usefulName(featureItem.properties?.nombre));
+
+  assert.equal(vialidadesNameDiagnostic.totals.featureInstances, 86631);
+  assert.equal(vialidadesNameDiagnostic.totals.uniqueFeatures, 84375);
+  assert.equal(vialidadesNameDiagnostic.levels["1"].featureInstances, 30);
+  assert.equal(vialidadesNameDiagnostic.levels["2"].featureInstances, 5454);
+  assert.equal(vialidadesNameDiagnostic.levels["3"].featureInstances, 81147);
+  assert.equal(vialidadesNameDiagnostic.levels["3"].uniqueFeatures, 78891);
+  assert.equal(vialidadesNameDiagnostic.vial3Manifest.renderFeatureCount, 78891);
+  assert.equal(vialidadesNameDiagnostic.vial3Manifest.featureInstancesInChunks, level3Features.length);
+  assert.equal(vialidadesNameDiagnostic.vial3Manifest.namedInstancePercent, 78.93);
+  assert.equal(vialidadesNameCorrections.correctionCount, 17206);
+  assert.equal(vialidadesDisplayNames.correctionCount, 17206);
+  assert.equal(vialidadesDisplayNames.names["1:118"], "México - Cuernavaca");
+
+  assert.equal(level1Named.length, vialidadesNivel1.features.length);
+  assert.equal(level2Named.length, vialidadesNivel2.features.length);
+  assert.equal(level3Named.length, 64052);
+  assert.ok(vialidadesNivel1.features.every((featureItem) => Object.hasOwn(featureItem.properties, "id")));
+  assert.ok(vialidadesNivel2.features.every((featureItem) => Object.hasOwn(featureItem.properties, "id")));
+  assert.ok(level3Features.every((featureItem) => Object.hasOwn(featureItem.properties, "id")));
+
+  const correctedLevel1 = vialidadesNivel1.features.find((featureItem) => featureItem.properties.id === 118);
+  assert.equal(correctedLevel1.properties.nombre, "MÃ©xico - Cuernavaca");
+  assert.equal(Object.hasOwn(correctedLevel1.properties, "nombre_mostrar"), false);
+  assert.equal(Object.hasOwn(correctedLevel1.properties, "nombre_fuente"), false);
+  assert.equal(Object.hasOwn(correctedLevel1.properties, "nombre_confianza"), false);
+  const correctedLevel1Trace = vialidadesNameCorrections.corrections.find((item) => item.level === 1 && item.id === 118);
+  assert.equal(correctedLevel1Trace.source, "normalizacion-segura");
+  assert.equal(correctedLevel1Trace.confidence, "alta");
+
+  const ambiguousNumeric = vialidadesNameDiagnostic.ambiguousCases.find((item) => item.problems.includes("solo_numero_o_clave"));
+  assert.ok(ambiguousNumeric);
+  assert.equal(vialidadesDisplayNames.names[`${ambiguousNumeric.level}:${ambiguousNumeric.id}`], undefined);
+
+  const correctedValues = [
+    ...Object.values(vialidadesDisplayNames.names),
+  ];
+  correctedValues.forEach((value) => {
+    assert.doesNotMatch(value, /[\u0000-\u001f\u007f]/);
+    assert.doesNotMatch(value, /<[a-z][\s\S]*>/i);
+    assert.doesNotMatch(value, /Ã.|Â.|â[€\u0080-\u009f]?|�/);
+  });
+  assert.doesNotMatch(mapSource, /map\.on\("click", "vialidades-nivel|map\.on\("mouseenter", "vialidades-nivel/);
+});
+
+test("el auditor de nombres viales es determinista al ejecutarse dos veces", async () => {
+  const files = [
+    path.resolve("data/base/vialidades/vialidades_nivel_1.geojson"),
+    path.resolve("data/base/vialidades/vialidades_nivel_2.geojson"),
+    path.resolve("data/base/vialidades/diagnostico_nombres_viales.json"),
+    path.resolve("data/base/vialidades/correcciones_nombres_viales.json"),
+    path.resolve("data/base/vialidades/nombres_viales_mostrar.json"),
+    ...vialidadesNivel3Manifest.chunks.map((chunk) => path.resolve(chunk.url)),
+  ];
+  const hashFiles = async () => {
+    const entries = await Promise.all(files.map(async (filePath) => {
+      const buffer = await fs.readFile(filePath);
+      return [path.relative(process.cwd(), filePath), crypto.createHash("sha256").update(buffer).digest("hex")];
+    }));
+    return Object.fromEntries(entries);
+  };
+
+  const before = await hashFiles();
+  const { stdout } = await execFileAsync(process.execPath, ["scripts/audit-vialidades-nombres.mjs"], {
+    cwd: process.cwd(),
+    maxBuffer: 1024 * 1024 * 5,
+  });
+  const after = await hashFiles();
+
+  assert.deepEqual(after, before);
+  assert.match(stdout, /"correctionCount": 17206/);
+  assert.match(stdout, /"filesChanged": 0/);
 });
 
 test("los derivados de vialidades no usan coordenadas UTM ni geometria vacia", () => {
@@ -1068,6 +1203,9 @@ test("el manifest de vialidades detalladas referencia solo chunks validos y acot
   const allowedFiles = new Set([
     path.resolve(baseDir, "README.md"),
     path.resolve(baseDir, "diagnostico_generacion.json"),
+    path.resolve(baseDir, "diagnostico_nombres_viales.json"),
+    path.resolve(baseDir, "correcciones_nombres_viales.json"),
+    path.resolve(baseDir, "nombres_viales_mostrar.json"),
     path.resolve(baseDir, "vialidades_nivel_1.geojson"),
     path.resolve(baseDir, "vialidades_nivel_2.geojson"),
     path.resolve(baseDir, "vialidades_nivel_3_manifest.json"),
@@ -1416,6 +1554,8 @@ test("la barra de herramientas aumenta iconos y reduce separacion sin perder are
   const toolbarStart = html.indexOf('<div class="map-toolbar" id="map-toolbar"');
   const toolbarEnd = html.indexOf('<p class="toolbar-note"', toolbarStart);
   const toolbarHtml = html.slice(toolbarStart, toolbarEnd);
+  const orientationStart = html.indexOf('id="orientation-overlay"');
+  const orientationHtml = html.slice(html.lastIndexOf("<div", orientationStart), html.indexOf('<div class="map-overlay map-overlay--goes"', orientationStart));
   const ids = [...toolbarHtml.matchAll(/id="([^"]+)"/g)].map((match) => match[1]);
 
   assert.deepEqual(ids.filter((id) => id.startsWith("toolbar-") || id === "trigger-upload" || id === "focus-morelos-menu"), [
@@ -1423,12 +1563,6 @@ test("la barra de herramientas aumenta iconos y reduce separacion sin perder are
     "toolbar-toggle-panel",
     "toolbar-zoom-in",
     "toolbar-zoom-out",
-    "toolbar-reset-north",
-    "toolbar-fullscreen",
-    "toolbar-rotate-left",
-    "toolbar-rotate-right",
-    "toolbar-pitch-up",
-    "toolbar-pitch-down",
     "toolbar-measure",
     "toolbar-add-point",
     "trigger-upload",
@@ -1436,18 +1570,40 @@ test("la barra de herramientas aumenta iconos y reduce separacion sin perder are
     "toolbar-clear-measure",
     "toolbar-collapse",
   ]);
+  assert.doesNotMatch(toolbarHtml, /toolbar-reset-north|toolbar-fullscreen|toolbar-rotate-left|toolbar-rotate-right|toolbar-pitch-up|toolbar-pitch-down/);
+  assert.doesNotMatch(orientationHtml, /id="toolbar-fullscreen"|aria-label="Pantalla completa" title="Pantalla completa"/);
+  assert.equal((mapSource.match(/FullscreenControl/g) || []).length, 2);
+  assert.doesNotMatch(html, /id="toolbar-fullscreen"/);
+  assert.match(orientationHtml, /id="orientation-menu-trigger"[\s\S]*aria-expanded="false"[\s\S]*aria-controls="orientation-menu"/);
+  assert.match(orientationHtml, /id="orientation-menu"[\s\S]*role="menu"[\s\S]*hidden/);
+  assert.match(orientationHtml, /id="toolbar-rotate-left"[\s\S]*role="menuitem"[\s\S]*aria-label="Rotar a la izquierda"/);
+  assert.match(orientationHtml, /id="toolbar-rotate-right"[\s\S]*role="menuitem"[\s\S]*aria-label="Rotar a la derecha"/);
+  assert.match(orientationHtml, /id="toolbar-pitch-up"[\s\S]*role="menuitem"[\s\S]*aria-label="Inclinar mapa"/);
+  assert.match(orientationHtml, /id="toolbar-pitch-down"[\s\S]*role="menuitem"[\s\S]*aria-label="Reducir inclinación"/);
+  assert.match(orientationHtml, /id="toolbar-reset-north"[\s\S]*role="menuitem"[\s\S]*aria-label="Reposicionar al norte"/);
   assert.match(toolbarHtml, /id="toolbar-zoom-in"[\s\S]*aria-label="Acercar mapa"[\s\S]*title="Acercar mapa"/);
-  assert.match(toolbarHtml, /id="toolbar-measure"[\s\S]*aria-label="Medir distancia entre dos puntos"[\s\S]*title="Medir distancia entre dos puntos"/);
+  assert.match(toolbarHtml, /id="toolbar-measure"[\s\S]*aria-label="Medir distancia"[\s\S]*title="Medir distancia"/);
+  assert.match(toolbarHtml, /M3 7h18v10H3V7/);
+  assert.doesNotMatch(toolbarHtml, /M3 17\.25V21/);
   assert.match(toolbarHtml, /id="toolbar-collapse"[\s\S]*aria-label="Comprimir herramientas del visor"[\s\S]*title="Comprimir herramientas"/);
+  assert.match(cssSource, /#tools-overlay \{[\s\S]*?display: flex;[\s\S]*?width: fit-content;[\s\S]*?max-width: calc\(100% - 36px\);[\s\S]*?flex-direction: column;[\s\S]*?align-items: center;/);
   assert.match(cssSource, /\.map-toolbar \{[\s\S]*?gap: 5px;[\s\S]*?padding: 8px 10px;/);
+  assert.match(cssSource, /\.map-toolbar \{[\s\S]*?width: fit-content;[\s\S]*?max-width: 100%;[\s\S]*?justify-content: center;/);
   assert.match(cssSource, /\.map-toolbar\[hidden\] \{[\s\S]*?display: none;/);
   assert.match(cssSource, /\.toolbar-button \{[\s\S]*?width: 36px;[\s\S]*?height: 36px;/);
   assert.match(cssSource, /\.toolbar-icon \{[\s\S]*?width: 20px;[\s\S]*?height: 20px;/);
   assert.match(cssSource, /\.toolbar-icon svg \{[\s\S]*?width: 20px;[\s\S]*?height: 20px;/);
   assert.match(cssSource, /\.toolbar-button:focus-visible,/);
   assert.match(cssSource, /\.toolbar-compact-trigger:focus-visible,/);
+  assert.match(cssSource, /\.orientation-button:focus-visible,/);
+  assert.doesNotMatch(cssSource, /\.map-overlay--orientation \{/);
+  assert.match(cssSource, /\.orientation-map-control \{[\s\S]*?pointer-events: auto;[\s\S]*?overflow: visible;/);
+  assert.match(cssSource, /\.orientation-button \{[\s\S]*?width: 38px;[\s\S]*?height: 38px;/);
+  assert.match(cssSource, /\.orientation-menu \{[\s\S]*?position: absolute;[\s\S]*?right: calc\(100% \+ 6px\);[\s\S]*?bottom: 0;/);
+  assert.match(cssSource, /\.orientation-menu\[hidden\] \{[\s\S]*?display: none;/);
   assert.match(cssSource, /\.map-toolbar \{[\s\S]*?border-radius: 20px;[\s\S]*?background: rgba\(255, 250, 245, 0\.94\);/);
-  assert.match(cssSource, /@media \(max-width: 760px\) \{[\s\S]*?\.map-toolbar \{[\s\S]*?gap: 2px;[\s\S]*?\.toolbar-button,[\s\S]*?width: 32px;[\s\S]*?height: 32px;[\s\S]*?\.toolbar-icon,[\s\S]*?width: 18px;[\s\S]*?height: 18px;/);
+  assert.match(cssSource, /@media \(max-width: 760px\) \{[\s\S]*?#tools-overlay \{[\s\S]*?left: 50%;[\s\S]*?right: auto;[\s\S]*?transform: translateX\(-50%\);[\s\S]*?\.map-toolbar \{[\s\S]*?width: fit-content;[\s\S]*?justify-content: center;[\s\S]*?gap: 2px;[\s\S]*?\.toolbar-button,[\s\S]*?width: 32px;[\s\S]*?height: 32px;[\s\S]*?\.toolbar-icon,[\s\S]*?width: 18px;[\s\S]*?height: 18px;/);
+  assert.doesNotMatch(cssSource.match(/^\.map-toolbar \{[\s\S]*?^\}/m)?.[0] ?? "", /justify-content: space-between;/);
 });
 
 test("la barra de herramientas inicia comprimida y conserva un solo temporizador seguro", async () => {
@@ -1506,6 +1662,44 @@ test("la compresion de herramientas se bloquea durante operaciones activas o nav
   assert.match(canSource, /toolbarPointerInside && !options\.manual/);
   assert.match(canSource, /toolsOverlay\?\.contains\(document\.activeElement\) && !options\.manual/);
   assert.match(setupSource, /if \(state\.toolbarCollapsed\) expandToolbar\(\);/);
+});
+
+test("el menu vertical de orientacion conserva funciones y cierre accesible sin almacenamiento", () => {
+  const setupSource = extractFunctionSource(mapSource, "setupUi");
+  const mountSource = extractFunctionSource(mapSource, "mountOrientationControl");
+  const toggleSource = extractFunctionSource(mapSource, "toggleOrientationMenu");
+  const closeSource = extractFunctionSource(mapSource, "closeOrientationMenu");
+  const keySource = extractFunctionSource(mapSource, "handleOrientationMenuKeydown");
+
+  assert.match(mapSource, /orientationMenuOpen: false/);
+  assert.match(mapSource, /orientationMenuTrigger: document\.getElementById\("orientation-menu-trigger"\)/);
+  assert.match(mapSource, /map\.addControl\(new maplibregl\.NavigationControl\(\{ showZoom: false, visualizePitch: true \}\), "bottom-right"\)/);
+  assert.match(mapSource, /map\.addControl\(new maplibregl\.FullscreenControl\(\), "bottom-right"\)/);
+  assert.match(mapSource, /mountOrientationControl\(\)/);
+  assert.match(mountSource, /classList\.remove\("map-overlay", "map-overlay--orientation"\)/);
+  assert.match(mountSource, /classList\.add\("orientation-map-control", "maplibregl-ctrl"\)/);
+  assert.match(mountSource, /map\.addControl\(orientationControl, "bottom-right"\)/);
+  assert.doesNotMatch(mapSource, /toolbarFullscreen|toggleFullscreen|requestFullscreen|exitFullscreen|fullscreenchange/);
+  assert.match(setupSource, /orientationMenuTrigger\?\.addEventListener\("click", toggleOrientationMenu\)/);
+  assert.match(setupSource, /orientationMenu\?\.addEventListener\("keydown", handleOrientationMenuKeydown\)/);
+  assert.match(setupSource, /state\.orientationMenuOpen[\s\S]*closeOrientationMenu\(\)/);
+  assert.match(setupSource, /event\.key === "Escape" && state\.orientationMenuOpen/);
+  assert.match(toggleSource, /state\.orientationMenuOpen = true/);
+  assert.match(toggleSource, /orientationMenu\.hidden = false/);
+  assert.match(toggleSource, /aria-expanded", "true"/);
+  assert.match(closeSource, /state\.orientationMenuOpen = false/);
+  assert.match(closeSource, /orientationMenu\.hidden = true/);
+  assert.match(closeSource, /aria-expanded", "false"/);
+  assert.match(keySource, /ArrowDown/);
+  assert.match(keySource, /ArrowUp/);
+  assert.match(keySource, /Home/);
+  assert.match(keySource, /End/);
+  assert.match(setupSource, /toolbarResetNorth\.addEventListener\("click", resetMapNorth\)/);
+  assert.match(setupSource, /toolbarRotateLeft\.addEventListener\("click", \(\) => rotateMapBy\(-MAP_ROTATION_STEP\)\)/);
+  assert.match(setupSource, /toolbarRotateRight\.addEventListener\("click", \(\) => rotateMapBy\(MAP_ROTATION_STEP\)\)/);
+  assert.match(setupSource, /toolbarPitchUp\.addEventListener\("click", \(\) => adjustMapPitch\(MAP_PITCH_STEP\)\)/);
+  assert.match(setupSource, /toolbarPitchDown\.addEventListener\("click", \(\) => adjustMapPitch\(-MAP_PITCH_STEP\)\)/);
+  assert.doesNotMatch(setupSource + toggleSource + closeSource + keySource, /localStorage|sessionStorage|map\.resize|queueMapResize/);
 });
 
 test("la pila de activacion controla prioridad de consulta y cierre de popup", () => {

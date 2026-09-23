@@ -1,0 +1,6002 @@
+{
+  "generatedAt": "2026-09-23",
+  "script": "scripts/audit-vialidades-nombres.mjs",
+  "officialReference": {
+    "name": "Red Nacional de Caminos (RNC)",
+    "institutions": [
+      "INEGI",
+      "IMT",
+      "SICT"
+    ],
+    "url": "https://www.inegi.org.mx/programas/rnc/",
+    "latestObservedRelease": "RNC 2025, consultada en fuentes oficiales durante septiembre de 2026",
+    "dataDictionaryUrl": "https://inegi.org.mx/contenidos/productos/prod_serv/contenidos/espanol/bvinegi/productos/nueva_estruc/889463927457.pdf",
+    "officialNameField": "Nombre",
+    "officialIdField": "Id_Red",
+    "officialClassField": "Tipo_Vial",
+    "crs": "EPSG:4326 en derivados web; la RNC oficial publica datos georreferenciados nacionales",
+    "useInThisAudit": "Referencia semantica. No se reemplazan nombres por RNC sin identificador comun o comparacion espacial validada."
+  },
+  "totals": {
+    "featureInstances": 86631,
+    "uniqueFeatures": 84375,
+    "namedInstances": 69536,
+    "unnamedInstances": 17095,
+    "automaticCorrectionInstances": 17644,
+    "automaticCorrectionUniqueFeatures": 17206
+  },
+  "levels": {
+    "1": {
+      "level": 1,
+      "featureInstances": 30,
+      "uniqueFeatures": 30,
+      "namedInstances": 30,
+      "unnamedInstances": 0,
+      "uniqueNames": 30,
+      "repeatedNames": 0,
+      "automaticCorrectionInstances": 8,
+      "automaticCorrectionUniqueFeatures": 8,
+      "needsOfficialSourceInstances": 0,
+      "ambiguousUnchangedInstances": 0,
+      "problemCounts": {
+        "mojibake": 8,
+        "correccion_automatica_segura": 8
+      }
+    },
+    "2": {
+      "level": 2,
+      "featureInstances": 5454,
+      "uniqueFeatures": 5454,
+      "namedInstances": 5454,
+      "unnamedInstances": 0,
+      "uniqueNames": 224,
+      "repeatedNames": 200,
+      "automaticCorrectionInstances": 1583,
+      "automaticCorrectionUniqueFeatures": 1583,
+      "needsOfficialSourceInstances": 0,
+      "ambiguousUnchangedInstances": 0,
+      "problemCounts": {
+        "mojibake": 1583,
+        "correccion_automatica_segura": 1583
+      }
+    },
+    "3": {
+      "level": 3,
+      "featureInstances": 81147,
+      "uniqueFeatures": 78891,
+      "namedInstances": 64052,
+      "unnamedInstances": 17095,
+      "uniqueNames": 5902,
+      "repeatedNames": 4101,
+      "automaticCorrectionInstances": 16053,
+      "automaticCorrectionUniqueFeatures": 15615,
+      "needsOfficialSourceInstances": 169,
+      "ambiguousUnchangedInstances": 169,
+      "problemCounts": {
+        "null": 17095,
+        "mojibake": 16134,
+        "correccion_automatica_segura": 16053,
+        "solo_numero_o_clave": 119,
+        "mayusculas_mecanicas": 31,
+        "espacios_duplicados": 9,
+        "generico": 19
+      }
+    }
+  },
+  "vial3Manifest": {
+    "sourceFeatureCount": 78892,
+    "renderFeatureCount": 78891,
+    "chunkCount": 191,
+    "featureInstancesInChunks": 81147,
+    "namedInstancePercent": 78.93,
+    "unnamedInstancePercent": 21.07
+  },
+  "rules": {
+    "safeAutomaticCorrections": [
+      "decodificacion de mojibake UTF-8 leido como Latin-1/CP1252",
+      "entidades HTML basicas",
+      "espacios duplicados, extremos y caracteres de control invisibles"
+    ],
+    "notAutomaticallyChanged": [
+      "acentos no demostrables por codificacion",
+      "nombres propios, toponimos, abreviaturas, claves y mayusculas",
+      "variantes ortograficas sin identificador oficial comun"
+    ],
+    "displayedField": "nombre_mostrar",
+    "preservedField": "nombre"
+  },
+  "diagnosticCases": [
+    {
+      "level": 1,
+      "id": 20,
+      "file": "data/base/vialidades/vialidades_nivel_1.geojson",
+      "chunkId": null,
+      "originalName": "Amayuca - IzÃºcar de Matamoros",
+      "displayName": "Amayuca - Izúcar de Matamoros",
+      "normalizedForComparison": "amayuca - izucar de matamoros",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "MultiLineString",
+      "approximateCoordinate": [
+        -98.765663,
+        18.506446
+      ],
+      "classification": 1
+    },
+    {
+      "level": 1,
+      "id": 54,
+      "file": "data/base/vialidades/vialidades_nivel_1.geojson",
+      "chunkId": null,
+      "originalName": "Cuernavaca - TepoztlÃ¡n",
+      "displayName": "Cuernavaca - Tepoztlán",
+      "normalizedForComparison": "cuernavaca - tepoztlan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "MultiLineString",
+      "approximateCoordinate": [
+        -99.211807,
+        18.969733
+      ],
+      "classification": 1
+    },
+    {
+      "level": 1,
+      "id": 89,
+      "file": "data/base/vialidades/vialidades_nivel_1.geojson",
+      "chunkId": null,
+      "originalName": "Jantetelco - El HiguerÃ³n",
+      "displayName": "Jantetelco - El Higuerón",
+      "normalizedForComparison": "jantetelco - el higueron",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.229478,
+        18.569107
+      ],
+      "classification": 1
+    },
+    {
+      "level": 1,
+      "id": 111,
+      "file": "data/base/vialidades/vialidades_nivel_1.geojson",
+      "chunkId": null,
+      "originalName": "Libramiento de Cuernavaca (Paso ExprÃ©s)",
+      "displayName": "Libramiento de Cuernavaca (Paso Exprés)",
+      "normalizedForComparison": "libramiento de cuernavaca (paso expres)",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "MultiLineString",
+      "approximateCoordinate": [
+        -99.227077,
+        18.894949
+      ],
+      "classification": 1
+    },
+    {
+      "level": 1,
+      "id": 118,
+      "file": "data/base/vialidades/vialidades_nivel_1.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "MultiLineString",
+      "approximateCoordinate": [
+        -99.246725,
+        18.965116
+      ],
+      "classification": 1
+    },
+    {
+      "level": 1,
+      "id": 176,
+      "file": "data/base/vialidades/vialidades_nivel_1.geojson",
+      "chunkId": null,
+      "originalName": "Ramal a Tetela del VolcÃ¡n",
+      "displayName": "Ramal a Tetela del Volcán",
+      "normalizedForComparison": "ramal a tetela del volcan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "MultiLineString",
+      "approximateCoordinate": [
+        -98.857155,
+        18.872775
+      ],
+      "classification": 1
+    },
+    {
+      "level": 1,
+      "id": 190,
+      "file": "data/base/vialidades/vialidades_nivel_1.geojson",
+      "chunkId": null,
+      "originalName": "Santa BÃ¡rbara - IzÃºcar de Matamoros",
+      "displayName": "Santa Bárbara - Izúcar de Matamoros",
+      "normalizedForComparison": "santa barbara - izucar de matamoros",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "MultiLineString",
+      "approximateCoordinate": [
+        -98.727338,
+        18.664396
+      ],
+      "classification": 1
+    },
+    {
+      "level": 1,
+      "id": 204,
+      "file": "data/base/vialidades/vialidades_nivel_1.geojson",
+      "chunkId": null,
+      "originalName": "TepoztlÃ¡n - Yautepec",
+      "displayName": "Tepoztlán - Yautepec",
+      "normalizedForComparison": "tepoztlan - yautepec",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.083511,
+        18.979896
+      ],
+      "classification": 1
+    },
+    {
+      "level": 2,
+      "id": 29542,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Tenancingo de Degollado - San AndrÃ©s NicolÃ¡s Bravo",
+      "displayName": "Tenancingo de Degollado - San Andrés Nicolás Bravo",
+      "normalizedForComparison": "tenancingo de degollado - san andres nicolas bravo",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.465758,
+        18.759798
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 29587,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Cuernavaca - TepoztlÃ¡n",
+      "displayName": "Cuernavaca - Tepoztlán",
+      "normalizedForComparison": "cuernavaca - tepoztlan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.108146,
+        18.98273
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 29631,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Ramal a AmatlÃ¡n",
+      "displayName": "Ramal a Amatlán",
+      "normalizedForComparison": "ramal a amatlan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.053522,
+        18.970606
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 29690,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Cuernavaca - TepoztlÃ¡n",
+      "displayName": "Cuernavaca - Tepoztlán",
+      "normalizedForComparison": "cuernavaca - tepoztlan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.209611,
+        18.969765
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 29711,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.257721,
+        18.991378
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 29734,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "TepoztlÃ¡n - Yautepec",
+      "displayName": "Tepoztlán - Yautepec",
+      "normalizedForComparison": "tepoztlan - yautepec",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.077078,
+        18.972995
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 29781,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.162237,
+        19.013343
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 29794,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.248244,
+        18.969157
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 29808,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.177082,
+        19.007819
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 29839,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Libramiento de Cuernavaca (Paso ExprÃ©s)",
+      "displayName": "Libramiento de Cuernavaca (Paso Exprés)",
+      "normalizedForComparison": "libramiento de cuernavaca (paso expres)",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.2199,
+        18.958837
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 29908,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.247138,
+        18.965984
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 29923,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.258922,
+        19.001253
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 29949,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Ramal a AmatlÃ¡n",
+      "displayName": "Ramal a Amatlán",
+      "normalizedForComparison": "ramal a amatlan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.038926,
+        18.97405
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 29976,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Libramiento de Cuernavaca (Paso ExprÃ©s)",
+      "displayName": "Libramiento de Cuernavaca (Paso Exprés)",
+      "normalizedForComparison": "libramiento de cuernavaca (paso expres)",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.233274,
+        18.962879
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 29979,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Cuernavaca - TepoztlÃ¡n",
+      "displayName": "Cuernavaca - Tepoztlán",
+      "normalizedForComparison": "cuernavaca - tepoztlan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.194857,
+        18.971724
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 30006,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "E.C. ChiverÃ­as - Entronque El Abanico",
+      "displayName": "E.C. Chiverías - Entronque El Abanico",
+      "normalizedForComparison": "e.c. chiverias - entronque el abanico",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.263745,
+        18.64687
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 30007,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Estado de MÃ©xico - Tres MarÃ­as",
+      "displayName": "Estado de México - Tres Marías",
+      "normalizedForComparison": "estado de mexico - tres marias",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.227595,
+        19.086174
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 30020,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Cuernavaca - TepoztlÃ¡n",
+      "displayName": "Cuernavaca - Tepoztlán",
+      "normalizedForComparison": "cuernavaca - tepoztlan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.213165,
+        18.969594
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 30063,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.240197,
+        18.971646
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 30067,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Cuernavaca - TepoztlÃ¡n",
+      "displayName": "Cuernavaca - Tepoztlán",
+      "normalizedForComparison": "cuernavaca - tepoztlan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.211977,
+        18.969773
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 30096,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Vicente Aranda - El Chisco - La FundiciÃ³n",
+      "displayName": "Vicente Aranda - El Chisco - La Fundición",
+      "normalizedForComparison": "vicente aranda - el chisco - la fundicion",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.236688,
+        18.562419
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 30148,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.25199,
+        18.974117
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 30150,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.258392,
+        18.998198
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 30151,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.247749,
+        18.968143
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 30161,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Libramiento de Cuernavaca (Paso ExprÃ©s)",
+      "displayName": "Libramiento de Cuernavaca (Paso Exprés)",
+      "normalizedForComparison": "libramiento de cuernavaca (paso expres)",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.235862,
+        18.965957
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 30186,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Cuernavaca - TepoztlÃ¡n",
+      "displayName": "Cuernavaca - Tepoztlán",
+      "normalizedForComparison": "cuernavaca - tepoztlan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.147709,
+        18.97425
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 30199,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.141064,
+        19.021272
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 30240,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "TepoztlÃ¡n - Yautepec",
+      "displayName": "Tepoztlán - Yautepec",
+      "normalizedForComparison": "tepoztlan - yautepec",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.077743,
+        18.97457
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 30247,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Libramiento de Cuernavaca (Paso ExprÃ©s)",
+      "displayName": "Libramiento de Cuernavaca (Paso Exprés)",
+      "normalizedForComparison": "libramiento de cuernavaca (paso expres)",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.194418,
+        18.936225
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 30257,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.232014,
+        18.975545
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 30286,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MiacatlÃ¡n El Muelle Coatetelco",
+      "displayName": "Miacatlán El Muelle Coatetelco",
+      "normalizedForComparison": "miacatlan el muelle coatetelco",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.325052,
+        18.760703
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 30311,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.211195,
+        18.985642
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 30333,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.139946,
+        19.020415
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 30391,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Libramiento de Cuernavaca (Paso ExprÃ©s)",
+      "displayName": "Libramiento de Cuernavaca (Paso Exprés)",
+      "normalizedForComparison": "libramiento de cuernavaca (paso expres)",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.226228,
+        18.958953
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 30441,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Cuernavaca - TepoztlÃ¡n",
+      "displayName": "Cuernavaca - Tepoztlán",
+      "normalizedForComparison": "cuernavaca - tepoztlan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.212609,
+        18.969647
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 30462,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.237173,
+        19.070483
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 30463,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Libramiento de Cuernavaca (Paso ExprÃ©s)",
+      "displayName": "Libramiento de Cuernavaca (Paso Exprés)",
+      "normalizedForComparison": "libramiento de cuernavaca (paso expres)",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.232206,
+        18.962276
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 30464,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "A El RincÃ³n",
+      "displayName": "A El Rincón",
+      "normalizedForComparison": "a el rincon",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.360712,
+        18.778019
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 30482,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.236902,
+        19.070673
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 30515,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MiacatlÃ¡n - PalpÃ¡n",
+      "displayName": "Miacatlán - Palpán",
+      "normalizedForComparison": "miacatlan - palpan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.357225,
+        18.774483
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 30620,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MiacatlÃ¡n - PalpÃ¡n",
+      "displayName": "Miacatlán - Palpán",
+      "normalizedForComparison": "miacatlan - palpan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.357386,
+        18.774516
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 30661,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "E.C. ChiverÃ­as - Entronque El Abanico",
+      "displayName": "E.C. Chiverías - Entronque El Abanico",
+      "normalizedForComparison": "e.c. chiverias - entronque el abanico",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.300841,
+        18.647904
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 30703,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.257438,
+        18.988113
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 30753,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.250213,
+        18.971179
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 30791,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Cuernavaca - TepoztlÃ¡n",
+      "displayName": "Cuernavaca - Tepoztlán",
+      "normalizedForComparison": "cuernavaca - tepoztlan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.182464,
+        18.975452
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 30792,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.236945,
+        19.070754
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 30794,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MiacatlÃ¡n - Palpan",
+      "displayName": "Miacatlán - Palpan",
+      "normalizedForComparison": "miacatlan - palpan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.426521,
+        18.864585
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 30806,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.255911,
+        18.983855
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 30822,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.16398,
+        19.013138
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 30825,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "(El CapulÃ­n - Chalma) - San AndrÃ©s NicolÃ¡s Bravo",
+      "displayName": "(El Capulín - Chalma) - San Andrés Nicolás Bravo",
+      "normalizedForComparison": "(el capulin - chalma) - san andres nicolas bravo",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.464971,
+        18.760814
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 30842,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.214243,
+        19.091068
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 30867,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Ramal a MiahuatlÃ¡n",
+      "displayName": "Ramal a Miahuatlán",
+      "normalizedForComparison": "ramal a miahuatlan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.353212,
+        18.589614
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 30916,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.153479,
+        19.019533
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 30927,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MiacatlÃ¡n - PalpÃ¡n",
+      "displayName": "Miacatlán - Palpán",
+      "normalizedForComparison": "miacatlan - palpan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.360206,
+        18.775172
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 30991,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Libramiento de Cuernavaca (Paso ExprÃ©s)",
+      "displayName": "Libramiento de Cuernavaca (Paso Exprés)",
+      "normalizedForComparison": "libramiento de cuernavaca (paso expres)",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.222213,
+        18.900467
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 31000,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Cuernavaca - TepoztlÃ¡n",
+      "displayName": "Cuernavaca - Tepoztlán",
+      "normalizedForComparison": "cuernavaca - tepoztlan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.138337,
+        18.972678
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 31014,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.241576,
+        19.053434
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 31019,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "E.C. ChiverÃ­as - Entronque El Abanico",
+      "displayName": "E.C. Chiverías - Entronque El Abanico",
+      "normalizedForComparison": "e.c. chiverias - entronque el abanico",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.243341,
+        18.643144
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 31038,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.259732,
+        18.996252
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 31043,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.247683,
+        18.967974
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 31064,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Cuernavaca - TepoztlÃ¡n",
+      "displayName": "Cuernavaca - Tepoztlán",
+      "normalizedForComparison": "cuernavaca - tepoztlan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.14878,
+        18.974887
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 31070,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.256912,
+        18.987341
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 31095,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.24753,
+        18.967585
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 31109,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Cuernavaca - TepoztlÃ¡n",
+      "displayName": "Cuernavaca - Tepoztlán",
+      "normalizedForComparison": "cuernavaca - tepoztlan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.200574,
+        18.971155
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 31160,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Cuernavaca - TepoztlÃ¡n",
+      "displayName": "Cuernavaca - Tepoztlán",
+      "normalizedForComparison": "cuernavaca - tepoztlan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.142403,
+        18.973015
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 31170,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Cuernavaca - TepoztlÃ¡n",
+      "displayName": "Cuernavaca - Tepoztlán",
+      "normalizedForComparison": "cuernavaca - tepoztlan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.201133,
+        18.970436
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 31173,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "CoatlÃ¡n del RÃ­o - Tilancingo",
+      "displayName": "Coatlán del Río - Tilancingo",
+      "normalizedForComparison": "coatlan del rio - tilancingo",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.438501,
+        18.740706
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 31189,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "(El CapulÃ­n - Chalma) - San AndrÃ©s NicolÃ¡s Bravo",
+      "displayName": "(El Capulín - Chalma) - San Andrés Nicolás Bravo",
+      "normalizedForComparison": "(el capulin - chalma) - san andres nicolas bravo",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.465422,
+        18.761489
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 31196,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.255513,
+        18.983863
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 31219,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.257428,
+        18.987697
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 31240,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.238943,
+        19.059681
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 31277,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Cuernavaca - TepoztlÃ¡n",
+      "displayName": "Cuernavaca - Tepoztlán",
+      "normalizedForComparison": "cuernavaca - tepoztlan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.152877,
+        18.976704
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 31308,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "CoatlÃ¡n del RÃ­o - Tilancingo",
+      "displayName": "Coatlán del Río - Tilancingo",
+      "normalizedForComparison": "coatlan del rio - tilancingo",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.436458,
+        18.742063
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 31363,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Libramiento de Cuernavaca (Paso ExprÃ©s)",
+      "displayName": "Libramiento de Cuernavaca (Paso Exprés)",
+      "normalizedForComparison": "libramiento de cuernavaca (paso expres)",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.201087,
+        18.931239
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 31398,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Ramal a AmatlÃ¡n",
+      "displayName": "Ramal a Amatlán",
+      "normalizedForComparison": "ramal a amatlan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.073482,
+        18.974326
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 31419,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Cuernavaca - TepoztlÃ¡n",
+      "displayName": "Cuernavaca - Tepoztlán",
+      "normalizedForComparison": "cuernavaca - tepoztlan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.208062,
+        18.969824
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 31432,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Libramiento de Cuernavaca (Paso ExprÃ©s)",
+      "displayName": "Libramiento de Cuernavaca (Paso Exprés)",
+      "normalizedForComparison": "libramiento de cuernavaca (paso expres)",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.191492,
+        18.937834
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 31446,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.259416,
+        18.997313
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 31484,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "E.C. ChiverÃ­as - Entronque El Abanico",
+      "displayName": "E.C. Chiverías - Entronque El Abanico",
+      "normalizedForComparison": "e.c. chiverias - entronque el abanico",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.265897,
+        18.64651
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 31502,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Miacatlan - PalpÃ¡n",
+      "displayName": "Miacatlan - Palpán",
+      "normalizedForComparison": "miacatlan - palpan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.39953,
+        18.83365
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 31581,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.14086,
+        19.020318
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 31627,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.254454,
+        18.979374
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 31628,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.252268,
+        18.975585
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 31631,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Cuernavaca - TepoztlÃ¡n",
+      "displayName": "Cuernavaca - Tepoztlán",
+      "normalizedForComparison": "cuernavaca - tepoztlan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.211973,
+        18.969683
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 31671,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.251875,
+        18.973276
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 31695,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.177617,
+        19.007533
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 31737,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MiacatlÃ¡n - Palpan",
+      "displayName": "Miacatlán - Palpan",
+      "normalizedForComparison": "miacatlan - palpan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.425615,
+        18.863517
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 31741,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Cuernavaca - TepoztlÃ¡n",
+      "displayName": "Cuernavaca - Tepoztlán",
+      "normalizedForComparison": "cuernavaca - tepoztlan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.146684,
+        18.973677
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 31752,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "TepoztlÃ¡n - San Juan Tlacotenco",
+      "displayName": "Tepoztlán - San Juan Tlacotenco",
+      "normalizedForComparison": "tepoztlan - san juan tlacotenco",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.114153,
+        18.999856
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 31762,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.139955,
+        19.020343
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 31822,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.256059,
+        18.988812
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 31845,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.232104,
+        18.975595
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 31850,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Libramiento de Cuernavaca (Paso ExprÃ©s)",
+      "displayName": "Libramiento de Cuernavaca (Paso Exprés)",
+      "normalizedForComparison": "libramiento de cuernavaca (paso expres)",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.222186,
+        18.900395
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 31857,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.256506,
+        18.987201
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 31884,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "E.C. ChiverÃ­as - Entronque El Abanico",
+      "displayName": "E.C. Chiverías - Entronque El Abanico",
+      "normalizedForComparison": "e.c. chiverias - entronque el abanico",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.26641,
+        18.646328
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 31927,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.169328,
+        19.010282
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 31928,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.238358,
+        19.047903
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 31930,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.247439,
+        18.967345
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 31967,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.219994,
+        19.088593
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 31984,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MiacatlÃ¡n - PalpÃ¡n",
+      "displayName": "Miacatlán - Palpán",
+      "normalizedForComparison": "miacatlan - palpan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.354,
+        18.773826
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 31998,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "E.C. ChiverÃ­as - Entronque El Abanico",
+      "displayName": "E.C. Chiverías - Entronque El Abanico",
+      "normalizedForComparison": "e.c. chiverias - entronque el abanico",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.272024,
+        18.644382
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 32026,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MiacatlÃ¡n - PalpÃ¡n",
+      "displayName": "Miacatlán - Palpán",
+      "normalizedForComparison": "miacatlan - palpan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.358156,
+        18.774682
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 32069,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MiacatlÃ¡n - Palpan",
+      "displayName": "Miacatlán - Palpan",
+      "normalizedForComparison": "miacatlan - palpan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.429709,
+        18.867471
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 32168,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Cuernavaca - TepoztlÃ¡n",
+      "displayName": "Cuernavaca - Tepoztlán",
+      "normalizedForComparison": "cuernavaca - tepoztlan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.106674,
+        18.982016
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 32204,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Cuernavaca - TepoztlÃ¡n",
+      "displayName": "Cuernavaca - Tepoztlán",
+      "normalizedForComparison": "cuernavaca - tepoztlan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.14535,
+        18.972958
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 32239,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MiacatlÃ¡n - El Muelle - Coatetelco",
+      "displayName": "Miacatlán - El Muelle - Coatetelco",
+      "normalizedForComparison": "miacatlan - el muelle - coatetelco",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.326267,
+        18.738181
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 32242,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Cuernavaca - TepoztlÃ¡n",
+      "displayName": "Cuernavaca - Tepoztlán",
+      "normalizedForComparison": "cuernavaca - tepoztlan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.191225,
+        18.972396
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 32271,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "(El CapulÃ­n - Chalma) - San AndrÃ©s NicolÃ¡s Bravo",
+      "displayName": "(El Capulín - Chalma) - San Andrés Nicolás Bravo",
+      "normalizedForComparison": "(el capulin - chalma) - san andres nicolas bravo",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.465318,
+        18.761893
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 32287,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.246877,
+        18.965677
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 32342,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.254172,
+        18.979063
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 32343,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Cuernavaca - TepoztlÃ¡n",
+      "displayName": "Cuernavaca - Tepoztlán",
+      "normalizedForComparison": "cuernavaca - tepoztlan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.148551,
+        18.974721
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 32349,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.25372,
+        18.982828
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 32372,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Libramiento de Cuernavaca (Paso ExprÃ©s)",
+      "displayName": "Libramiento de Cuernavaca (Paso Exprés)",
+      "normalizedForComparison": "libramiento de cuernavaca (paso expres)",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.191535,
+        18.937898
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 32376,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.175594,
+        19.008577
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 32481,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "TepoztlÃ¡n - Yautepec",
+      "displayName": "Tepoztlán - Yautepec",
+      "normalizedForComparison": "tepoztlan - yautepec",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.070651,
+        18.965122
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 32503,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "TepoztlÃ¡n - San Juan Tlacotenco",
+      "displayName": "Tepoztlán - San Juan Tlacotenco",
+      "normalizedForComparison": "tepoztlan - san juan tlacotenco",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.096204,
+        19.019161
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 32523,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MiacatlÃ¡n - Palpan",
+      "displayName": "Miacatlán - Palpan",
+      "normalizedForComparison": "miacatlan - palpan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.425121,
+        18.861358
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 32542,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Libramiento de Cuernavaca (Paso ExprÃ©s)",
+      "displayName": "Libramiento de Cuernavaca (Paso Exprés)",
+      "normalizedForComparison": "libramiento de cuernavaca (paso expres)",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.222194,
+        18.957118
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 32550,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Cuernavaca - TepoztlÃ¡n",
+      "displayName": "Cuernavaca - Tepoztlán",
+      "normalizedForComparison": "cuernavaca - tepoztlan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.145799,
+        18.973194
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 32565,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "CoatlÃ¡n del RÃ­o - Tilancingo",
+      "displayName": "Coatlán del Río - Tilancingo",
+      "normalizedForComparison": "coatlan del rio - tilancingo",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.456123,
+        18.737633
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 32583,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MiacatlÃ¡n - PalpÃ¡n",
+      "displayName": "Miacatlán - Palpán",
+      "normalizedForComparison": "miacatlan - palpan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.378009,
+        18.791805
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 32611,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Cuernavaca - TepoztlÃ¡n",
+      "displayName": "Cuernavaca - Tepoztlán",
+      "normalizedForComparison": "cuernavaca - tepoztlan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.186371,
+        18.975106
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 32629,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Tehuixtla - RÃ­o Seco",
+      "displayName": "Tehuixtla - Río Seco",
+      "normalizedForComparison": "tehuixtla - rio seco",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.255735,
+        18.553245
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 32638,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Cuernavaca - TepoztlÃ¡n",
+      "displayName": "Cuernavaca - Tepoztlán",
+      "normalizedForComparison": "cuernavaca - tepoztlan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.144058,
+        18.973261
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 32656,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Cuernavaca - TepoztlÃ¡n",
+      "displayName": "Cuernavaca - Tepoztlán",
+      "normalizedForComparison": "cuernavaca - tepoztlan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.111729,
+        18.981927
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 32668,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Libramiento de Cuernavaca (Paso ExprÃ©s)",
+      "displayName": "Libramiento de Cuernavaca (Paso Exprés)",
+      "normalizedForComparison": "libramiento de cuernavaca (paso expres)",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.233244,
+        18.962952
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 32670,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Tres MarÃ­as - Santa Martha",
+      "displayName": "Tres Marías - Santa Martha",
+      "normalizedForComparison": "tres marias - santa martha",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.31463,
+        19.054471
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 32706,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Ramal a AmatlÃ¡n",
+      "displayName": "Ramal a Amatlán",
+      "normalizedForComparison": "ramal a amatlan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.046593,
+        18.972327
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 32735,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Cuernavaca - TepoztlÃ¡n",
+      "displayName": "Cuernavaca - Tepoztlán",
+      "normalizedForComparison": "cuernavaca - tepoztlan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.21318,
+        18.969695
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 32778,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Tenancingo de Degollado - San AndrÃ©s NicolÃ¡s Bravo",
+      "displayName": "Tenancingo de Degollado - San Andrés Nicolás Bravo",
+      "normalizedForComparison": "tenancingo de degollado - san andres nicolas bravo",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.465248,
+        18.76014
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 32798,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.153529,
+        19.019405
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 32856,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MiacatlÃ¡n - Palpan",
+      "displayName": "Miacatlán - Palpan",
+      "normalizedForComparison": "miacatlan - palpan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.42914,
+        18.86547
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 32860,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.239654,
+        19.048729
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 32866,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.258686,
+        18.992879
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 32899,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "TepoztlÃ¡n - Yautepec",
+      "displayName": "Tepoztlán - Yautepec",
+      "normalizedForComparison": "tepoztlan - yautepec",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.068785,
+        18.92554
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 32915,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Cuernavaca - TepoztlÃ¡n",
+      "displayName": "Cuernavaca - Tepoztlán",
+      "normalizedForComparison": "cuernavaca - tepoztlan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.213412,
+        18.969638
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 32954,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "ChavarrÃ­a - Cuernavaquita",
+      "displayName": "Chavarría - Cuernavaquita",
+      "normalizedForComparison": "chavarria - cuernavaquita",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.4641,
+        18.723614
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 32999,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MiacatlÃ¡n - PalpÃ¡n",
+      "displayName": "Miacatlán - Palpán",
+      "normalizedForComparison": "miacatlan - palpan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.377111,
+        18.790625
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 33035,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.248003,
+        18.968712
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 33072,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Libramiento TicumÃ¡n",
+      "displayName": "Libramiento Ticumán",
+      "normalizedForComparison": "libramiento ticuman",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.107556,
+        18.76823
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 33102,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Ramal a AmatlÃ¡n",
+      "displayName": "Ramal a Amatlán",
+      "normalizedForComparison": "ramal a amatlan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.037152,
+        18.975822
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 33144,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.253565,
+        18.982233
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 33160,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.25937,
+        18.996844
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 33161,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Libramiento de Cuernavaca (Paso ExprÃ©s)",
+      "displayName": "Libramiento de Cuernavaca (Paso Exprés)",
+      "normalizedForComparison": "libramiento de cuernavaca (paso expres)",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.199812,
+        18.932901
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 33163,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Cuernavaca - TepoztlÃ¡n",
+      "displayName": "Cuernavaca - Tepoztlán",
+      "normalizedForComparison": "cuernavaca - tepoztlan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.104141,
+        18.980854
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 33187,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.241359,
+        19.056277
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 33248,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.235812,
+        18.965991
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 33263,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.253368,
+        18.977532
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 33290,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Cuernavaca - TepoztlÃ¡n",
+      "displayName": "Cuernavaca - Tepoztlán",
+      "normalizedForComparison": "cuernavaca - tepoztlan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.110145,
+        18.982157
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 33304,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Cuernavaca - TepoztlÃ¡n",
+      "displayName": "Cuernavaca - Tepoztlán",
+      "normalizedForComparison": "cuernavaca - tepoztlan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.112375,
+        18.981685
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 33314,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca Cuota",
+      "displayName": "México - Cuernavaca Cuota",
+      "normalizedForComparison": "mexico - cuernavaca cuota",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.214152,
+        19.09107
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 33330,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.164907,
+        19.012841
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 33344,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Cuernavaca - TepoztlÃ¡n",
+      "displayName": "Cuernavaca - Tepoztlán",
+      "normalizedForComparison": "cuernavaca - tepoztlan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.185523,
+        18.9758
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 33388,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "TepoztlÃ¡n - Yautepec",
+      "displayName": "Tepoztlán - Yautepec",
+      "normalizedForComparison": "tepoztlan - yautepec",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.081664,
+        18.979076
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 33395,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Cuernavaca - TepoztlÃ¡n",
+      "displayName": "Cuernavaca - Tepoztlán",
+      "normalizedForComparison": "cuernavaca - tepoztlan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.155199,
+        18.97566
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 33399,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Cuernavaca - TepoztlÃ¡n",
+      "displayName": "Cuernavaca - Tepoztlán",
+      "normalizedForComparison": "cuernavaca - tepoztlan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.143368,
+        18.973348
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 33484,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "TepoztlÃ¡n - Yautepec",
+      "displayName": "Tepoztlán - Yautepec",
+      "normalizedForComparison": "tepoztlan - yautepec",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.077371,
+        18.947161
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 33498,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Ramal a AmatlÃ¡n",
+      "displayName": "Ramal a Amatlán",
+      "normalizedForComparison": "ramal a amatlan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.040738,
+        18.974123
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 33503,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.221031,
+        19.084876
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 33541,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.14009,
+        19.021321
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 33566,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Cuernavaca - TepoztlÃ¡n",
+      "displayName": "Cuernavaca - Tepoztlán",
+      "normalizedForComparison": "cuernavaca - tepoztlan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.108832,
+        18.982555
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 33577,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "E.C. ChiverÃ­as - Entronque El Abanico",
+      "displayName": "E.C. Chiverías - Entronque El Abanico",
+      "normalizedForComparison": "e.c. chiverias - entronque el abanico",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.261667,
+        18.646558
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 33609,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "E.C. ChiverÃ­as - Entronque El Abanico",
+      "displayName": "E.C. Chiverías - Entronque El Abanico",
+      "normalizedForComparison": "e.c. chiverias - entronque el abanico",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.300413,
+        18.647627
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 33635,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Cuernavaca - TepoztlÃ¡n",
+      "displayName": "Cuernavaca - Tepoztlán",
+      "normalizedForComparison": "cuernavaca - tepoztlan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.202064,
+        18.97001
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 33643,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.253367,
+        18.977346
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 33649,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.25338,
+        18.976875
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 33656,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Amacuzac - MiahuatlÃ¡n",
+      "displayName": "Amacuzac - Miahuatlán",
+      "normalizedForComparison": "amacuzac - miahuatlan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.35531,
+        18.59108
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 33661,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Cuernavaca - TepoztlÃ¡n",
+      "displayName": "Cuernavaca - Tepoztlán",
+      "normalizedForComparison": "cuernavaca - tepoztlan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.211807,
+        18.969733
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 33663,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.246952,
+        18.965324
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 33725,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MiacatlÃ¡n - PalpÃ¡n",
+      "displayName": "Miacatlán - Palpán",
+      "normalizedForComparison": "miacatlan - palpan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.3559,
+        18.774184
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 33738,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MiacatlÃ¡n - Palpan",
+      "displayName": "Miacatlán - Palpan",
+      "normalizedForComparison": "miacatlan - palpan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.425693,
+        18.863614
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 33739,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Cuernavaca - TepoztlÃ¡n",
+      "displayName": "Cuernavaca - Tepoztlán",
+      "normalizedForComparison": "cuernavaca - tepoztlan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.140669,
+        18.97308
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 33788,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Cuernavaca - TepoztlÃ¡n",
+      "displayName": "Cuernavaca - Tepoztlán",
+      "normalizedForComparison": "cuernavaca - tepoztlan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.203761,
+        18.969983
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 33798,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.256634,
+        19.000396
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 33809,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Cuernavaca - TepoztlÃ¡n",
+      "displayName": "Cuernavaca - Tepoztlán",
+      "normalizedForComparison": "cuernavaca - tepoztlan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.147286,
+        18.974012
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 33838,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "(El CapulÃ­n - Chalma) - San AndrÃ©s NicolÃ¡s Bravo",
+      "displayName": "(El Capulín - Chalma) - San Andrés Nicolás Bravo",
+      "normalizedForComparison": "(el capulin - chalma) - san andres nicolas bravo",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.463761,
+        18.765054
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 33852,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Libramiento de Cuernavaca (Paso ExprÃ©s)",
+      "displayName": "Libramiento de Cuernavaca (Paso Exprés)",
+      "normalizedForComparison": "libramiento de cuernavaca (paso expres)",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.227076,
+        18.895508
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 33855,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Cuernavaca - TepoztlÃ¡n",
+      "displayName": "Cuernavaca - Tepoztlán",
+      "normalizedForComparison": "cuernavaca - tepoztlan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.14,
+        18.973113
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 33861,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Cuernavaca - TepoztlÃ¡n",
+      "displayName": "Cuernavaca - Tepoztlán",
+      "normalizedForComparison": "cuernavaca - tepoztlan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.184748,
+        18.976138
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 33885,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Libramiento de Cuernavaca (Paso ExprÃ©s)",
+      "displayName": "Libramiento de Cuernavaca (Paso Exprés)",
+      "normalizedForComparison": "libramiento de cuernavaca (paso expres)",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.234673,
+        18.964217
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 33904,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "TepoztlÃ¡n - Yautepec",
+      "displayName": "Tepoztlán - Yautepec",
+      "normalizedForComparison": "tepoztlan - yautepec",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.080627,
+        18.978531
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 33910,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.247408,
+        18.966988
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 34015,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.258922,
+        19.001253
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 34024,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Cuernavaca - TepoztlÃ¡n",
+      "displayName": "Cuernavaca - Tepoztlán",
+      "normalizedForComparison": "cuernavaca - tepoztlan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.187615,
+        18.97399
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 34059,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.237947,
+        18.974122
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 34069,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.247231,
+        18.966314
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 34090,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Miacatlan - PalpÃ¡n",
+      "displayName": "Miacatlan - Palpán",
+      "normalizedForComparison": "miacatlan - palpan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.416594,
+        18.845915
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 34116,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MiacatlÃ¡n - Palpan",
+      "displayName": "Miacatlán - Palpan",
+      "normalizedForComparison": "miacatlan - palpan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.425734,
+        18.861798
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 34160,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.240295,
+        19.057909
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 34180,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MiacatlÃ¡n - Palpan",
+      "displayName": "Miacatlán - Palpan",
+      "normalizedForComparison": "miacatlan - palpan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.426271,
+        18.864386
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 34204,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "Cuernavaca - TepoztlÃ¡n",
+      "displayName": "Cuernavaca - Tepoztlán",
+      "normalizedForComparison": "cuernavaca - tepoztlan",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.20238,
+        18.97001
+      ],
+      "classification": "Carretera"
+    },
+    {
+      "level": 2,
+      "id": 34268,
+      "file": "data/base/vialidades/vialidades_nivel_2.geojson",
+      "chunkId": null,
+      "originalName": "MÃ©xico - Cuernavaca",
+      "displayName": "México - Cuernavaca",
+      "normalizedForComparison": "mexico - cuernavaca",
+      "problems": [
+        "mojibake",
+        "correccion_automatica_segura"
+      ],
+      "confidence": "alta",
+      "source": "normalizacion-segura",
+      "geometryType": "LineString",
+      "approximateCoordinate": [
+        -99.24678,
+        18.965418
+      ],
+      "classification": "Carretera"
+    }
+  ],
+  "ambiguousCases": [
+    {
+      "level": 3,
+      "id": 693818,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_4_8.geojson",
+      "originalName": "13",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3951942,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_4_8.geojson",
+      "originalName": "1",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 31917,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_4_9.geojson",
+      "originalName": "CONALEP",
+      "problems": [
+        "mayusculas_mecanicas"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 33624,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_4_9.geojson",
+      "originalName": "CONALEP",
+      "problems": [
+        "mayusculas_mecanicas"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 694509,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_4_9.geojson",
+      "originalName": "23",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2487225,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_4_9.geojson",
+      "originalName": "CONALEP",
+      "problems": [
+        "mayusculas_mecanicas"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2487226,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_4_9.geojson",
+      "originalName": "CONALEP",
+      "problems": [
+        "mayusculas_mecanicas"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2487227,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_4_9.geojson",
+      "originalName": "CONALEP",
+      "problems": [
+        "mayusculas_mecanicas"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2487228,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_4_9.geojson",
+      "originalName": "CONALEP",
+      "problems": [
+        "mayusculas_mecanicas"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2487229,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_4_9.geojson",
+      "originalName": "CONALEP",
+      "problems": [
+        "mayusculas_mecanicas"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2487230,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_4_9.geojson",
+      "originalName": "CONALEP",
+      "problems": [
+        "mayusculas_mecanicas"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2943073,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_4_9.geojson",
+      "originalName": "1919",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2947894,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_4_9.geojson",
+      "originalName": "1919",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2966568,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_4_9.geojson",
+      "originalName": "307",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2966590,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_4_9.geojson",
+      "originalName": "305",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2966632,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_4_9.geojson",
+      "originalName": "311",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2966633,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_4_9.geojson",
+      "originalName": "306",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2010573,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_4_12.geojson",
+      "originalName": "2",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2010574,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_4_12.geojson",
+      "originalName": "2",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2010575,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_4_12.geojson",
+      "originalName": "2",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2010576,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_4_12.geojson",
+      "originalName": "2",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2010577,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_4_12.geojson",
+      "originalName": "2",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2010578,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_4_12.geojson",
+      "originalName": "2",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3838884,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_4.geojson",
+      "originalName": "7",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3838897,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_4.geojson",
+      "originalName": "7",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3838916,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_4.geojson",
+      "originalName": "3",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3838920,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_4.geojson",
+      "originalName": "3",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3838922,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_4.geojson",
+      "originalName": "8",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3838928,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_4.geojson",
+      "originalName": "4",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3838929,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_4.geojson",
+      "originalName": "4",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3838934,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_4.geojson",
+      "originalName": "5",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3838946,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_4.geojson",
+      "originalName": "8",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3838966,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_4.geojson",
+      "originalName": "7",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3838967,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_4.geojson",
+      "originalName": "3",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3838970,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_4.geojson",
+      "originalName": "4",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3838978,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_4.geojson",
+      "originalName": "7",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3838982,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_4.geojson",
+      "originalName": "6",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3838983,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_4.geojson",
+      "originalName": "7",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3838988,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_4.geojson",
+      "originalName": "5",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3838989,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_4.geojson",
+      "originalName": "2",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3839001,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_4.geojson",
+      "originalName": "6",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3839002,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_4.geojson",
+      "originalName": "1",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3839009,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_4.geojson",
+      "originalName": "7",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3839002,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_5.geojson",
+      "originalName": "1",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 1087636,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_6.geojson",
+      "originalName": "1806",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 1087637,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_6.geojson",
+      "originalName": "1806",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 29842,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_9.geojson",
+      "originalName": "CONALEP",
+      "problems": [
+        "mayusculas_mecanicas"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 29899,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_9.geojson",
+      "originalName": "CONALEP",
+      "problems": [
+        "mayusculas_mecanicas"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 31642,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_9.geojson",
+      "originalName": "CONALEP",
+      "problems": [
+        "mayusculas_mecanicas"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 31815,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_9.geojson",
+      "originalName": "CONALEP",
+      "problems": [
+        "mayusculas_mecanicas"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 33608,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_9.geojson",
+      "originalName": "CONALEP",
+      "problems": [
+        "mayusculas_mecanicas"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 33624,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_9.geojson",
+      "originalName": "CONALEP",
+      "problems": [
+        "mayusculas_mecanicas"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 34101,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_9.geojson",
+      "originalName": "CONALEP",
+      "problems": [
+        "mayusculas_mecanicas"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 35774,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_9.geojson",
+      "originalName": "CONALEP",
+      "problems": [
+        "mayusculas_mecanicas"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 36056,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_9.geojson",
+      "originalName": "CONALEP",
+      "problems": [
+        "mayusculas_mecanicas"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 36677,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_9.geojson",
+      "originalName": "CONALEP",
+      "problems": [
+        "mayusculas_mecanicas"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2467179,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_9.geojson",
+      "originalName": "CONALEP",
+      "problems": [
+        "mayusculas_mecanicas"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2635020,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_9.geojson",
+      "originalName": "CONALEP",
+      "problems": [
+        "mayusculas_mecanicas"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2885231,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_9.geojson",
+      "originalName": "CONALEP",
+      "problems": [
+        "mayusculas_mecanicas"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2885561,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_9.geojson",
+      "originalName": "CONALEP",
+      "problems": [
+        "mayusculas_mecanicas"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2945532,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_9.geojson",
+      "originalName": "5",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2945562,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_9.geojson",
+      "originalName": "6",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2945599,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_9.geojson",
+      "originalName": "9",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2945600,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_9.geojson",
+      "originalName": "1",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2945601,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_9.geojson",
+      "originalName": "3",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2945647,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_9.geojson",
+      "originalName": "4",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2945648,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_9.geojson",
+      "originalName": "6",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2945654,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_9.geojson",
+      "originalName": "2",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2945688,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_9.geojson",
+      "originalName": "1",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2945698,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_9.geojson",
+      "originalName": "1",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2041279,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_11.geojson",
+      "originalName": "30",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2042411,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_11.geojson",
+      "originalName": "36",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2042412,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_11.geojson",
+      "originalName": "36",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2042413,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_11.geojson",
+      "originalName": "36",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2042414,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_11.geojson",
+      "originalName": "36",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2042416,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_11.geojson",
+      "originalName": "36",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2042457,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_11.geojson",
+      "originalName": "34",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2042458,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_11.geojson",
+      "originalName": "34",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2042459,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_11.geojson",
+      "originalName": "34",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2042461,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_11.geojson",
+      "originalName": "34",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2042500,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_11.geojson",
+      "originalName": "32",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2042501,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_11.geojson",
+      "originalName": "32",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2042516,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_11.geojson",
+      "originalName": "32",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2042518,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_11.geojson",
+      "originalName": "32",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2042519,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_11.geojson",
+      "originalName": "32",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2042520,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_11.geojson",
+      "originalName": "32",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2042890,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_11.geojson",
+      "originalName": "32",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2042891,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_11.geojson",
+      "originalName": "32",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2042892,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_11.geojson",
+      "originalName": "32",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2042893,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_11.geojson",
+      "originalName": "32",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2042894,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_11.geojson",
+      "originalName": "32",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2042895,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_11.geojson",
+      "originalName": "32",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2086317,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_11.geojson",
+      "originalName": "36",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2560999,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_11.geojson",
+      "originalName": "2",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2561000,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_11.geojson",
+      "originalName": "2",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2561001,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_11.geojson",
+      "originalName": "2",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2561002,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_11.geojson",
+      "originalName": "2",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 33601,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_12.geojson",
+      "originalName": "PEMEX",
+      "problems": [
+        "mayusculas_mecanicas"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 37126,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_5_12.geojson",
+      "originalName": "PEMEX",
+      "problems": [
+        "mayusculas_mecanicas"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3839828,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_6_5.geojson",
+      "originalName": "6",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3839858,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_6_5.geojson",
+      "originalName": "5",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3839860,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_6_5.geojson",
+      "originalName": "9",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3839873,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_6_5.geojson",
+      "originalName": "4",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3839902,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_6_5.geojson",
+      "originalName": "7",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3839920,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_6_5.geojson",
+      "originalName": "1",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3839943,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_6_5.geojson",
+      "originalName": "2",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3839947,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_6_5.geojson",
+      "originalName": "3",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3839972,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_6_5.geojson",
+      "originalName": "8",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3839979,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_6_5.geojson",
+      "originalName": "8",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2045880,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_6_11.geojson",
+      "originalName": "12",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 921311,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_8_10.geojson",
+      "originalName": "Camino",
+      "problems": [
+        "generico"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 4315453,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_8_10.geojson",
+      "originalName": "2",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 4315475,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_8_10.geojson",
+      "originalName": "3",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 4315477,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_8_10.geojson",
+      "originalName": "4",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 4316831,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_8_10.geojson",
+      "originalName": "4",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 4317060,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_8_10.geojson",
+      "originalName": "2",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 4317141,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_8_10.geojson",
+      "originalName": "3",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 4317147,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_8_10.geojson",
+      "originalName": "4",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2917733,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_9_10.geojson",
+      "originalName": "200",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2917895,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_9_10.geojson",
+      "originalName": "200",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3343642,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_10_8.geojson",
+      "originalName": "1910",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3343645,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_10_8.geojson",
+      "originalName": "1910",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3343654,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_10_8.geojson",
+      "originalName": "1910",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3343668,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_10_8.geojson",
+      "originalName": "1910",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3343669,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_10_8.geojson",
+      "originalName": "1910",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3343689,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_10_8.geojson",
+      "originalName": "1910",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3343820,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_10_8.geojson",
+      "originalName": "1910",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3343851,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_10_8.geojson",
+      "originalName": "1910",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3343933,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_10_8.geojson",
+      "originalName": "1910",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3376778,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_10_8.geojson",
+      "originalName": "1",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3376781,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_10_8.geojson",
+      "originalName": "3",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3376785,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_10_8.geojson",
+      "originalName": "6",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3376804,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_10_8.geojson",
+      "originalName": "2",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3376807,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_10_8.geojson",
+      "originalName": "4",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3376837,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_10_8.geojson",
+      "originalName": "5",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3376852,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_10_8.geojson",
+      "originalName": "3",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3376861,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_10_8.geojson",
+      "originalName": "13",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3343224,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_10_9.geojson",
+      "originalName": "1931",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3343257,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_10_9.geojson",
+      "originalName": "1931",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3343262,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_10_9.geojson",
+      "originalName": "1931",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3414557,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_10_9.geojson",
+      "originalName": "F.F.C.C.",
+      "problems": [
+        "mayusculas_mecanicas"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3414667,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_10_9.geojson",
+      "originalName": "F.F.C.C.",
+      "problems": [
+        "mayusculas_mecanicas"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3414715,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_10_9.geojson",
+      "originalName": "39",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2174702,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_10_10.geojson",
+      "originalName": "Camino",
+      "problems": [
+        "generico"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 2918713,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_10_10.geojson",
+      "originalName": "17",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3430781,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_10_10.geojson",
+      "originalName": "Camino",
+      "problems": [
+        "generico"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 4564051,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_10_11.geojson",
+      "originalName": "3",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 4564080,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_10_11.geojson",
+      "originalName": "4",
+      "problems": [
+        "solo_numero_o_clave"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 1102234,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_10_12.geojson",
+      "originalName": "Camino",
+      "problems": [
+        "generico"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3589116,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_13_6.geojson",
+      "originalName": "Camino",
+      "problems": [
+        "generico"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 1030643,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_13_8.geojson",
+      "originalName": "Camino",
+      "problems": [
+        "generico"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 1030650,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_13_8.geojson",
+      "originalName": "Camino",
+      "problems": [
+        "generico"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 1030651,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_13_8.geojson",
+      "originalName": "Camino",
+      "problems": [
+        "generico"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 1030664,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_13_8.geojson",
+      "originalName": "Camino",
+      "problems": [
+        "generico"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 1233364,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_13_8.geojson",
+      "originalName": "Camino",
+      "problems": [
+        "generico"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3724871,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_13_8.geojson",
+      "originalName": "Camino",
+      "problems": [
+        "generico"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 746791,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_13_10.geojson",
+      "originalName": "Camino",
+      "problems": [
+        "generico"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 746792,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_13_10.geojson",
+      "originalName": "Camino",
+      "problems": [
+        "generico"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 746793,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_13_10.geojson",
+      "originalName": "Camino",
+      "problems": [
+        "generico"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 746794,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_13_10.geojson",
+      "originalName": "Camino",
+      "problems": [
+        "generico"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 746943,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_13_10.geojson",
+      "originalName": "Camino",
+      "problems": [
+        "generico"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 3774197,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_13_10.geojson",
+      "originalName": "Camino",
+      "problems": [
+        "generico"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 4660829,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_14_2.geojson",
+      "originalName": "SEDESOL",
+      "problems": [
+        "mayusculas_mecanicas"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 4660886,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_14_2.geojson",
+      "originalName": "SEDESOL",
+      "problems": [
+        "mayusculas_mecanicas"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 4660910,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_14_2.geojson",
+      "originalName": "SEDESOL",
+      "problems": [
+        "mayusculas_mecanicas"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 4660911,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_14_2.geojson",
+      "originalName": "SEDESOL",
+      "problems": [
+        "mayusculas_mecanicas"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 4660931,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_14_2.geojson",
+      "originalName": "SEDESOL",
+      "problems": [
+        "mayusculas_mecanicas"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 1030643,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_14_8.geojson",
+      "originalName": "Camino",
+      "problems": [
+        "generico"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    },
+    {
+      "level": 3,
+      "id": 1031338,
+      "file": "data/base/vialidades/vialidades_nivel_3/chunk_14_8.geojson",
+      "originalName": "Camino",
+      "problems": [
+        "generico"
+      ],
+      "reason": "No se modifica sin identificador oficial o coincidencia espacial validada."
+    }
+  ]
+}

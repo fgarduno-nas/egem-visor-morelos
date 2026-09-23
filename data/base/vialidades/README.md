@@ -38,3 +38,53 @@ La conversión se realizó desde Shapefile `EPSG:32614` hacia GeoJSON `EPSG:4326
 ## Publicacion
 
 Estos archivos quedan preparados como derivados web para revision publica del Atlas. La procedencia institucional, licencia y atribucion definitiva continuan pendientes de confirmacion.
+
+## Auditoria de nombres viales
+
+Fecha de generacion: 2026-09-23.
+
+Script reproducible: `scripts/audit-vialidades-nombres.mjs`.
+
+Artefactos:
+
+- `diagnostico_nombres_viales.json`: resumen completo de conteos, problemas detectados, casos de muestra y limitaciones.
+- `correcciones_nombres_viales.json`: listado de correcciones automaticas seguras aplicadas como campo derivado.
+- `nombres_viales_mostrar.json`: diccionario compacto `nivel:id -> nombre_mostrar` usado por el visor para aplicar etiquetas corregidas en memoria.
+
+Fuente oficial de referencia:
+
+- Red Nacional de Caminos (RNC), INEGI/IMT/SICT: https://www.inegi.org.mx/programas/rnc/
+- Diccionario de datos RNC 2025: https://inegi.org.mx/contenidos/productos/prod_serv/contenidos/espanol/bvinegi/productos/nueva_estruc/889463927457.pdf
+- Campo oficial de nombre de vialidad: `Nombre`.
+- Identificador oficial de red vial: `Id_Red`.
+- Clasificacion vial oficial: `Tipo_Vial`.
+
+La RNC se usa en esta etapa como referencia semantica de campos. Los derivados actuales no conservan un identificador oficial comun verificable para relacionar cada segmento contra RNC, por lo que no se sustituyen nombres por inferencia espacial ni por diccionario general. Las correcciones aplicadas son exclusivamente de confianza alta por normalizacion segura:
+
+- decodificacion de mojibake inequívoco UTF-8 leido como Latin-1/CP1252;
+- entidades HTML basicas;
+- espacios duplicados, extremos o caracteres invisibles.
+
+No se corrigen automaticamente nombres propios, toponimos, abreviaturas, claves, acentos potencialmente ausentes, mayusculas mecanicas ni variantes ortograficas que requieran confirmacion oficial. Esos casos quedan documentados como ambiguos o pendientes.
+
+Campos de trazabilidad:
+
+- `nombre`: valor original preservado sin cambios destructivos.
+- `nombre_mostrar`: nombre derivado que el visor aplica en memoria desde `nombres_viales_mostrar.json` cuando existe una correccion segura.
+- `correcciones_nombres_viales.json`: registra fuente, confianza, problema detectado, primer archivo y ubicación aproximada para cada correccion unica.
+
+Los campos `nombre_mostrar`, `nombre_fuente` y `nombre_confianza` no se repiten dentro de cada GeoJSON de vialidades para evitar sobrecargar las descargas principales del visor; la etiqueta corregida se aplica desde el diccionario compacto y la trazabilidad completa queda en el artefacto de correcciones.
+
+Conteos finales de auditoria:
+
+- Total de instancias revisadas: 86,631.
+- Features unicas revisadas: 84,375.
+- Instancias con nombre: 69,536.
+- Instancias sin nombre: 17,095.
+- Correcciones automaticas seguras: 17,644 instancias; 17,206 features unicas.
+- `Vial_1`: 30 instancias; 30 con nombre; 8 correcciones seguras.
+- `Vial_2`: 5,454 instancias; 5,454 con nombre; 1,583 correcciones seguras.
+- `Vial_3`: 81,147 instancias en chunks; 64,052 con nombre; 17,095 sin nombre; 16,053 correcciones seguras.
+- `Vial_3` renderizable segun manifest: 78,891 features unicas; 78.93% de instancias con nombre.
+
+La red vial dibujada conserva sus geometrías originales. La deduplicacion de etiquetas se mantiene mediante colisiones y `symbol-spacing` de MapLibre; no se unen geometrías ni se eliminan segmentos para etiquetado.

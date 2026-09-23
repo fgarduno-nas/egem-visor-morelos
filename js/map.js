@@ -304,10 +304,11 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
   ]);
   const LOCALITY_LABEL_MIN_ZOOMS = Object.freeze(LOCALITY_LABEL_TIERS.map((tier) => tier.minZoom));
   const ROAD_REFERENCE_EMPTY_DATA = Object.freeze({ type: "FeatureCollection", features: [] });
+  const ROAD_REFERENCE_DISPLAY_NAMES_URL = "data/base/vialidades/nombres_viales_mostrar.json";
   const ROAD_REFERENCE_LEVELS = Object.freeze({
     1: {
       sourceId: "vialidades-nivel-1-source",
-      layerIds: ["vialidades-nivel-1-halo", "vialidades-nivel-1"],
+      layerIds: ["vialidades-nivel-1-casing", "vialidades-nivel-1-center", "vialidades-nivel-1-label"],
       url: "data/base/vialidades/vialidades_nivel_1.geojson",
       minZoom: 0,
       enterZoom: 0,
@@ -315,7 +316,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     },
     2: {
       sourceId: "vialidades-nivel-2-source",
-      layerIds: ["vialidades-nivel-2-halo", "vialidades-nivel-2"],
+      layerIds: ["vialidades-nivel-2-casing", "vialidades-nivel-2-center", "vialidades-nivel-2-label"],
       url: "data/base/vialidades/vialidades_nivel_2.geojson",
       minZoom: 12.8,
       enterZoom: 12.8,
@@ -323,7 +324,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     },
     3: {
       sourceId: "vialidades-nivel-3-source",
-      layerIds: ["vialidades-nivel-3-halo", "vialidades-nivel-3"],
+      layerIds: ["vialidades-nivel-3-casing", "vialidades-nivel-3-center", "vialidades-nivel-3-label"],
       manifestUrl: "data/base/vialidades/vialidades_nivel_3_manifest.json",
       minZoom: 15.2,
       enterZoom: 15.2,
@@ -364,6 +365,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     toolbarCollapsed: true,
     toolbarPointerInside: false,
     toolbarAutoCollapseTimer: null,
+    orientationMenuOpen: false,
     viewportMode: null,
     isUploading: false,
     remoteSyncInProgress: false,
@@ -397,6 +399,8 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       visibleChunkIds: new Set(),
       level3Manifest: null,
       level3ManifestLoad: null,
+      displayNames: null,
+      displayNamesLoad: null,
       metrics: {
         requestedFiles: [],
         sourceUpdates: 0,
@@ -574,11 +578,13 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     toolbarZoomIn: document.getElementById("toolbar-zoom-in"),
     toolbarZoomOut: document.getElementById("toolbar-zoom-out"),
     toolbarResetNorth: document.getElementById("toolbar-reset-north"),
-    toolbarFullscreen: document.getElementById("toolbar-fullscreen"),
     toolbarRotateLeft: document.getElementById("toolbar-rotate-left"),
     toolbarRotateRight: document.getElementById("toolbar-rotate-right"),
     toolbarPitchUp: document.getElementById("toolbar-pitch-up"),
     toolbarPitchDown: document.getElementById("toolbar-pitch-down"),
+    orientationMenuTrigger: document.getElementById("orientation-menu-trigger"),
+    orientationMenu: document.getElementById("orientation-menu"),
+    orientationOverlay: document.getElementById("orientation-overlay"),
     toolbarMeasure: document.getElementById("toolbar-measure"),
     toolbarAddPoint: document.getElementById("toolbar-add-point"),
     toolbarFocusMorelos: document.getElementById("focus-morelos-menu"),
@@ -587,6 +593,8 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     territorialQueryModal: document.getElementById("territorial-query-modal"),
     closeTerritorialQuery: document.getElementById("close-territorial-query"),
   };
+
+  mountOrientationControl();
 
   map.on("mousemove", (event) => {
     const lon = event.lngLat.lng.toFixed(5);
@@ -643,11 +651,12 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     elements.toolbarZoomIn.addEventListener("click", () => map.zoomIn());
     elements.toolbarZoomOut.addEventListener("click", () => map.zoomOut());
     elements.toolbarResetNorth.addEventListener("click", resetMapNorth);
-    elements.toolbarFullscreen?.addEventListener("click", toggleFullscreen);
     elements.toolbarRotateLeft.addEventListener("click", () => rotateMapBy(-MAP_ROTATION_STEP));
     elements.toolbarRotateRight.addEventListener("click", () => rotateMapBy(MAP_ROTATION_STEP));
     elements.toolbarPitchUp.addEventListener("click", () => adjustMapPitch(MAP_PITCH_STEP));
     elements.toolbarPitchDown.addEventListener("click", () => adjustMapPitch(-MAP_PITCH_STEP));
+    elements.orientationMenuTrigger?.addEventListener("click", toggleOrientationMenu);
+    elements.orientationMenu?.addEventListener("keydown", handleOrientationMenuKeydown);
     elements.toolbarMeasure.addEventListener("click", toggleMeasureTool);
     elements.toolbarAddPoint.addEventListener("click", togglePointTool);
     elements.toolbarFocusMorelos.addEventListener("click", focusMorelos);
@@ -722,6 +731,13 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
         closeBasemapFlyout();
       }
 
+      if (
+        state.orientationMenuOpen &&
+        !elements.orientationOverlay?.contains(event.target)
+      ) {
+        closeOrientationMenu();
+      }
+
       if (!state.compactMenuOpen) return;
       if (
         elements.topbarCompactMenu?.contains(event.target) ||
@@ -741,6 +757,9 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       }
       if (event.key === "Escape" && state.compactMenuOpen) {
         closeCompactMenu({ restoreFocus: true });
+      }
+      if (event.key === "Escape" && state.orientationMenuOpen) {
+        closeOrientationMenu({ restoreFocus: true });
       }
     });
 
@@ -1967,7 +1986,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
         layout: {
           "text-field": ["get", "NOMGEO"],
           "text-font": ["Open Sans Semibold"],
-          "text-size": ["interpolate", ["linear"], ["zoom"], labelTier.minZoom, 10.5, 12, 12, 14, 13.5, 17, 15],
+          "text-size": ["interpolate", ["linear"], ["zoom"], labelTier.minZoom, 12.5, 12, 14, 14, 15.5, 17, 17],
           "text-anchor": "center",
           "text-allow-overlap": false,
           "text-ignore-placement": false,
@@ -1976,10 +1995,10 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
           "symbol-sort-key": ["get", "labelPriority"],
         },
         paint: {
-          "text-color": INSTITUTIONAL_BOUNDARY_COLOR,
-          "text-halo-color": "#fff7ef",
-          "text-halo-width": 1.4,
-          "text-halo-blur": 0.25,
+          "text-color": "#ffffff",
+          "text-halo-color": "rgba(74, 18, 40, 0.92)",
+          "text-halo-width": 1.75,
+          "text-halo-blur": 0.35,
         },
       });
     });
@@ -1987,6 +2006,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     setStaticVisibility("estado", staticLayers.find((layer) => layer.id === "estado").visible);
     setStaticVisibility("municipios", staticLayers.find((layer) => layer.id === "municipios").visible);
     initializeLocalityLabels();
+    updateReferenceRoadLabelPaint();
     ensureReferenceLayerOrder();
     restoreStateBoundaryHighlight();
     bindMunicipiosPopup();
@@ -2008,8 +2028,8 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
           "text-font": ["Open Sans Semibold"],
           "text-size":
             labelTier.type === "cabecera"
-              ? ["interpolate", ["linear"], ["zoom"], labelTier.minZoom, 12, 13.4, 13, 16, 13.5]
-              : ["interpolate", ["linear"], ["zoom"], labelTier.minZoom, 10.5, 14.5, 11.7, 17, 12.5],
+              ? ["interpolate", ["linear"], ["zoom"], labelTier.minZoom, 13.5, 13.4, 14.5, 16, 15]
+              : ["interpolate", ["linear"], ["zoom"], labelTier.minZoom, 11.5, 14.5, 12.7, 17, 13.5],
           "text-anchor": "center",
           "text-allow-overlap": false,
           "text-ignore-placement": false,
@@ -2265,35 +2285,40 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
   }
 
   function addReferenceRoadLayers(level, config) {
-    const haloId = config.layerIds[0];
-    const lineId = config.layerIds[1];
+    const casingId = config.layerIds[0];
+    const centerId = config.layerIds[1];
+    const labelId = config.layerIds[2];
     const visibility = "none";
     const widths = {
-      1: {
-        halo: 0,
-        line: ["interpolate", ["linear"], ["zoom"], 6, 1, 10, 1.35, 13, 1.6],
-      },
-      2: {
-        halo: 0,
-        line: ["interpolate", ["linear"], ["zoom"], 12, 0.8, 14, 1.1, 16, 1.35],
-      },
+      1: { casing: 3.6, center: 1.45 },
+      2: { casing: 5, center: 1.8 },
+      3: { casing: 7, center: 2.4 },
+    };
+    const opacities = {
+      1: { casing: 0.34, center: 0.56 },
+      2: { casing: 0.62, center: 0.82 },
       3: {
-        halo: 0,
-        line: ["interpolate", ["linear"], ["zoom"], 15, 1, 17, 1.28, 19, 1.48],
+        casing: ["interpolate", ["linear"], ["zoom"], 15.2, 0.48, 16, 0.38, 17, 0.27, 18, 0.16],
+        center: ["interpolate", ["linear"], ["zoom"], 15.2, 0.82, 16, 0.74, 17, 0.62, 18, 0.48],
       },
     };
-    const colors = {
-      1: { halo: "#ffffff", line: "#2563eb", haloOpacity: 0, lineOpacity: 0.82 },
-      2: { halo: "#ffffff", line: "#3b82f6", haloOpacity: 0, lineOpacity: 0.74 },
-      3: { halo: "#ffffff", line: "#60a5fa", haloOpacity: 0, lineOpacity: 0.66 },
+    const centerDashArrays = {
+      1: [2.4, 1.6],
+      2: [2, 1.6],
+      3: [1.4, 1.5],
     };
-    const dashArrays = {
-      1: null,
-      2: [2.2, 1.4],
-      3: [1, 1.5],
+    const labelZooms = {
+      1: 9.2,
+      2: 13.3,
+      3: 16,
+    };
+    const labelSizes = {
+      1: 11.8,
+      2: 10.8,
+      3: 9.8,
     };
     addLayerIfMissing({
-      id: haloId,
+      id: casingId,
       type: "line",
       source: config.sourceId,
       layout: {
@@ -2302,23 +2327,14 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
         "line-join": "round",
       },
       paint: {
-        "line-color": colors[level].halo,
-        "line-width": widths[level].halo,
-        "line-opacity": colors[level].haloOpacity,
+        "line-color": "#000000",
+        "line-width": widths[level].casing,
+        "line-opacity": opacities[level].casing,
         "line-blur": 0,
       },
     });
-    const linePaint = {
-      "line-color": colors[level].line,
-      "line-width": widths[level].line,
-      "line-opacity": colors[level].lineOpacity,
-      "line-blur": 0,
-    };
-    if (dashArrays[level]) {
-      linePaint["line-dasharray"] = dashArrays[level];
-    }
     addLayerIfMissing({
-      id: lineId,
+      id: centerId,
       type: "line",
       source: config.sourceId,
       layout: {
@@ -2326,7 +2342,91 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
         "line-cap": "round",
         "line-join": "round",
       },
-      paint: linePaint,
+      paint: {
+        "line-color": "#ffffff",
+        "line-width": widths[level].center,
+        "line-opacity": opacities[level].center,
+        "line-dasharray": centerDashArrays[level],
+        "line-blur": 0,
+      },
+    });
+    addLayerIfMissing({
+      id: labelId,
+      type: "symbol",
+      source: config.sourceId,
+      minzoom: labelZooms[level],
+      filter: [
+        "any",
+        [
+          "all",
+          ["has", "nombre_mostrar"],
+          ["!=", ["get", "nombre_mostrar"], ""],
+          ["!=", ["downcase", ["get", "nombre_mostrar"]], "sin nombre"],
+          ["!=", ["downcase", ["get", "nombre_mostrar"]], "s/n"],
+        ],
+        [
+          "all",
+          ["has", "nombre"],
+          ["!=", ["get", "nombre"], ""],
+          ["!=", ["downcase", ["get", "nombre"]], "sin nombre"],
+          ["!=", ["downcase", ["get", "nombre"]], "s/n"],
+        ],
+      ],
+      layout: {
+        visibility,
+        "symbol-placement": "line",
+        "text-field": [
+          "case",
+          [
+            "all",
+            ["has", "nombre_mostrar"],
+            ["!=", ["get", "nombre_mostrar"], ""],
+            ["!=", ["downcase", ["get", "nombre_mostrar"]], "sin nombre"],
+            ["!=", ["downcase", ["get", "nombre_mostrar"]], "s/n"],
+          ],
+          ["get", "nombre_mostrar"],
+          [
+            "case",
+            [
+              "all",
+              ["has", "nombre"],
+              ["!=", ["get", "nombre"], ""],
+              ["!=", ["downcase", ["get", "nombre"]], "sin nombre"],
+              ["!=", ["downcase", ["get", "nombre"]], "s/n"],
+            ],
+            ["get", "nombre"],
+            "",
+          ],
+        ],
+        "text-font": ["Open Sans Semibold"],
+        "text-size": labelSizes[level],
+        "text-keep-upright": true,
+        "text-rotation-alignment": "map",
+        "text-pitch-alignment": "viewport",
+        "text-allow-overlap": false,
+        "text-ignore-placement": false,
+        "text-padding": level === 3 ? 2 : 4,
+        "text-max-angle": 35,
+        "symbol-spacing": level === 1 ? 420 : level === 2 ? 520 : 680,
+      },
+      paint: {
+        "text-color": state.activeBaseMap === "oscuro" ? "#f8fafc" : "#1f2937",
+        "text-halo-color": state.activeBaseMap === "oscuro" ? "#111827" : "#ffffff",
+        "text-halo-width": 1.2,
+        "text-halo-blur": 0.25,
+        "text-opacity": level === 1 ? 0.88 : level === 2 ? 0.78 : 0.72,
+      },
+    });
+  }
+
+  function updateReferenceRoadLabelPaint() {
+    const isDarkBase = state.activeBaseMap === "oscuro";
+    const textColor = isDarkBase ? "#f8fafc" : "#1f2937";
+    const haloColor = isDarkBase ? "#111827" : "#ffffff";
+    Object.values(ROAD_REFERENCE_LEVELS).forEach((config) => {
+      const labelId = config.layerIds[2];
+      safeSetPaintProperty(labelId, "text-color", textColor);
+      safeSetPaintProperty(labelId, "text-halo-color", haloColor);
     });
   }
 
@@ -2385,7 +2485,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     if (state.referenceRoads.levelLoads.has(level)) {
       return state.referenceRoads.levelLoads.get(level);
     }
-    const load = fetchReferenceRoadJson(config.url);
+    const load = fetchReferenceRoadJson(config.url).then((collection) => applyReferenceRoadDisplayNames(level, collection));
     state.referenceRoads.levelLoads.set(level, load);
     return load;
   }
@@ -2431,13 +2531,48 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       return state.referenceRoads.chunkCache.get(chunk.id);
     }
     if (!state.referenceRoads.chunkLoads.has(chunk.id)) {
-      const load = fetchReferenceRoadJson(chunk.url).then((collection) => {
-        state.referenceRoads.chunkCache.set(chunk.id, collection);
-        return collection;
+      const load = fetchReferenceRoadJson(chunk.url).then(async (collection) => {
+        const labeledCollection = await applyReferenceRoadDisplayNames(3, collection);
+        state.referenceRoads.chunkCache.set(chunk.id, labeledCollection);
+        return labeledCollection;
       });
       state.referenceRoads.chunkLoads.set(chunk.id, load);
     }
     return state.referenceRoads.chunkLoads.get(chunk.id);
+  }
+
+  async function loadReferenceRoadDisplayNames() {
+    if (state.referenceRoads.displayNames) return state.referenceRoads.displayNames;
+    if (!state.referenceRoads.displayNamesLoad) {
+      state.referenceRoads.displayNamesLoad = fetchReferenceRoadJson(ROAD_REFERENCE_DISPLAY_NAMES_URL)
+        .then((payload) => {
+          state.referenceRoads.displayNames = payload?.names || {};
+          return state.referenceRoads.displayNames;
+        })
+        .catch((error) => {
+          console.warn("No se pudieron cargar las correcciones de nombres viales:", error);
+          state.referenceRoads.displayNames = {};
+          return state.referenceRoads.displayNames;
+        });
+    }
+    return state.referenceRoads.displayNamesLoad;
+  }
+
+  async function applyReferenceRoadDisplayNames(level, collection) {
+    const displayNames = await loadReferenceRoadDisplayNames();
+    if (!collection?.features?.length) return collection || ROAD_REFERENCE_EMPTY_DATA;
+    collection.features.forEach((feature) => {
+      const properties = feature.properties || {};
+      feature.properties = properties;
+      const key = `${level}:${properties.id}`;
+      const displayName = displayNames[key];
+      if (displayName) {
+        properties.nombre_mostrar = displayName;
+      } else {
+        delete properties.nombre_mostrar;
+      }
+    });
+    return collection;
   }
 
   function pruneReferenceRoadChunkCache(visibleChunkIds) {
@@ -3078,7 +3213,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       refreshMeasurementLayers();
       updateInfoPanel({
         title: "Medicion activa",
-        description: "Haz clic en dos puntos del mapa para calcular la distancia en linea recta.",
+        description: "Haz clic en dos o mas puntos del mapa para calcular la distancia horizontal geodesica acumulada por tramos. No toma en cuenta pendientes ni desniveles del terreno.",
       });
     }
     updateToolbarState();
@@ -3209,10 +3344,80 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     return true;
   }
 
+  function mountOrientationControl() {
+    if (!elements.orientationOverlay) return;
+    const orientationControl = {
+      onAdd() {
+        elements.orientationOverlay.classList.remove("map-overlay", "map-overlay--orientation");
+        elements.orientationOverlay.classList.add("orientation-map-control", "maplibregl-ctrl");
+        return elements.orientationOverlay;
+      },
+      onRemove() {
+        elements.orientationOverlay.remove();
+      },
+    };
+
+    map.addControl(orientationControl, "bottom-right");
+  }
+
   function getVisibleToolbarButtons() {
     if (!elements.mapToolbar) return [];
     return [...elements.mapToolbar.querySelectorAll("button")]
       .filter((button) => !button.hidden && !button.disabled && !button.classList.contains("is-hidden"));
+  }
+
+  function toggleOrientationMenu() {
+    if (state.orientationMenuOpen) {
+      closeOrientationMenu({ restoreFocus: true });
+      return;
+    }
+    state.orientationMenuOpen = true;
+    if (elements.orientationMenu) {
+      elements.orientationMenu.hidden = false;
+    }
+    elements.orientationMenuTrigger?.setAttribute("aria-expanded", "true");
+    window.requestAnimationFrame(() => {
+      getVisibleOrientationMenuButtons()[0]?.focus();
+    });
+  }
+
+  function closeOrientationMenu(options = {}) {
+    state.orientationMenuOpen = false;
+    if (elements.orientationMenu) {
+      elements.orientationMenu.hidden = true;
+    }
+    elements.orientationMenuTrigger?.setAttribute("aria-expanded", "false");
+    if (options.restoreFocus) {
+      elements.orientationMenuTrigger?.focus();
+    }
+  }
+
+  function getVisibleOrientationMenuButtons() {
+    if (!elements.orientationMenu) return [];
+    return [...elements.orientationMenu.querySelectorAll("button")]
+      .filter((button) => !button.hidden && !button.disabled);
+  }
+
+  function handleOrientationMenuKeydown(event) {
+    const items = getVisibleOrientationMenuButtons();
+    if (!items.length) return;
+    const currentIndex = Math.max(0, items.indexOf(document.activeElement));
+    let nextIndex = currentIndex;
+
+    if (event.key === "ArrowDown") {
+      nextIndex = (currentIndex + 1) % items.length;
+    } else if (event.key === "ArrowUp") {
+      nextIndex = (currentIndex - 1 + items.length) % items.length;
+    } else if (event.key === "Home") {
+      nextIndex = 0;
+    } else if (event.key === "End") {
+      nextIndex = items.length - 1;
+    } else {
+      return;
+    }
+
+    event.preventDefault();
+    items[nextIndex].focus();
   }
 
   function refreshMeasurementLayers() {
@@ -3268,22 +3473,22 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
   }
 
   function handleMeasurementClick(lngLat) {
-    if (state.measurement.points.length >= 2) {
-      state.measurement.points = [];
-    }
-
     state.measurement.points.push([lngLat.lng, lngLat.lat]);
     refreshMeasurementLayers();
 
-    if (state.measurement.points.length === 2) {
-      const [start, end] = state.measurement.points;
-      const meters = computeDistanceMeters(start, end);
-      const midpoint = [(start[0] + end[0]) / 2, (start[1] + end[1]) / 2];
+    if (state.measurement.points.length >= 2) {
+      const points = state.measurement.points;
+      const start = points[0];
+      const end = points[points.length - 1];
+      const previous = points[points.length - 2];
+      const meters = computePathDistanceMeters(points);
+      const midpoint = [(previous[0] + end[0]) / 2, (previous[1] + end[1]) / 2];
 
       updateInfoPanel({
         title: "Resultado de medición",
         description: `Distancia calculada: ${formatDistance(meters)}.`,
         extra: [
+          `Tramos: ${points.length - 1}`,
           `Inicio: ${start[1].toFixed(5)}, ${start[0].toFixed(5)}`,
           `Fin: ${end[1].toFixed(5)}, ${end[0].toFixed(5)}`,
         ],
@@ -4979,18 +5184,6 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     });
   }
 
-  function toggleFullscreen() {
-    const container = document.querySelector(".map-stage");
-    if (!container) return;
-    if (!document.fullscreenElement) {
-      container.requestFullscreen?.().catch(() => {});
-      setSystemStatus("Pantalla completa", "El visor intento abrirse a pantalla completa.");
-      return;
-    }
-    document.exitFullscreen?.().catch(() => {});
-    setSystemStatus("Vista normal", "El visor regresó a la vista integrada del tablero.");
-  }
-
   function rotateMapBy(delta) {
     map.easeTo({
       bearing: map.getBearing() + delta,
@@ -6190,6 +6383,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       });
     });
     updateLocalityLabelPaint();
+    updateReferenceRoadLabelPaint();
     ensureReferenceLayerOrder();
   }
 
@@ -6458,6 +6652,13 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLng / 2) ** 2;
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return earthRadius * c;
+  }
+
+  function computePathDistanceMeters(points) {
+    if (!Array.isArray(points) || points.length < 2) return 0;
+    return points.slice(1).reduce((total, point, index) => (
+      total + computeDistanceMeters(points[index], point)
+    ), 0);
   }
 
   function degreesToRadians(value) {

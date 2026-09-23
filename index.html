@@ -239,39 +239,9 @@
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 4a6 6 0 1 0 3.87 10.58l4.27 4.27 1.41-1.41-4.27-4.27A6 6 0 0 0 10 4zm-3 5h6v2H7z"/></svg>
               </span>
             </button>
-            <button class="toolbar-button" id="toolbar-reset-north" type="button" aria-label="Reposicionar al norte" title="Reposicionar al norte">
+            <button class="toolbar-button" id="toolbar-measure" type="button" aria-label="Medir distancia" title="Medir distancia">
               <span class="toolbar-icon">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l4.5 8h-3v7h-3v-7h-3L12 2zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16zm0-2a6 6 0 1 0 0-12 6 6 0 0 0 0 12z"/></svg>
-              </span>
-            </button>
-            <button class="toolbar-button" id="toolbar-fullscreen" type="button" aria-label="Pantalla completa" title="Pantalla completa">
-              <span class="toolbar-icon">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 14H5v5h5v-2H7v-3zm0-4h2V7h3V5H5v5h2V7h3v3zm10 7h-3v2h5v-5h-2v3zm0-12v3h2V5h-5v2h3z"/></svg>
-              </span>
-            </button>
-            <button class="toolbar-button" id="toolbar-rotate-left" type="button" aria-label="Rotar a la izquierda" title="Rotar a la izquierda">
-              <span class="toolbar-icon">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5V2L7 7l5 5V9c3.31 0 6 2.69 6 6a6 6 0 0 1-6 6 5.96 5.96 0 0 1-5.17-3H4.52A8.97 8.97 0 0 0 12 24c4.97 0 9-4.03 9-9s-4.03-10-9-10z"/></svg>
-              </span>
-            </button>
-            <button class="toolbar-button" id="toolbar-rotate-right" type="button" aria-label="Rotar a la derecha" title="Rotar a la derecha">
-              <span class="toolbar-icon">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5c-4.97 0-9 4.03-9 9s4.03 9 9 9a8.97 8.97 0 0 0 7.48-4h-2.31A5.96 5.96 0 0 1 12 21a6 6 0 0 1-6-6c0-3.31 2.69-6 6-6v3l5-5-5-5v3z"/></svg>
-              </span>
-            </button>
-            <button class="toolbar-button" id="toolbar-pitch-up" type="button" aria-label="Inclinar mapa" title="Inclinar mapa">
-              <span class="toolbar-icon">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6l6 6h-4v6h-4v-6H6z"/></svg>
-              </span>
-            </button>
-            <button class="toolbar-button" id="toolbar-pitch-down" type="button" aria-label="Reducir inclinación" title="Reducir inclinación">
-              <span class="toolbar-icon">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6h4v6h4l-6 6-6-6h4z"/></svg>
-              </span>
-            </button>
-            <button class="toolbar-button" id="toolbar-measure" type="button" aria-label="Medir distancia entre dos puntos" title="Medir distancia entre dos puntos">
-              <span class="toolbar-icon">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm2.92 2.33H5v-.92l9.06-9.06.92.92L5.92 19.58zM20.71 7.04a1.003 1.003 0 0 0 0-1.42L18.37 3.29a1.003 1.003 0 0 0-1.42 0l-1.13 1.13 3.75 3.75 1.14-1.13z"/></svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h18v10H3V7zm2 2v6h14V9H5zm2 1h1v3H7v-3zm3 0h1v2h-1v-2zm3 0h1v3h-1v-3zm3 0h1v2h-1v-2z"/></svg>
               </span>
             </button>
             <button class="toolbar-button" id="toolbar-add-point" type="button" aria-label="Capturar punto como nueva capa" title="Capturar punto como nueva capa">
@@ -303,6 +273,51 @@
           <p class="toolbar-note" id="upload-permission-note">
             Inicia sesión como administrador o director para cargar capas.
           </p>
+        </div>
+
+        <div class="map-overlay map-overlay--orientation" id="orientation-overlay">
+          <div class="orientation-control">
+            <button
+              class="orientation-button orientation-button--trigger"
+              id="orientation-menu-trigger"
+              type="button"
+              aria-label="Abrir herramientas de orientación"
+              aria-expanded="false"
+              aria-controls="orientation-menu"
+              title="Orientación"
+            >
+              <span class="toolbar-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l4.5 8h-3v7h-3v-7h-3L12 2zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16zm0-2a6 6 0 1 0 0-12 6 6 0 0 0 0 12z"/></svg>
+              </span>
+            </button>
+            <div class="orientation-menu" id="orientation-menu" role="menu" aria-label="Herramientas de orientación" hidden>
+              <button class="orientation-button" id="toolbar-rotate-left" type="button" role="menuitem" aria-label="Rotar a la izquierda" title="Rotar a la izquierda">
+                <span class="toolbar-icon">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5V2L7 7l5 5V9c3.31 0 6 2.69 6 6a6 6 0 0 1-6 6 5.96 5.96 0 0 1-5.17-3H4.52A8.97 8.97 0 0 0 12 24c4.97 0 9-4.03 9-9s-4.03-10-9-10z"/></svg>
+                </span>
+              </button>
+              <button class="orientation-button" id="toolbar-rotate-right" type="button" role="menuitem" aria-label="Rotar a la derecha" title="Rotar a la derecha">
+                <span class="toolbar-icon">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5c-4.97 0-9 4.03-9 9s4.03 9 9 9a8.97 8.97 0 0 0 7.48-4h-2.31A5.96 5.96 0 0 1 12 21a6 6 0 0 1-6-6c0-3.31 2.69-6 6-6v3l5-5-5-5v3z"/></svg>
+                </span>
+              </button>
+              <button class="orientation-button" id="toolbar-pitch-up" type="button" role="menuitem" aria-label="Inclinar mapa" title="Inclinar mapa">
+                <span class="toolbar-icon">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6l6 6h-4v6h-4v-6H6z"/></svg>
+                </span>
+              </button>
+              <button class="orientation-button" id="toolbar-pitch-down" type="button" role="menuitem" aria-label="Reducir inclinación" title="Reducir inclinación">
+                <span class="toolbar-icon">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6h4v6h4l-6 6-6-6h4z"/></svg>
+                </span>
+              </button>
+              <button class="orientation-button" id="toolbar-reset-north" type="button" role="menuitem" aria-label="Reposicionar al norte" title="Reposicionar al norte">
+                <span class="toolbar-icon">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l4.5 8h-3v7h-3v-7h-3L12 2zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16zm0-2a6 6 0 1 0 0-12 6 6 0 0 0 0 12z"/></svg>
+                </span>
+              </button>
+            </div>
+          </div>
         </div>
 
         <div class="map-overlay map-overlay--goes" id="goes-overlay"></div>
