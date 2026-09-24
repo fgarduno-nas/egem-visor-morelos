@@ -2037,6 +2037,13 @@ select {
   }
 }
 
+@media (max-width: 480px) {
+  .orientation-menu {
+    top: calc(100% + 8px);
+    bottom: auto;
+  }
+}
+
 .toolbar-note {
   margin: 8px 0 0;
   text-align: center;

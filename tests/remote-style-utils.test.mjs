@@ -1604,6 +1604,7 @@ test("la barra de herramientas aumenta iconos y reduce separacion sin perder are
   assert.doesNotMatch(cssSource.match(/^\.orientation-menu \{[\s\S]*?^\}/m)?.[0] ?? "", /right: calc\(100%|bottom: 0;/);
   assert.match(cssSource, /\.orientation-menu\[hidden\] \{[\s\S]*?display: none;/);
   assert.match(cssSource, /@media \(max-height: 500px\) \{[\s\S]*?\.orientation-menu \{[\s\S]*?gap: 4px;[\s\S]*?padding: 4px;[\s\S]*?\.orientation-menu \.orientation-button \{[\s\S]*?width: 32px;[\s\S]*?height: 32px;/);
+  assert.match(cssSource, /@media \(max-width: 480px\) \{[\s\S]*?\.orientation-menu \{[\s\S]*?top: calc\(100% \+ 8px\);[\s\S]*?bottom: auto;/);
   assert.match(cssSource, /\.map-toolbar \{[\s\S]*?border-radius: 20px;[\s\S]*?background: rgba\(255, 250, 245, 0\.94\);/);
   assert.match(cssSource, /@media \(max-width: 760px\) \{[\s\S]*?#tools-overlay \{[\s\S]*?left: 50%;[\s\S]*?right: auto;[\s\S]*?transform: translateX\(-50%\);[\s\S]*?\.map-toolbar \{[\s\S]*?width: fit-content;[\s\S]*?justify-content: center;[\s\S]*?gap: 2px;[\s\S]*?\.toolbar-button,[\s\S]*?width: 32px;[\s\S]*?height: 32px;[\s\S]*?\.toolbar-icon,[\s\S]*?width: 18px;[\s\S]*?height: 18px;/);
   assert.doesNotMatch(cssSource.match(/^\.map-toolbar \{[\s\S]*?^\}/m)?.[0] ?? "", /justify-content: space-between;/);
