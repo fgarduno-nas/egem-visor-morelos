@@ -483,7 +483,6 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
   });
 
   map.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-right");
-  map.addControl(new maplibregl.NavigationControl({ showZoom: false, visualizePitch: true }), "bottom-right");
   if (typeof maplibregl.FullscreenControl === "function") {
     map.addControl(new maplibregl.FullscreenControl(), "bottom-right");
   }

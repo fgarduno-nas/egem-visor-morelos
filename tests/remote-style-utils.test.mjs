@@ -1599,8 +1599,11 @@ test("la barra de herramientas aumenta iconos y reduce separacion sin perder are
   assert.doesNotMatch(cssSource, /\.map-overlay--orientation \{/);
   assert.match(cssSource, /\.orientation-map-control \{[\s\S]*?pointer-events: auto;[\s\S]*?overflow: visible;/);
   assert.match(cssSource, /\.orientation-button \{[\s\S]*?width: 38px;[\s\S]*?height: 38px;/);
-  assert.match(cssSource, /\.orientation-menu \{[\s\S]*?position: absolute;[\s\S]*?right: calc\(100% \+ 6px\);[\s\S]*?bottom: 0;/);
+  assert.match(cssSource, /\.orientation-control \{[\s\S]*?position: relative;/);
+  assert.match(cssSource, /\.orientation-menu \{[\s\S]*?position: absolute;[\s\S]*?left: 50%;[\s\S]*?right: auto;[\s\S]*?bottom: calc\(100% \+ 8px\);[\s\S]*?flex-direction: column;[\s\S]*?transform: translateX\(-50%\);/);
+  assert.doesNotMatch(cssSource.match(/^\.orientation-menu \{[\s\S]*?^\}/m)?.[0] ?? "", /right: calc\(100%|bottom: 0;/);
   assert.match(cssSource, /\.orientation-menu\[hidden\] \{[\s\S]*?display: none;/);
+  assert.match(cssSource, /@media \(max-height: 500px\) \{[\s\S]*?\.orientation-menu \{[\s\S]*?gap: 4px;[\s\S]*?padding: 4px;[\s\S]*?\.orientation-menu \.orientation-button \{[\s\S]*?width: 32px;[\s\S]*?height: 32px;/);
   assert.match(cssSource, /\.map-toolbar \{[\s\S]*?border-radius: 20px;[\s\S]*?background: rgba\(255, 250, 245, 0\.94\);/);
   assert.match(cssSource, /@media \(max-width: 760px\) \{[\s\S]*?#tools-overlay \{[\s\S]*?left: 50%;[\s\S]*?right: auto;[\s\S]*?transform: translateX\(-50%\);[\s\S]*?\.map-toolbar \{[\s\S]*?width: fit-content;[\s\S]*?justify-content: center;[\s\S]*?gap: 2px;[\s\S]*?\.toolbar-button,[\s\S]*?width: 32px;[\s\S]*?height: 32px;[\s\S]*?\.toolbar-icon,[\s\S]*?width: 18px;[\s\S]*?height: 18px;/);
   assert.doesNotMatch(cssSource.match(/^\.map-toolbar \{[\s\S]*?^\}/m)?.[0] ?? "", /justify-content: space-between;/);
@@ -1673,7 +1676,7 @@ test("el menu vertical de orientacion conserva funciones y cierre accesible sin 
 
   assert.match(mapSource, /orientationMenuOpen: false/);
   assert.match(mapSource, /orientationMenuTrigger: document\.getElementById\("orientation-menu-trigger"\)/);
-  assert.match(mapSource, /map\.addControl\(new maplibregl\.NavigationControl\(\{ showZoom: false, visualizePitch: true \}\), "bottom-right"\)/);
+  assert.doesNotMatch(mapSource, /new maplibregl\.NavigationControl|NavigationControl\(/);
   assert.match(mapSource, /map\.addControl\(new maplibregl\.FullscreenControl\(\), "bottom-right"\)/);
   assert.match(mapSource, /mountOrientationControl\(\)/);
   assert.match(mountSource, /classList\.remove\("map-overlay", "map-overlay--orientation"\)/);
@@ -1694,6 +1697,8 @@ test("el menu vertical de orientacion conserva funciones y cierre accesible sin 
   assert.match(keySource, /ArrowUp/);
   assert.match(keySource, /Home/);
   assert.match(keySource, /End/);
+  assert.equal((htmlSource.match(/id="toolbar-reset-north"/g) || []).length, 1);
+  assert.match(htmlSource, /id="orientation-menu"[\s\S]*id="toolbar-reset-north"/);
   assert.match(setupSource, /toolbarResetNorth\.addEventListener\("click", resetMapNorth\)/);
   assert.match(setupSource, /toolbarRotateLeft\.addEventListener\("click", \(\) => rotateMapBy\(-MAP_ROTATION_STEP\)\)/);
   assert.match(setupSource, /toolbarRotateRight\.addEventListener\("click", \(\) => rotateMapBy\(MAP_ROTATION_STEP\)\)/);
