@@ -2,10 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 const modulePath = path.resolve("js/app/utils/remote-legend-utils.js");
-const moduleSource = await fs.readFile(modulePath, "utf8");
-const moduleUrl = `data:text/javascript;base64,${Buffer.from(moduleSource).toString("base64")}`;
 const mapSource = await fs.readFile(path.resolve("js/map.js"), "utf8");
 
 const {
@@ -23,7 +22,7 @@ const {
   normalizePublishedRasterLegend,
   normalizePublishedVectorLegend,
   pickTopFeatureByVisualPriority,
-} = await import(moduleUrl);
+} = await import(pathToFileURL(modulePath).href);
 
 function feature(properties) {
   return { type: "Feature", properties, geometry: { type: "Polygon", coordinates: [] } };

@@ -41,6 +41,8 @@ import {
   normalizePublishedVectorLegend,
   pickTopFeatureByVisualPriority,
 } from "./app/utils/remote-legend-utils.js";
+import { normalizeHexColor } from "./app/utils/color-utils.js";
+import { createFallbackPointIcon } from "./app/utils/point-icon-utils.js";
 import {
   analyzeGeospatialFile,
   createGroundOverlayObjectUrls,
@@ -387,6 +389,8 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     renderedLayers: new Map(),
     pendingOpacityFrames: new Map(),
     pendingLayerLoads: new Map(),
+    pendingPointIconLoads: new Map(),
+    privateResourceEpoch: 0,
     referenceRoads: {
       initialized: false,
       listenersBound: false,
@@ -467,6 +471,10 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       minimized: false,
       rasterLegendItems: [],
       rasterLegendTitle: "",
+      legendKind: "raster",
+      vectorLegend: null,
+      extractedMetadata: null,
+      geospatialDiagnostics: null,
     },
   };
 
@@ -521,6 +529,13 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     uploadDraftInput: document.getElementById("upload-draft-input"),
     uploadLayerModal: document.getElementById("upload-layer-modal"),
     uploadLayerForm: document.getElementById("upload-layer-form"),
+    uploadSectionMetadata: document.getElementById("upload-section-metadata"),
+    uploadSectionSymbology: document.getElementById("upload-section-symbology"),
+    uploadFileSummary: document.getElementById("upload-file-summary"),
+    uploadClassificationSummary: document.getElementById("upload-classification-summary"),
+    uploadMetadataSummary: document.getElementById("upload-metadata-summary"),
+    uploadSymbologySummary: document.getElementById("upload-symbology-summary"),
+    rasterLegendPreview: document.getElementById("raster-legend-preview"),
     minimizeUploadLayer: document.getElementById("minimize-upload-layer"),
     closeUploadLayer: document.getElementById("close-upload-layer"),
     cancelUploadLayer: document.getElementById("cancel-upload-layer"),
@@ -710,7 +725,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     window.addEventListener("resize", () => {
       syncResponsiveLayout();
       if (elements.uploadLayerModal?.open) {
-        positionUploadModal();
+        syncUploadPanelDock();
       }
     });
 
@@ -808,10 +823,11 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     elements.rasterLegendTitle?.addEventListener("input", () => {
       state.uploadDraft.rasterLegendTitle = elements.rasterLegendTitle.value;
       state.uploadDraft.previewLayers.forEach((layer) => {
-        const rasterLegend = buildRasterLegendFromDraft();
-        layer.legend = rasterLegend || layer.legend;
+        const draftLegend = buildUploadLegendFromDraft();
+        layer.legend = draftLegend || layer.legend;
         layer.metadata = buildLayerMetadata(collectUploadMetadata(), layer);
       });
+      syncPreviewLayerLegendFromDraft();
     });
 
     elements.logoutSession.addEventListener("click", async () => {
@@ -1313,8 +1329,11 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     if (isPublicVisitor()) return renderVisitorLayerItem(layer);
 
     const checked = layer.visible ? "checked" : "";
-    const disableToggle = !canSeeLayer(layer) || layer.isLoading ? "disabled" : "";
+    const disableToggle = shouldDisableLayerToggle(layer) ? "disabled" : "";
     const loadingStatus = layer.isLoading ? '<span class="layer-loading-state" aria-live="polite">Cargando capa...</span>' : "";
+    const processingStatus = shouldShowProcessingState(layer)
+      ? `<span class="layer-loading-state" aria-live="polite">${escapeHtml(getProcessingStatusLabel(layer.processingStatus))}</span>`
+      : "";
     const reviewButton = state.session.role === "admin" && canPreviewLayer(layer)
       ? `<button class="ghost-button" type="button" data-preview="${layer.id}">Visualizar</button>`
       : "";
@@ -1350,6 +1369,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
               <input type="range" min="10" max="100" step="5" value="${opacityValue}" data-opacity="${layer.id}" />
             </label>
             ${loadingStatus}
+            ${processingStatus}
           </div>
         </div>
         ${actionButtons ? `<div class="layer-actions">${actionButtons}</div>` : ""}
@@ -1633,6 +1653,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     updateInfoPanel({
       title: layer.title,
       description: layer.description || "Capa disponible para consulta territorial.",
+      extra: buildSubmissionInfoLines(layer),
       legend: getLayerSymbology(layer),
     });
     if (options.renderCatalog !== false) {
@@ -1737,13 +1758,13 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
 
   function getVectorLayerSymbology(layer) {
     if (!layer.data?.features?.length) {
-      return layer.legend?.type && layer.legend.type !== "raster" ? layer.legend : null;
+      return layer.legend?.type && layer.legend.type !== "raster" ? attachPointIconUrlsToLegend(layer.legend, layer) : null;
     }
     const vectorLayer = {
       ...layer,
       legend: layer.legend?.type === "raster" ? null : layer.legend,
     };
-    return buildLayerSymbology(vectorLayer);
+    return attachPointIconUrlsToLegend(buildLayerSymbology(vectorLayer), layer);
   }
 
   function getRasterLayerSymbology(layer) {
@@ -1793,7 +1814,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     }
 
     if (layer.legend?.type && layer.legend.type !== "raster" && Array.isArray(layer.legend.classes)) {
-      if (layer.legend.type !== "continuous") return layer.legend;
+      if (layer.legend.type !== "continuous") return attachPointIconUrlsToLegend(layer.legend, layer);
       return normalizeLayerLegend(layer.legend, layer);
     }
 
@@ -3649,8 +3670,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     return Boolean(
       layer &&
       layer.visible !== false &&
-      canSeeLayer(layer) &&
-      layer.id !== state.previewLayerId
+      canSeeLayer(layer)
     );
   }
 
@@ -3667,12 +3687,25 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
   }
 
   async function ensureLayerResourcesLoaded(layer) {
-    if (!layer || layer.data || !layer.processedGeojsonUrl) return layer;
+    if (!layer) return layer;
+    if (layer.data) {
+      await ensurePointIconImagesForLayer(layer);
+      return layer;
+    }
+    if (!layer.processedGeojsonUrl) return layer;
     if (state.pendingLayerLoads.has(layer.id)) {
       return state.pendingLayerLoads.get(layer.id);
     }
 
+    const loadEpoch = state.privateResourceEpoch;
     const loadPromise = loadProcessedGeoJsonForLayer(layer)
+      .then((loadedLayer) => {
+        if (!isPublishedStatus(layer.status) && loadEpoch !== state.privateResourceEpoch) {
+          clearPrivateLayerPayload(layer);
+          throw new Error("Solicitud privada descartada por cambio de sesión.");
+        }
+        return loadedLayer;
+      })
       .finally(() => {
         state.pendingLayerLoads.delete(layer.id);
         layer.isLoading = false;
@@ -3686,13 +3719,8 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
   }
 
   async function loadProcessedGeoJsonForLayer(layer) {
-    const response = await fetch(layer.processedGeojsonUrl);
-    if (!response.ok) {
-      throw new Error("No se pudo descargar el GeoJSON procesado del backend.");
-    }
-
     const normalizedRemote = normalizeBackendProcessedGeoJson(
-      ensureFeatureCollection(await response.json()),
+      ensureFeatureCollection(await fetchLayerJson(layer, layer.processedGeojsonUrl)),
       getBackendRecordLikeFromLayer(layer)
     );
     layer.data = normalizedRemote.geojson;
@@ -3700,8 +3728,260 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     if (!isImageBackedLayer(layer) || !layer.legend || layer.legend.type !== "raster") {
       layer.legend = normalizedRemote.legend || layer.legend;
     }
+    await ensurePointIconImagesForLayer(layer);
     console.info("GeoJSON diferido visualizado correctamente", layer.title);
     return layer;
+  }
+
+  async function ensurePointIconImagesForLayer(layer) {
+    const pointIcons = getLayerPointIcons(layer);
+    if (!pointIcons.length || !layer?.data?.features?.length) return layer;
+    if (state.pendingPointIconLoads.has(layer.id)) return state.pendingPointIconLoads.get(layer.id);
+
+    const loadPromise = (async () => {
+      const loadedIcons = [];
+      for (const icon of pointIcons) {
+        const imageId = buildPointIconImageId(layer, icon);
+        icon.__imageId = imageId;
+        if (!map.hasImage(imageId)) {
+          const imageUrl = await getPointIconImageUrl(layer, icon);
+          const image = await loadMapImage(imageUrl);
+          if (!map.hasImage(imageId)) {
+            map.addImage(imageId, image, { pixelRatio: 1 });
+          }
+        }
+        loadedIcons.push({ ...icon, imageId });
+      }
+      layer.__pointIconImages = loadedIcons;
+      applyPointIconFeatureIds(layer);
+      return layer;
+    })().catch((error) => {
+      console.warn("No se pudieron cargar iconos PNG de puntos; se mantiene el fallback pequeño por tipo.", error);
+      layer.__pointIconImages = [];
+      clearPointIconFeatureIds(layer);
+      applyPointFallbackIconFeatureIds(layer);
+      return layer;
+    }).finally(() => {
+      state.pendingPointIconLoads.delete(layer.id);
+    });
+
+    state.pendingPointIconLoads.set(layer.id, loadPromise);
+    return loadPromise;
+  }
+
+  function getLayerPointIcons(layer) {
+    const icons = Array.isArray(layer?.pointIcons)
+      ? layer.pointIcons
+      : Array.isArray(layer?.metadata?.properties?.pointIcons)
+        ? layer.metadata.properties.pointIcons
+        : [];
+    return icons.filter((icon) => icon?.imageUrl && icon.mimeType === "image/png");
+  }
+
+  function buildPointIconImageId(layer, icon) {
+    const rawId = icon.id || icon.styleUrl || icon.value || icon.label || icon.imageUrl;
+    const stableId = String(rawId || "icon").replace(/[^a-z0-9_-]+/gi, "-").replace(/^-+|-+$/g, "") || "icon";
+    return `${layer.id}-point-icon-${stableId}`;
+  }
+
+  async function getPointIconImageUrl(layer, icon) {
+    if (!getPrivateLayerToken(layer) || icon.imageUrl.startsWith("blob:")) return icon.imageUrl;
+    if (icon.__objectUrl) return icon.__objectUrl;
+    icon.__objectUrl = await fetchLayerBlobUrl(layer, icon.imageUrl);
+    icon.__revokeObjectUrl = true;
+    return icon.__objectUrl;
+  }
+
+  function loadMapImage(url) {
+    return new Promise((resolve, reject) => {
+      map.loadImage(url, (error, image) => {
+        if (error || !image) {
+          reject(error || new Error("No se pudo cargar la imagen del icono."));
+          return;
+        }
+        resolve(image);
+      });
+    });
+  }
+
+  function applyPointIconFeatureIds(layer) {
+    const icons = Array.isArray(layer.__pointIconImages) ? layer.__pointIconImages : [];
+    const legend = getVectorLayerSymbology(layer) || layer.legend;
+    const field = legend?.styleField || legend?.field;
+    const byValue = new Map();
+    const byStyleUrl = new Map();
+    const byStyleId = new Map();
+    const byColor = new Map();
+    icons.forEach((icon) => {
+      if (icon.value !== null && icon.value !== undefined) {
+        byValue.set(normalizeLegendComparisonValue(icon.value), icon.imageId);
+      }
+      if (icon.label) byValue.set(normalizeLegendComparisonValue(icon.label), icon.imageId);
+      if (icon.styleUrl) byStyleUrl.set(String(icon.styleUrl), icon.imageId);
+      if (icon.styleId) byStyleId.set(String(icon.styleId), icon.imageId);
+      if (icon.color) byColor.set(String(icon.color).toLowerCase(), icon.imageId);
+    });
+    layer.data.features.forEach((feature) => {
+      const properties = feature.properties || {};
+      const styleUrl = properties.styleUrl || properties.StyleUrl || properties.styleurl;
+      const styleId = properties.__kmlStyleId || String(styleUrl || "").replace(/^#/u, "");
+      const imageId = (styleUrl && byStyleUrl.get(String(styleUrl))) ||
+        (styleId && byStyleId.get(String(styleId))) ||
+        (field ? byValue.get(normalizeLegendComparisonValue(properties[field])) : null) ||
+        byColor.get(String(properties.__styleIcon || "").toLowerCase()) ||
+        getFallbackPointIconImageId(properties);
+      if (imageId && ["Point", "MultiPoint"].includes(feature.geometry?.type)) {
+        feature.properties = { ...properties, __styleIconImageId: imageId };
+      }
+    });
+  }
+
+  function applyPointFallbackIconFeatureIds(layer) {
+    if (!layer?.data?.features?.length) return;
+    ensureBuiltInPointFallbackImages();
+    layer.data.features.forEach((feature) => {
+      if (!["Point", "MultiPoint"].includes(feature.geometry?.type)) return;
+      const properties = feature.properties || {};
+      if (properties.__styleIconImageId && map.hasImage(properties.__styleIconImageId)) return;
+      const imageId = getFallbackPointIconImageId(properties);
+      if (imageId) {
+        feature.properties = { ...properties, __styleIconImageId: imageId };
+      }
+    });
+  }
+
+  function getFallbackPointIconImageId(properties = {}) {
+    const role = String(properties.__geometryRole || properties.__kmlFolder || "").toLowerCase();
+    if (role.includes("manantial")) return "egem-fallback-manantial-dot";
+    if (role.includes("pozo")) return "egem-fallback-pozo-triangle";
+    if (hasPointSymbolDescriptor(properties)) return "egem-fallback-point-dot";
+    return null;
+  }
+
+  function ensureBuiltInPointFallbackImages() {
+    if (!map.hasImage("egem-fallback-manantial-dot")) {
+      map.addImage("egem-fallback-manantial-dot", createFallbackPointIcon("dot"), { pixelRatio: 1 });
+    }
+    if (!map.hasImage("egem-fallback-pozo-triangle")) {
+      map.addImage("egem-fallback-pozo-triangle", createFallbackPointIcon("triangle"), { pixelRatio: 1 });
+    }
+    if (!map.hasImage("egem-fallback-point-dot")) {
+      map.addImage("egem-fallback-point-dot", createFallbackPointIcon("generic-dot"), { pixelRatio: 1 });
+    }
+  }
+
+  function hasPointSymbolDescriptor(properties = {}) {
+    return Boolean(
+      properties.__styleIconImageId ||
+      properties.__kmlStyleId ||
+      properties.styleUrl ||
+      properties.StyleUrl ||
+      properties.styleurl ||
+      properties.iconHref ||
+      properties.IconHref ||
+      properties.__styleIcon
+    );
+  }
+
+  function getPointSymbolDescriptorFilter() {
+    return [
+      "any",
+      ["has", "__styleIconImageId"],
+      ["has", "__kmlStyleId"],
+      ["has", "styleUrl"],
+      ["has", "StyleUrl"],
+      ["has", "styleurl"],
+      ["has", "iconHref"],
+      ["has", "IconHref"],
+      ["has", "__styleIcon"],
+    ];
+  }
+
+  function clearPointIconFeatureIds(layer) {
+    layer?.data?.features?.forEach((feature) => {
+      if (feature?.properties?.__styleIconImageId) {
+        const { __styleIconImageId, ...properties } = feature.properties;
+        feature.properties = properties;
+      }
+    });
+  }
+
+  function shouldDisableLayerToggle(layer) {
+    return !canSeeLayer(layer) || layer.isLoading || shouldShowProcessingState(layer);
+  }
+
+  function shouldShowProcessingState(layer) {
+    return layer.sourceKind !== "static" && !canVisualizeLayer(layer);
+  }
+
+  function buildSubmissionInfoLines(layer) {
+    if (!layer || layer.sourceKind === "static") return [];
+    const lines = [
+      "Información del envío",
+      `Categoría: ${getLayerCategoryTitle(layer) || "No disponible"}`,
+      `Municipio: ${layer.municipality || "Cobertura estatal"}`,
+      `Tipo de fuente: ${layer.fileType || "No disponible"}`,
+      `Tipo de recurso: ${layer.resourceType || "vector"}`,
+      `Geometría: ${layer.metadata?.geometryType || layer.metadata?.properties?.geometryType || "No disponible"}`,
+      `Estado de procesamiento: ${getProcessingStatusLabel(layer.processingStatus)}`,
+      `Estado de revisión: ${getStatusLabel(layer.reviewStatus || layer.status)}`,
+      `Fecha de carga: ${formatDateTime(layer.createdAt)}`,
+      `Fecha de envío: ${formatDateTime(layer.submittedAt || layer.createdAt)}`,
+      `Identificador de la capa: ${layer.backendLayerId || layer.id}`,
+    ];
+    const submitter = layer.submittedBy || null;
+    if (submitter && (state.session.role === "admin" || layer.createdById === state.session.userId)) {
+      lines.splice(9, 0, `Usuario que subió: ${submitter.name || layer.createdBy || "Usuario no disponible"}`);
+      lines.splice(10, 0, `Rol del usuario: ${formatRoleLabel(submitter.role || "")}`);
+    }
+    if (Array.isArray(layer.download?.files)) {
+      lines.push(`Archivos: ${layer.download.files.length}`);
+    }
+    if (layer.rejectedReason && (state.session.role === "admin" || layer.createdById === state.session.userId)) {
+      lines.push(`Motivo de rechazo: ${layer.rejectedReason}`);
+    }
+    return lines;
+  }
+
+  function formatDateTime(value) {
+    if (!value) return "No disponible";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "No disponible";
+    return date.toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" });
+  }
+
+  function formatRoleLabel(value) {
+    const normalized = mapBackendRole(value);
+    return roleLabels[normalized] || "No disponible";
+  }
+
+  async function fetchLayerJson(layer, url) {
+    const response = await fetchLayerResource(layer, url);
+    return response.json();
+  }
+
+  async function fetchLayerBlobUrl(layer, url) {
+    const response = await fetchLayerResource(layer, url);
+    const blob = await response.blob();
+    return URL.createObjectURL(blob);
+  }
+
+  async function fetchLayerResource(layer, url) {
+    const headers = {};
+    const token = getPrivateLayerToken(layer);
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const response = await fetch(url, { headers });
+    if (!response.ok) {
+      throw new Error(response.status === 403
+        ? "No tienes permisos para descargar el recurso procesado."
+        : "No se pudo descargar el recurso procesado del backend.");
+    }
+    return response;
+  }
+
+  function getPrivateLayerToken(layer) {
+    if (!layer || isPublishedStatus(layer.status)) return null;
+    return state.session.token || null;
   }
 
   function getBackendRecordLikeFromLayer(layer) {
@@ -3743,6 +4023,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     const lineId = `${layer.id}-line`;
     const fillId = `${layer.id}-fill`;
     const pointId = `${layer.id}-point`;
+    const pointIconId = `${layer.id}-point-icon`;
     const defaultLineColor = layer.lineColor || layer.color;
     const defaultFillColor = layer.fillColor || layer.color;
     const defaultPointColor = layer.iconColor || layer.color;
@@ -3760,6 +4041,11 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     const hasPolygons = hasAnyGeometryType(geometryTypes, ["Polygon", "MultiPolygon"]);
     const hasLines = hasAnyGeometryType(geometryTypes, ["LineString", "MultiLineString"]);
     const hasPoints = hasAnyGeometryType(geometryTypes, ["Point", "MultiPoint"]);
+    if (hasPoints) applyPointFallbackIconFeatureIds(layer);
+    const hasPointIconFeatures = hasPoints && layer.data?.features?.some((feature) => {
+      const imageId = feature?.properties?.__styleIconImageId;
+      return imageId && map.hasImage(imageId);
+    });
     const interactiveLayerIds = [];
 
     upsertGeoJsonSource(sourceId, layer.data);
@@ -3807,15 +4093,17 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     }
 
     if (hasPoints) {
+      const pointGeometryFilter = [
+        "any",
+        ["==", ["geometry-type"], "Point"],
+        ["==", ["geometry-type"], "MultiPoint"],
+      ];
+      const pointSymbolDescriptorFilter = getPointSymbolDescriptorFilter();
       addLayerIfMissing({
         id: pointId,
         type: "circle",
         source: sourceId,
-        filter: [
-          "any",
-          ["==", ["geometry-type"], "Point"],
-          ["==", ["geometry-type"], "MultiPoint"],
-        ],
+        filter: ["all", pointGeometryFilter, ["!", pointSymbolDescriptorFilter]],
         paint: {
           "circle-color": pointColorExpression,
           "circle-radius": 6,
@@ -3826,6 +4114,31 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
         },
       });
       interactiveLayerIds.push(pointId);
+
+      if (hasPointIconFeatures) {
+        addLayerIfMissing({
+          id: pointIconId,
+          type: "symbol",
+          source: sourceId,
+          filter: [
+            "all",
+            pointGeometryFilter,
+            ["has", "__styleIconImageId"],
+            ["!=", ["get", "__styleIconImageId"], null],
+            ["!=", ["get", "__styleIconImageId"], ""],
+          ],
+          layout: {
+            "icon-image": ["coalesce", ["get", "__styleIconImageId"], "egem-fallback-point-dot"],
+            "icon-size": 1,
+            "icon-allow-overlap": true,
+            "icon-ignore-placement": true,
+          },
+          paint: {
+            "icon-opacity": getLayerOpacity(layer),
+          },
+        });
+        interactiveLayerIds.push(pointIconId);
+      }
     }
 
     layer.interactiveLayerIds = interactiveLayerIds;
@@ -3895,6 +4208,13 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
         URL.revokeObjectURL(overlay.imageUrl);
       }
     });
+    getLayerPointIcons(layer).forEach((icon) => {
+      if (icon.__revokeObjectUrl && icon.__objectUrl?.startsWith("blob:")) {
+        URL.revokeObjectURL(icon.__objectUrl);
+        delete icon.__objectUrl;
+        delete icon.__revokeObjectUrl;
+      }
+    });
     if (layer.imageUrl?.startsWith("blob:") && !layer.groundOverlays?.length) {
       URL.revokeObjectURL(layer.imageUrl);
     }
@@ -3919,6 +4239,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     const fillId = `${layer.id}-fill`;
     const lineId = `${layer.id}-line`;
     const pointId = `${layer.id}-point`;
+    const pointIconId = `${layer.id}-point-icon`;
     const rasterIds = layer.imageLayerIds?.length ? layer.imageLayerIds : [`${layer.id}-raster`];
 
     const styleOpacityPaintValue = getLayerStyleOpacityPaintValue(layer);
@@ -3927,6 +4248,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     safeSetPaintProperty(lineId, "line-opacity", styleOpacityPaintValue);
     safeSetPaintProperty(pointId, "circle-opacity", opacity);
     safeSetPaintProperty(pointId, "circle-stroke-opacity", opacity);
+    safeSetPaintProperty(pointIconId, "icon-opacity", opacity);
     rasterIds.forEach((rasterId) => safeSetPaintProperty(rasterId, "raster-opacity", opacity));
   }
 
@@ -3956,6 +4278,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     await ensureLayerResourcesLoaded(layer);
     addUserLayerToMap(layer);
     state.renderedLayers.set(layer.id, true);
+    activateLayerInStack(layer.id);
     fitLayer(layer);
     captureVisibleSnapshot();
     openFloatingLegendForLayer(layer.id, { renderCatalog: false });
@@ -4027,10 +4350,23 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
         try {
           await ensureLayerResourcesLoaded(userLayer);
           userLayer.loadError = null;
+          const isLatestLegendRequest = legendRequestId === state.activeLegendRequestId && userLayer.visible !== false;
+          if (!state.renderedLayers.has(userLayer.id) && (canSeeLayer(userLayer) || userLayer.id === state.previewLayerId)) {
+            addUserLayerToMap(userLayer);
+            state.renderedLayers.set(userLayer.id, true);
+          }
+          setUserLayerLayoutVisibility(userLayer, true);
+          userLayer.visible = true;
+          syncLayerCatalogItemState(layerId, true);
+          if (isLatestLegendRequest) {
+            activateLayerInStack(userLayer.id);
+            openFloatingLegendForLayer(userLayer.id, { renderCatalog: false, requestId: legendRequestId });
+          }
         } catch (error) {
           userLayer.visible = false;
           userLayer.loadError = error.message || "Error de carga";
           deactivateLayerInStack(userLayer.id);
+          state.renderedLayers.delete(userLayer.id);
           syncLayerCatalogItemState(layerId, false);
           captureVisibleSnapshot();
           saveUserLayers();
@@ -4039,16 +4375,6 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
             description: error.message || "La capa no pudo descargarse. Intenta activarla nuevamente.",
           });
           throw error;
-        }
-        const isLatestLegendRequest = legendRequestId === state.activeLegendRequestId && userLayer.visible !== false;
-        if (!state.renderedLayers.has(userLayer.id) && (canSeeLayer(userLayer) || userLayer.id === state.previewLayerId)) {
-          addUserLayerToMap(userLayer);
-          state.renderedLayers.set(userLayer.id, true);
-        }
-        setUserLayerLayoutVisibility(userLayer, true);
-        if (isLatestLegendRequest) {
-          activateLayerInStack(userLayer.id);
-          openFloatingLegendForLayer(userLayer.id, { renderCatalog: false, requestId: legendRequestId });
         }
       } else {
         setUserLayerLayoutVisibility(userLayer, false);
@@ -4114,6 +4440,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     const visibility = visible ? "visible" : "none";
     const layerIds = [
       `${layer.id}-point`,
+      `${layer.id}-point-icon`,
       `${layer.id}-line`,
       `${layer.id}-fill`,
       `${layer.id}-raster`,
@@ -4200,18 +4527,13 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     }
   }
 
-  function downloadLayer(layerId) {
+  async function downloadLayer(layerId) {
     const layer = state.userLayers.find((item) => item.id === layerId);
     if (!layer || !canDownloadLayer(layer)) return;
 
     if (layer.download.files.length === 1 && layer.download.files[0].url) {
       const file = layer.download.files[0];
-      const link = document.createElement("a");
-      link.href = file.url;
-      link.download = file.name;
-      link.rel = "noopener";
-      link.target = "_blank";
-      link.click();
+      await downloadLayerFileUrl(layer, file);
       return;
     }
 
@@ -4222,14 +4544,9 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     }
 
     if (layer.download.files.every((file) => file.url)) {
-      layer.download.files.forEach((file) => {
-        const link = document.createElement("a");
-        link.href = file.url;
-        link.download = file.name;
-        link.rel = "noopener";
-        link.target = "_blank";
-        link.click();
-      });
+      for (const file of layer.download.files) {
+        await downloadLayerFileUrl(layer, file);
+      }
       return;
     }
 
@@ -4271,7 +4588,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
   }
 
   function getTopThematicPopupHit(event) {
-    const stack = [...state.activeLayerStack].reverse();
+    const stack = getQueryableThematicLayerStack().reverse();
     for (const layerId of stack) {
       const layer = state.userLayers.find((item) => item.id === layerId);
       if (!isThematicQueryableLayer(layer)) continue;
@@ -4283,6 +4600,19 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       if (rasterHit) return rasterHit;
     }
     return null;
+  }
+
+  function getQueryableThematicLayerStack() {
+    const stack = [...state.activeLayerStack];
+    if (state.previewLayerId && !stack.includes(state.previewLayerId)) {
+      stack.push(state.previewLayerId);
+    }
+    state.userLayers.forEach((layer) => {
+      if (isThematicQueryableLayer(layer) && !stack.includes(layer.id)) {
+        stack.push(layer.id);
+      }
+    });
+    return stack;
   }
 
   function getTopStaticPopupHit(event) {
@@ -4306,15 +4636,55 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       return map.getLayer(layerId) && map.getLayoutProperty(layerId, "visibility") !== "none";
     });
     if (!layerIds.length) return null;
-    const features = map.queryRenderedFeatures(event.point, { layers: layerIds });
-    const feature = pickTopVectorPopupFeature(features);
+    const queryableLayers = groupVectorPopupLayerIdsByPriority(layerIds);
+    const pointFeatures = [
+      ...queryRenderedFeaturesWithTolerance(event.point, queryableLayers.symbols, 8),
+      ...queryRenderedFeaturesWithTolerance(event.point, queryableLayers.circles, 8),
+    ];
+    const feature = pointFeatures.length
+      ? pickNearestPointPopupFeature(pointFeatures, event.point)
+      : pickTopVectorPopupFeature([
+          ...queryRenderedFeaturesWithTolerance(event.point, queryableLayers.fills, 2),
+          ...queryRenderedFeaturesWithTolerance(event.point, queryableLayers.lines, 2),
+          ...queryRenderedFeaturesWithTolerance(event.point, queryableLayers.other, 2),
+        ]);
     if (!feature) return null;
+    const technicalIdentity = getFeatureTechnicalIdentity(feature.properties || {});
+    const symbolDescriptor = getFeatureLegendClass(feature.properties || {}, layer.legend);
     return {
       kind: "vector",
       layer,
       feature,
       mapLayerId: feature.layer?.id || layerIds[0],
+      technicalIdentity,
+      symbolDescriptor,
+      distanceFromClick: ["Point", "MultiPoint"].includes(feature.geometry?.type)
+        ? getFeaturePointScreenDistance(feature, event.point)
+        : null,
     };
+  }
+
+  function groupVectorPopupLayerIdsByPriority(layerIds) {
+    return layerIds.reduce((groups, layerId) => {
+      const type = map.getLayer(layerId)?.type;
+      if (type === "symbol") groups.symbols.push(layerId);
+      else if (type === "circle") groups.circles.push(layerId);
+      else if (type === "fill") groups.fills.push(layerId);
+      else if (type === "line") groups.lines.push(layerId);
+      else groups.other.push(layerId);
+      return groups;
+    }, { symbols: [], circles: [], fills: [], lines: [], other: [] });
+  }
+
+  function queryRenderedFeaturesWithTolerance(point, layerIds, tolerance) {
+    if (!layerIds.length) return [];
+    const queryGeometry = tolerance > 0
+      ? [
+          [point.x - tolerance, point.y - tolerance],
+          [point.x + tolerance, point.y + tolerance],
+        ]
+      : point;
+    return map.queryRenderedFeatures(queryGeometry, { layers: layerIds });
   }
 
   function getRasterPopupHitForLayer(layer, lngLat) {
@@ -4375,11 +4745,11 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
   }
 
   function showVectorFeaturePopup(hit, lngLat) {
-    const { layer, feature, mapLayerId } = hit;
+    const { layer, feature, mapLayerId, symbolDescriptor } = hit;
     const props = feature.properties || {};
     if (!hasPopupProperties(props)) return;
     console.info("Propiedades de una Feature seleccionada:", props);
-    const cleanedAttributes = cleanThematicPopupAttributes(props, layer.legend);
+    const cleanedAttributes = cleanThematicPopupAttributes(props, layer.legend, symbolDescriptor);
     const info = {
       title: layer.title,
       description: layer.description,
@@ -4393,7 +4763,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       resourceType: isImageBackedLayer(layer) ? "mixed" : "vector",
       mapLayerId,
       coordinate: lngLat,
-      html: buildThematicFeaturePopup(layer.title, props, layer.legend),
+      html: buildThematicFeaturePopup(layer.title, props, layer.legend, symbolDescriptor),
       info,
     });
   }
@@ -4472,23 +4842,51 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     if (!legend || !Array.isArray(legend.classes)) return "";
     const listClassName = ["legend-list", options.compact ? "legend-list--compact" : ""].filter(Boolean).join(" ");
     const itemClassName = ["legend-item", options.compact ? "legend-item--compact" : ""].filter(Boolean).join(" ");
-    const items = legend.classes
+    const renderItems = (classes) => classes
       .map((item) => `
         <div class="${itemClassName}">
-          <span class="legend-swatch" style="${escapeHtml(getLegendSwatchStyle(item))}" aria-hidden="true"></span>
+          ${renderLegendSymbolMarkup(item)}
           <div class="legend-item__copy">
-            <strong title="${escapeHtml(item.label)}">${escapeHtml(item.label)}</strong>
+            <strong title="${escapeHtml(item.displayLabel || item.label)}">${escapeHtml(item.displayLabel || item.label)}</strong>
             ${getLegendClassDescriptor(item, legend)}
           </div>
         </div>
       `)
       .join("");
+    const grouped = groupLegendClassesForDisplay(legend.classes);
+    const items = grouped.length > 1
+      ? grouped.map((group) => `
+          <div class="legend-group">
+            <p class="legend-group__title">${escapeHtml(group.title)}</p>
+            ${renderItems(group.classes)}
+          </div>
+        `).join("")
+      : renderItems(legend.classes);
     return `
       <div class="${listClassName}">
         ${!options.hideField && shouldRenderLegendField(legend) ? `<p class="info-copy"><strong>${escapeHtml(legend.field)}</strong></p>` : ""}
         ${items}
       </div>
     `;
+  }
+
+  function groupLegendClassesForDisplay(classes) {
+    const hasNamedGroups = classes.some((item) => String(item.group || item.folder || "").trim());
+    if (!hasNamedGroups) {
+      return [{ title: "", classes }];
+    }
+    const groups = [];
+    const byGroup = new Map();
+    classes.forEach((item) => {
+      const title = String(item.group || item.folder || "").trim() || "Simbología";
+      if (!byGroup.has(title)) {
+        const group = { title, classes: [] };
+        byGroup.set(title, group);
+        groups.push(group);
+      }
+      byGroup.get(title).classes.push(item);
+    });
+    return groups;
   }
 
   function shouldRenderLegendField(legend) {
@@ -4576,6 +4974,88 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     return pickTopFeatureByVisualPriority(popupFeatures);
   }
 
+  function pickNearestPointPopupFeature(features, point) {
+    const popupFeatures = (features || []).filter((feature) => hasPopupProperties(feature.properties));
+    if (!popupFeatures.length) return null;
+    return [...popupFeatures].sort((a, b) => {
+      const typeDifference = getPointHitLayerPriority(a) - getPointHitLayerPriority(b);
+      if (typeDifference !== 0) return typeDifference;
+      const distanceDifference = getFeaturePointScreenDistance(a, point) - getFeaturePointScreenDistance(b, point);
+      if (distanceDifference !== 0) return distanceDifference;
+      return getFeatureVisualPriorityRank(b.properties || {}) - getFeatureVisualPriorityRank(a.properties || {});
+    })[0];
+  }
+
+  function getFeatureTechnicalIdentity(properties = {}) {
+    const styleUrl = properties.styleUrl || properties.StyleUrl || properties.styleurl || null;
+    return {
+      folder: properties.__kmlFolder || null,
+      legendField: properties.__legendField || null,
+      originalValue: getFeatureLegendFieldValue(properties) || null,
+      styleUrl,
+      styleId: properties.__kmlStyleId || (styleUrl ? String(styleUrl).replace(/^#/u, "") : null),
+      symbolType: hasPointSymbolDescriptor(properties) ? "icon" : null,
+      geometryRole: properties.__geometryRole || null,
+      iconImageId: properties.__styleIconImageId || null,
+    };
+  }
+
+  function getFeatureLegendFieldValue(properties = {}, legend = null) {
+    const field = properties.__legendField || legend?.styleField || legend?.field;
+    return field ? properties[field] : null;
+  }
+
+  function getFeatureLegendClass(properties = {}, legend = null) {
+    if (!Array.isArray(legend?.classes)) return null;
+    const exactMatch = legend.classes.find((item) => legendClassMatchesFeatureByIdentity(item, properties, legend));
+    if (exactMatch) return exactMatch;
+    const styleColor = normalizeHexColor(properties.__styleFill || properties.__styleLine || properties.__styleIcon);
+    if (!styleColor) return null;
+    const colorMatches = legend.classes.filter((item) => {
+      const itemColor = normalizeHexColor(item?.displayColor || item?.color);
+      return itemColor === styleColor;
+    });
+    return colorMatches.length === 1 ? colorMatches[0] : null;
+  }
+
+  function legendClassMatchesFeatureByIdentity(item, properties = {}, legend = null) {
+    const styleUrl = properties.styleUrl || properties.StyleUrl || properties.styleurl;
+    const styleId = properties.__kmlStyleId || String(styleUrl || "").replace(/^#/u, "");
+    if (item.styleUrl && styleUrl && String(item.styleUrl) === String(styleUrl)) return true;
+    if (item.styleId && styleId && String(item.styleId) === String(styleId)) return true;
+    if (item.iconHref && properties.iconHref && String(item.iconHref) === String(properties.iconHref)) return true;
+    const field = item.legendField || legend?.styleField || legend?.field;
+    const classValue = item.originalValue || item.value || item.label;
+    if (field && classValue && normalizeLegendComparisonValue(properties[field]) === normalizeLegendComparisonValue(classValue)) {
+      return true;
+    }
+    if (item.geometryRole && properties.__geometryRole === item.geometryRole) return true;
+    if (item.folder && properties.__kmlFolder === item.folder) return true;
+    if (item.group && properties.__kmlFolder === item.group) return true;
+    return false;
+  }
+
+  function getPointHitLayerPriority(feature) {
+    const type = feature?.layer?.type || "";
+    return type === "symbol" ? 0 : type === "circle" ? 1 : 2;
+  }
+
+  function getFeaturePointScreenDistance(feature, point) {
+    const geometry = feature?.geometry || {};
+    const coordinates = geometry.type === "Point"
+      ? [geometry.coordinates]
+      : geometry.type === "MultiPoint"
+        ? geometry.coordinates
+        : [];
+    if (!coordinates.length) return Number.POSITIVE_INFINITY;
+    return Math.min(...coordinates.map((coordinate) => {
+      const projected = map.project(coordinate);
+      const dx = projected.x - point.x;
+      const dy = projected.y - point.y;
+      return Math.sqrt(dx * dx + dy * dy);
+    }));
+  }
+
   function getTopGroundOverlayHit(lngLat) {
     const layerOrder = getMapLayerOrder();
     return pickTopGroundOverlayHit(getVisibleGroundOverlayCandidates(), lngLat, layerOrder);
@@ -4603,9 +5083,46 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
   }
 
   function getLegendSwatchStyle(item) {
-    const fill = item.color || "transparent";
-    const outline = item.outlineColor || item.strokeColor || item.color || "rgba(70, 36, 49, 0.35)";
+    const fill = item.displayColor || item.color || "transparent";
+    const outline = item.outlineColor || item.strokeColor || item.displayColor || item.color || "rgba(70, 36, 49, 0.35)";
     return `background:${fill};border:2px solid ${outline};`;
+  }
+
+  function renderLegendSymbolMarkup(item) {
+    if (item?.iconImageUrl) {
+      return `<span class="legend-swatch legend-swatch--image" aria-hidden="true"><img src="${escapeHtml(item.iconImageUrl)}" alt="" loading="lazy" /></span>`;
+    }
+    const shape = getLegendSymbolShape(item);
+    return `<span class="legend-swatch legend-swatch--${escapeHtml(shape)}" style="${escapeHtml(getLegendSwatchStyle(item))}" aria-hidden="true"></span>`;
+  }
+
+  function getLegendSymbolShape(item = {}) {
+    const role = String(item.geometryRole || item.group || item.folder || item.label || "").toLowerCase();
+    if (role.includes("pozo")) return "triangle";
+    if (role.includes("manantial")) return "dot";
+    if (item.symbolType === "icon") return "dot";
+    return "box";
+  }
+
+  function attachPointIconUrlsToLegend(legend, layer) {
+    if (!legend?.classes?.length) return legend;
+    const pointIcons = getLayerPointIcons(layer);
+    if (!pointIcons.length) return legend;
+    const byStyleId = new Map();
+    const byStyleUrl = new Map();
+    pointIcons.forEach((icon) => {
+      if (icon.styleId) byStyleId.set(String(icon.styleId), icon.imageUrl);
+      if (icon.styleUrl) byStyleUrl.set(String(icon.styleUrl), icon.imageUrl);
+      if (icon.id) byStyleId.set(String(icon.id), icon.imageUrl);
+    });
+    return {
+      ...legend,
+      classes: legend.classes.map((item) => {
+        const styleId = item.styleId || (item.styleUrl ? String(item.styleUrl).replace(/^#/u, "") : null);
+        const iconImageUrl = item.iconImageUrl || (item.styleUrl ? byStyleUrl.get(String(item.styleUrl)) : null) || (styleId ? byStyleId.get(String(styleId)) : null);
+        return iconImageUrl ? { ...item, iconImageUrl, symbolType: "icon" } : item;
+      }),
+    };
   }
 
   function formatLegendNumber(value) {
@@ -4675,14 +5192,14 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     `;
   }
 
-  function buildThematicFeaturePopup(layerName, properties = {}, legend = null) {
-    const attributes = cleanThematicPopupAttributes(properties, legend);
-    const rows = THEMATIC_POPUP_FIELDS
-      .filter(({ label }) => Object.prototype.hasOwnProperty.call(attributes, label))
-      .map(({ label }) => `
+  function buildThematicFeaturePopup(layerName, properties = {}, legend = null, symbolDescriptor = null) {
+    const attributes = cleanThematicPopupAttributes(properties, legend, symbolDescriptor);
+    const popupTitle = getThematicPopupTitle(layerName, properties);
+    const rows = Object.entries(attributes)
+      .map(([label, value]) => `
         <div class="feature-popup__row">
           <dt>${escapeHtml(label)}:</dt>
-          <dd>${escapeHtml(String(attributes[label]))}</dd>
+          <dd>${escapeHtml(String(value))}</dd>
         </div>
       `)
       .join("");
@@ -4690,7 +5207,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     return `
       <section class="feature-popup feature-popup--thematic">
         <header class="feature-popup__header">
-          <strong>${escapeHtml(layerName || "Capa seleccionada")}</strong>
+          <strong>${escapeHtml(popupTitle || "Capa seleccionada")}</strong>
         </header>
         <div class="feature-popup__body">
           ${
@@ -4715,7 +5232,33 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     { label: "Amenaza", aliases: ["Amenaza", "Ame_Ampl", "AME_AMPL"] },
   ];
 
-  function cleanThematicPopupAttributes(properties = {}, legend = null) {
+  const POINT_KML_POPUP_FIELDS = [
+    { label: "Estado", aliases: ["StatusTipo", "Status", "Estado"] },
+    { label: "Municipio", aliases: ["MunNom", "Municipio", "NOM_MUN"] },
+    { label: "Localidad", aliases: ["LocNom", "Localidad", "NOM_LOC"] },
+    { label: "Caudal tratado", aliases: ["Caudal_Tra", "Caudal tratado", "Caudal"] },
+    { label: "Altitud", aliases: ["ALTITUD", "Altitud"] },
+  ];
+
+  function getThematicPopupTitle(layerName, properties = {}) {
+    const descriptionAttributes = parseKmlDescriptionHtmlAttributes(
+      getPropertyValueByAlias(properties, ["description", "Description"])
+    );
+    const lookup = buildPopupAttributeLookup({ ...properties, ...descriptionAttributes });
+    const role = getKmlPopupRole(lookup);
+    if (role === "manantial") {
+      return "Manantial";
+    }
+    if (role === "pozo") {
+      return "Pozo";
+    }
+    if (role === "estanque") {
+      return "Estanque";
+    }
+    return getPopupLookupValue(lookup, ["PtarNombre", "Nombre", "Name", "NOMBRE"]) || layerName;
+  }
+
+  function cleanThematicPopupAttributes(properties = {}, legend = null, symbolDescriptor = null) {
     const descriptionAttributes = parseKmlDescriptionHtmlAttributes(
       getPropertyValueByAlias(properties, ["description", "Description"])
     );
@@ -4725,9 +5268,26 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
         mergedProperties[key] = value;
       }
     });
-    applyVisibleLegendLabelForPopup(mergedProperties, legend);
+    const exactLegendClass = symbolDescriptor || getFeatureLegendClass(mergedProperties, legend);
+    const visibleLegendLabel = exactLegendClass?.displayLabel || exactLegendClass?.label || null;
+    applyVisibleLegendLabelForPopup(mergedProperties, legend, exactLegendClass);
 
     const lookup = buildPopupAttributeLookup(mergedProperties);
+    const kmlFolderAttributes = buildFolderKmlPopupAttributes(lookup);
+    if (Object.keys(kmlFolderAttributes).length) {
+      return kmlFolderAttributes;
+    }
+    const pointAttributes = buildPointKmlPopupAttributes(lookup);
+    if (Object.keys(pointAttributes).length) {
+      return pointAttributes;
+    }
+    if (isUsablePopupValue(visibleLegendLabel) && !isGenericPopupLegendLabel(visibleLegendLabel) && !isIntensityCategoryValue(visibleLegendLabel)) {
+      return { Categoría: visibleLegendLabel };
+    }
+    const fallbackCategory = getThematicCategoryFallbackLabel(lookup);
+    if (fallbackCategory) {
+      return { Categoría: fallbackCategory };
+    }
     return THEMATIC_POPUP_FIELDS.reduce((attributes, field) => {
       const value = getThematicPopupFieldValue(field, lookup);
       if (isUsablePopupValue(value)) {
@@ -4735,6 +5295,113 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       }
       return attributes;
     }, {});
+  }
+
+  function getThematicCategoryFallbackLabel(lookup) {
+    const role = getKmlPopupRole(lookup);
+    const roleLabels = {
+      manantial: "Manantial",
+      pozo: "Pozo",
+      estanque: "Estanque",
+      acuifero: "Acuífero",
+      vedas: "Veda",
+    };
+    if (roleLabels[role]) return roleLabels[role];
+    const name = getPopupLookupValue(lookup, ["Name", "name", "Nombre", "NOMBRE"]);
+    const normalizedName = normalizeAttributeKey(name).replace(/\s+/g, " ").trim();
+    return roleLabels[normalizedName] || null;
+  }
+
+  function buildFolderKmlPopupAttributes(lookup) {
+    const role = getKmlPopupRole(lookup);
+    if (role === "manantial") {
+      return buildPopupAttributesFromSchema(lookup, [
+        { label: "Categoría", value: "Manantial" },
+        { label: "Tipo", aliases: ["tipo", "TIPO"] },
+        { label: "Localidad", aliases: ["nom_geo", "NOM_GEO"] },
+        { label: "Código", aliases: ["codigo", "CODIGO"] },
+        { label: "Nombre conocido", aliases: ["nom_cono", "NOM_CONO"] },
+        { label: "Clasificación", aliases: ["clase_geo", "CLASE_GEO"] },
+      ]);
+    }
+    if (role === "pozo") {
+      return buildPopupAttributesFromSchema(lookup, [
+        { label: "Categoría", value: "Pozo" },
+        { label: "Condición", aliases: ["condicion", "CONDICION"] },
+        { label: "Tipo", aliases: ["tipo", "TIPO"] },
+        { label: "Localidad", aliases: ["nom_geo", "NOM_GEO"] },
+        { label: "Código", aliases: ["codigo", "CODIGO"] },
+        { label: "Clasificación", aliases: ["clase_geo", "CLASE_GEO"] },
+      ]);
+    }
+    if (role === "estanque") {
+      return buildPopupAttributesFromSchema(lookup, [
+        { label: "Categoría", value: "Estanque" },
+        { label: "Tipo", aliases: ["tipo", "TIPO"] },
+        { label: "Nombre", aliases: ["nom_geo", "NOM_GEO", "nom_obj", "NOM_OBJ"] },
+        { label: "Clasificación", aliases: ["clase_geo", "CLASE_GEO"] },
+      ]);
+    }
+    if (role === "acuifero") {
+      return buildPopupAttributesFromSchema(lookup, [
+        { label: "Categoría", value: "Acuífero" },
+        { label: "Nombre", aliases: ["nom_geo", "NOM_GEO", "nom_obj", "NOM_OBJ", "Acuifero", "ACUIFERO"] },
+        { label: "Disponibilidad", aliases: ["Disponibilidad", "DISPONIBILIDAD", "disp_media", "DISP_MEDIA"] },
+        { label: "Déficit", aliases: ["Deficit", "DEFICIT", "deficit"] },
+        { label: "Fecha", aliases: ["Fecha", "FECHA"] },
+      ]);
+    }
+    if (role === "vedas") {
+      return buildPopupAttributesFromSchema(lookup, [
+        { label: "Categoría", value: "Veda" },
+        { label: "Nombre", aliases: ["nom_geo", "NOM_GEO", "nom_obj", "NOM_OBJ"] },
+        { label: "Clasificación", aliases: ["clasificacion", "Clasificación", "CLASIFICACION", "clase_geo", "CLASE_GEO"] },
+      ]);
+    }
+    return {};
+  }
+
+  function buildPopupAttributesFromSchema(lookup, schema) {
+    return schema.reduce((attributes, field) => {
+      const value = Object.hasOwn(field, "value") ? field.value : getPopupLookupValue(lookup, field.aliases);
+      if (isUsablePopupValue(value)) {
+        attributes[field.label] = value;
+      }
+      return attributes;
+    }, {});
+  }
+
+  function getKmlPopupRole(lookup) {
+    const role = getPopupLookupValue(lookup, ["__geometryRole"]);
+    if (role) return normalizeAttributeKey(role);
+    const folder = getPopupLookupValue(lookup, ["__kmlFolder"]);
+    if (!folder) return "";
+    const normalized = normalizeAttributeKey(folder);
+    if (normalized.includes("manantial")) return "manantial";
+    if (normalized.includes("pozo")) return "pozo";
+    if (normalized.includes("estanque")) return "estanque";
+    if (normalized.includes("acuifero")) return "acuifero";
+    if (normalized.includes("veda")) return "vedas";
+    if (normalized.includes("descarga")) return "descargas-sin-tratamientos";
+    return normalized;
+  }
+
+  function buildPointKmlPopupAttributes(lookup) {
+    const hasPointSchema = isUsablePopupValue(getPopupLookupValue(lookup, ["PtarNombre", "StatusTipo"]));
+    if (!hasPointSchema) return {};
+    const attributes = POINT_KML_POPUP_FIELDS.reduce((acc, field) => {
+      const value = getPopupLookupValue(lookup, field.aliases);
+      if (isUsablePopupValue(value)) {
+        acc[field.label] = value;
+      }
+      return acc;
+    }, {});
+    const lat = getPopupLookupValue(lookup, ["Lat", "LAT"]);
+    const lon = getPopupLookupValue(lookup, ["Long", "Lon", "LONG", "LON"]);
+    if (isUsablePopupValue(lat) && isUsablePopupValue(lon)) {
+      attributes.Coordenadas = `${lat}, ${lon}`;
+    }
+    return attributes;
   }
 
   function buildPopupAttributeLookup(properties = {}) {
@@ -4829,10 +5496,12 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     return attributes;
   }
 
-  function applyVisibleLegendLabelForPopup(properties, legend = null) {
-    const visibleLabel = getFeatureStyleLegendLabel(properties, legend);
+  function applyVisibleLegendLabelForPopup(properties, legend = null, legendClass = null) {
+    const matchedClass = legendClass || getFeatureLegendClass(properties, legend);
+    const visibleLabel = matchedClass?.displayLabel || matchedClass?.label || getFeatureStyleLegendLabel(properties, legend);
     if (!isUsablePopupValue(visibleLabel)) return;
     if (isGenericPopupLegendLabel(visibleLabel)) return;
+    if (!shouldApplyLegendLabelAsThematicValue(properties, legend, visibleLabel)) return;
     const originalIntensity = getPropertyValueByAlias(properties, [
       "Intensidad",
       "INTENSIDAD",
@@ -4849,6 +5518,13 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       properties["Intensidad original"] = originalIntensity;
     }
     properties.Intensidad = visibleLabel;
+  }
+
+  function shouldApplyLegendLabelAsThematicValue(properties = {}, legend = null, visibleLabel = null) {
+    if (isIntensityCategoryValue(visibleLabel)) return true;
+    const field = legend?.styleField || legend?.field || properties.__legendField;
+    if (!field || isTechnicalStyleField(field)) return false;
+    return isUsablePopupValue(getPropertyValueByAlias(properties, [field]));
   }
 
   function isGenericPopupLegendLabel(value) {
@@ -5266,52 +5942,66 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     state.uploadDraft.minimized = false;
     syncUploadDraftUi();
     elements.triggerUpload?.classList.add("is-active");
-    positionUploadModal();
     elements.uploadLayerModal.showModal();
+    syncUploadPanelDock();
   }
 
-  function closeUploadModal() {
+  function closeUploadModal(options = {}) {
+    const requireConfirmation = options.requireConfirmation !== false;
+    if (requireConfirmation && hasUnsavedUploadDraft() && !window.confirm("Hay cambios sin guardar. ¿Quieres cancelar la carga y descartarlos?")) {
+      return false;
+    }
     clearUploadDraftPreview();
     resetUploadDraft();
     state.uploadDraft.minimized = false;
     elements.triggerUpload?.classList.remove("is-active");
+    syncUploadPanelDock();
     elements.uploadLayerModal.close();
+    return true;
+  }
+
+  function hasUnsavedUploadDraft() {
+    const metadataHasValue = [
+      elements.uploadLayerTitle,
+      elements.uploadLayerDescription,
+      elements.uploadLayerMunicipality,
+      elements.uploadLayerSource,
+      elements.uploadLayerAgency,
+      elements.uploadLayerUpdatedAt,
+      elements.uploadLayerScale,
+      elements.uploadLayerCrs,
+      elements.rasterLegendTitle,
+    ].some((field) => field?.value?.trim());
+    return Boolean(
+      state.uploadDraft.files.length ||
+      state.uploadDraft.previewLayers.length ||
+      state.uploadDraft.rasterLegendItems.length ||
+      state.uploadDraft.vectorLegend ||
+      state.uploadDraft.extractedMetadata ||
+      state.uploadDraft.geospatialDiagnostics ||
+      metadataHasValue
+    );
   }
 
   function minimizeUploadModal() {
-    state.uploadDraft.minimized = true;
-    elements.triggerUpload?.classList.remove("is-active");
-    elements.uploadLayerModal.close();
-  }
-
-  function positionUploadModal() {
-    if (!elements.uploadLayerModal || !elements.triggerUpload) return;
-
-    if (window.innerWidth <= 1180) {
-      elements.uploadLayerModal.style.top = "130px";
-      elements.uploadLayerModal.style.left = "10px";
-      elements.uploadLayerModal.style.setProperty("--upload-arrow-left", "82%");
-      elements.uploadLayerModal.style.maxHeight = "";
-      elements.uploadLayerForm.style.maxHeight = "calc(100vh - 150px)";
+    if (state.uploadDraft.minimized) {
+      state.uploadDraft.minimized = false;
+      elements.triggerUpload?.classList.add("is-active");
+      syncUploadPanelDock();
       return;
     }
+    state.uploadDraft.minimized = true;
+    elements.triggerUpload?.classList.add("is-active");
+    syncUploadPanelDock();
+  }
 
-    const rect = elements.triggerUpload.getBoundingClientRect();
-    const panelWidth = Math.min(340, window.innerWidth - 20);
-    const left = Math.max(10, Math.min(rect.left + rect.width / 2 - panelWidth / 2, window.innerWidth - panelWidth - 10));
-    const preferredTop = rect.bottom + 14;
-    const top = Math.max(90, Math.min(preferredTop, window.innerHeight - 220));
-    const arrowLeft = Math.max(48, Math.min(rect.left + rect.width / 2 - left, panelWidth - 48));
-    const availableHeight = Math.max(280, window.innerHeight - top - 18);
-
-    elements.uploadLayerModal.style.left = `${left}px`;
-    elements.uploadLayerModal.style.top = `${top}px`;
-    elements.uploadLayerModal.style.maxHeight = "";
-    elements.uploadLayerForm.style.maxHeight = `${availableHeight}px`;
-    elements.uploadLayerModal.style.setProperty("--upload-arrow-left", `${arrowLeft}px`);
+  function syncUploadPanelDock() {
+    if (!elements.uploadLayerModal) return;
+    elements.uploadLayerModal.classList.toggle("is-minimized", state.uploadDraft.minimized === true);
   }
 
   function resetUploadDraft() {
+    clearUploadDraftPreview();
     state.uploadDraft.files = [];
     state.uploadDraft.previewLayers = [];
     state.uploadDraft.previewVisible = false;
@@ -5319,13 +6009,38 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     state.uploadDraft.minimized = false;
     state.uploadDraft.rasterLegendItems = [];
     state.uploadDraft.rasterLegendTitle = "";
+    state.uploadDraft.legendKind = "raster";
+    state.uploadDraft.vectorLegend = null;
+    state.uploadDraft.extractedMetadata = null;
+    state.uploadDraft.geospatialDiagnostics = null;
     if (elements.uploadLayerFeedback) elements.uploadLayerFeedback.textContent = "";
     clearUploadMetadataForm();
     syncUploadDraftUi();
   }
 
-  async function setUploadDraftFiles(files) {
+  function clearUploadDraftDerivedState(options = {}) {
+    const category = options.preserveCategory === false
+      ? elements.uploadLayerCategory?.value || "geologicos"
+      : state.uploadDraft.category || elements.uploadLayerCategory?.value || "geologicos";
     clearUploadDraftPreview();
+    state.uploadDraft.files = [];
+    state.uploadDraft.previewLayers = [];
+    state.uploadDraft.previewVisible = false;
+    state.uploadDraft.category = category;
+    state.uploadDraft.rasterLegendItems = [];
+    state.uploadDraft.rasterLegendTitle = "";
+    state.uploadDraft.legendKind = "raster";
+    state.uploadDraft.vectorLegend = null;
+    state.uploadDraft.extractedMetadata = null;
+    state.uploadDraft.geospatialDiagnostics = null;
+    clearUploadMetadataForm();
+    if (elements.rasterLegendTitle) elements.rasterLegendTitle.value = "";
+    if (elements.uploadLayerFeedback && !options.keepMessage) elements.uploadLayerFeedback.textContent = "";
+    syncUploadDraftUi();
+  }
+
+  async function setUploadDraftFiles(files) {
+    clearUploadDraftDerivedState({ keepMessage: true });
     const [firstFile] = files;
     state.uploadDraft.files = firstFile ? [firstFile] : [];
     state.uploadDraft.previewLayers = [];
@@ -5418,6 +6133,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
         : "La capa se visualizará automáticamente al seleccionarla.";
     }
 
+    syncUploadSectionSummaries();
     elements.triggerUpload?.classList.toggle("has-draft", state.uploadDraft.files.length > 0);
 
     return;
@@ -5440,6 +6156,38 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     elements.uploadPreviewState.textContent = state.uploadDraft.previewVisible
       ? "Vista previa activa en el mapa"
       : "Vista previa inactiva";
+  }
+
+  function syncUploadSectionSummaries() {
+    const files = state.uploadDraft.files || [];
+    if (elements.uploadFileSummary) {
+      elements.uploadFileSummary.textContent = files.length ? files[0].name : "Selecciona un archivo";
+    }
+    if (elements.uploadClassificationSummary) {
+      const title = elements.uploadLayerTitle?.value.trim() || state.uploadDraft.previewLayers[0]?.title || "Nombre pendiente";
+      elements.uploadClassificationSummary.textContent = `${getThematicGroupTitle(state.uploadDraft.category)} · ${title}`;
+    }
+    if (elements.uploadMetadataSummary) {
+      elements.uploadMetadataSummary.textContent = buildUploadMetadataSummary();
+    }
+    if (elements.uploadSymbologySummary) {
+      elements.uploadSymbologySummary.textContent = buildUploadSymbologySummary();
+    }
+  }
+
+  function buildUploadMetadataSummary() {
+    const coverage = elements.uploadLayerMunicipality?.value.trim() || "Estado de Morelos";
+    const scale = elements.uploadLayerScale?.value.trim() || "Escala pendiente";
+    const crs = elements.uploadLayerCrs?.value.trim() || "WGS 84";
+    return `${coverage} · ${scale} · ${crs}`;
+  }
+
+  function buildUploadSymbologySummary() {
+    const items = state.uploadDraft.rasterLegendItems || [];
+    if (!items.length) return "Sin leyenda detectada";
+    const title = state.uploadDraft.rasterLegendTitle || elements.rasterLegendTitle?.value.trim() || "Leyenda";
+    const preview = items.slice(0, 3).map((item) => item.label || item.value).filter(Boolean).join(", ");
+    return `${title} · ${items.length} clases${preview ? ` · ${preview}` : ""}`;
   }
 
   async function toggleUploadDraftPreview() {
@@ -5468,13 +6216,17 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
         layer.description = uploadMetadata.description || layer.description;
         layer.municipality = uploadMetadata.municipality || layer.municipality;
         layer.metadata = buildLayerMetadata(uploadMetadata, layer);
-        layer.legend = buildRasterLegendFromDraft() || layer.legend;
+        layer.legend = buildUploadLegendFromDraft() || layer.legend;
         layer.status = state.session.role === "admin" ? "approved" : "pending_review";
         return layer;
       });
+      applyExtractedMetadataToUploadForm(state.uploadDraft.previewLayers[0]);
+      seedLegendEditorFromPreviewLayer(state.uploadDraft.previewLayers[0]);
 
       state.uploadDraft.previewLayers.forEach((layer) => addUserLayerToMap(layer));
       state.uploadDraft.previewVisible = true;
+      compactUploadSectionsAfterPreview();
+      fitUploadDraftPreviewLayers();
       elements.uploadLayerFeedback.textContent = "";
       syncUploadDraftUi();
     } catch (error) {
@@ -5496,9 +6248,25 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     state.uploadDraft.previewVisible = false;
   }
 
+  function compactUploadSectionsAfterPreview() {
+    if (elements.uploadSectionMetadata) {
+      elements.uploadSectionMetadata.open = false;
+    }
+    if (elements.uploadSectionSymbology) {
+      elements.uploadSectionSymbology.open = Boolean(state.uploadDraft.rasterLegendItems.length);
+    }
+    syncUploadSectionSummaries();
+  }
+
+  function fitUploadDraftPreviewLayers(options = {}) {
+    if (options.respectManualView && state.uploadDraft.userAdjustedView) return;
+    state.uploadDraft.previewLayers.forEach((layer) => {
+      fitLayer(layer);
+    });
+  }
+
   function removeUploadDraftSelection() {
-    clearUploadDraftPreview();
-    state.uploadDraft.files = [];
+    clearUploadDraftDerivedState({ keepMessage: true });
     if (elements.uploadLayerFeedback) {
       elements.uploadLayerFeedback.textContent = "La capa seleccionada se retiro del borrador de carga.";
     }
@@ -5537,7 +6305,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       });
 
       clearUploadDraftPreview();
-      closeUploadModal();
+      closeUploadModal({ requireConfirmation: false });
 
       if (uploadResult) {
         updateInfoPanel(uploadResult);
@@ -5619,6 +6387,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       scaleOrResolution: elements.uploadLayerScale?.value.trim() || "",
       crs: elements.uploadLayerCrs?.value.trim() || "",
       rasterLegend: buildRasterLegendFromDraft(),
+      vectorLegend: buildVectorLegendFromDraft(),
     };
   }
 
@@ -5640,6 +6409,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
   }
 
   function getLegendClassDescriptor(item, legend) {
+    if (item.displayLabel || item.originalValue || item.group || item.symbolType) return "";
     if (legend.type === "continuous") {
       return `<p>${escapeHtml(formatLegendNumber(item.min))} - ${escapeHtml(formatLegendNumber(item.max))}</p>`;
     }
@@ -5656,53 +6426,384 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     return "";
   }
 
+  function buildUploadLegendFromDraft() {
+    return state.uploadDraft.legendKind === "vector" ? buildVectorLegendFromDraft() : buildRasterLegendFromDraft();
+  }
+
+  function buildVectorLegendFromDraft() {
+    const classes = state.uploadDraft.rasterLegendItems
+      .map((item, index) => {
+        const originalColor = normalizeHexColor(item.originalColor || item.color || item.displayColor, "#7a203a");
+        const displayColor = normalizeHexColor(item.displayColor, originalColor);
+        return {
+          label: String(item.originalLabel || item.label || item.displayLabel || "").trim(),
+          displayLabel: String(item.displayLabel || item.label || "").trim(),
+          originalLabel: String(item.originalLabel || item.label || item.displayLabel || "").trim(),
+          color: originalColor,
+          originalColor,
+          displayColor,
+          value: String(item.originalValue || item.value || "").trim() || null,
+          originalValue: String(item.originalValue || item.value || "").trim() || null,
+          sourceOrder: Number.isFinite(Number(item.sourceOrder ?? item.order)) ? Number(item.sourceOrder ?? item.order) : null,
+          order: Number.isFinite(Number(item.sourceOrder ?? item.order)) ? Number(item.sourceOrder ?? item.order) : index + 1,
+          group: String(item.group || "").trim() || null,
+          folder: String(item.folder || item.group || "").trim() || null,
+          styleUrl: item.styleUrl || null,
+          styleId: item.styleId || null,
+          iconHref: item.iconHref || null,
+          symbolType: item.symbolType || item.symbolKind || "color",
+          geometryRole: item.geometryRole || null,
+          legendField: item.legendField || null,
+          __sourceIndex: index,
+        };
+      })
+      .filter((item) => item.label);
+    const legend = {
+      type: "categorical",
+      field: String(state.uploadDraft.rasterLegendTitle || "").trim() || "Simbología",
+      styleField: state.uploadDraft.vectorLegend?.styleField || String(state.uploadDraft.rasterLegendTitle || "").trim() || "Intensidad",
+    };
+    const normalizedClasses = normalizeVectorLegendClassOrders(classes, legend);
+
+    return classes.length
+      ? {
+          ...legend,
+          classes: normalizedClasses,
+        }
+      : null;
+  }
+
+  function applyExtractedMetadataToUploadForm(layer) {
+    const extracted = layer?.metadata?.geospatialDiagnostics?.extractedMetadata || layer?.metadata?.extractedMetadata;
+    if (!extracted) return;
+    setUploadFieldIfEmpty(elements.uploadLayerDescription, extracted.description?.value);
+    setUploadFieldIfEmpty(elements.uploadLayerSource, extracted.source?.value);
+    setUploadFieldIfEmpty(elements.uploadLayerScale, extracted.scaleOrResolution?.value);
+    setUploadFieldIfEmpty(elements.uploadLayerCrs, extracted.crs?.value);
+    setUploadFieldIfEmpty(elements.uploadLayerUpdatedAt, extracted.updatedAt?.value);
+    syncUploadSectionSummaries();
+  }
+
+  function setUploadFieldIfEmpty(field, value) {
+    if (!field || !value) return;
+    if (!field.value.trim()) field.value = value;
+  }
+
+  function seedLegendEditorFromPreviewLayer(layer) {
+    const rawLegend = buildUploadVectorLegendFromLayer(layer) || layer?.legend;
+    const legend = rawLegend?.type && rawLegend.type !== "raster" ? attachPointIconUrlsToLegend(rawLegend, layer) : rawLegend;
+    if (!legend?.classes?.length) {
+      state.uploadDraft.legendKind = isImageBackedLayer(layer) ? "raster" : "vector";
+      state.uploadDraft.rasterLegendItems = [];
+      state.uploadDraft.vectorLegend = null;
+      renderRasterLegendEditor();
+      return;
+    }
+    state.uploadDraft.legendKind = legend.type === "raster" ? "raster" : "vector";
+    state.uploadDraft.rasterLegendTitle = legend.field || (state.uploadDraft.legendKind === "vector" ? "Intensidad" : "Simbología raster");
+    if (elements.rasterLegendTitle) elements.rasterLegendTitle.value = state.uploadDraft.rasterLegendTitle;
+    state.uploadDraft.vectorLegend = state.uploadDraft.legendKind === "vector" ? legend : null;
+    state.uploadDraft.rasterLegendItems = normalizeVectorLegendClassOrders(legend.classes, legend).map((item, index) => ({
+      label: item.originalLabel || item.label || item.displayLabel || "",
+      displayLabel: item.displayLabel || item.label || "",
+      originalLabel: item.originalLabel || item.label || item.displayLabel || "",
+      color: item.originalColor || item.color || item.displayColor || "#7a203a",
+      originalColor: item.originalColor || item.color || item.displayColor || "#7a203a",
+      displayColor: item.displayColor || item.color || item.originalColor || "#7a203a",
+      value: item.value || item.label || String(index + 1),
+      originalValue: item.originalValue || item.value || item.label || String(index + 1),
+      sourceOrder: Number.isFinite(Number(item.sourceOrder ?? item.order)) ? Number(item.sourceOrder ?? item.order) : null,
+      displayOrder: Number.isFinite(Number(item.displayOrder ?? item.order)) ? Number(item.displayOrder ?? item.order) : index + 1,
+      order: Number.isFinite(Number(item.displayOrder ?? item.order)) ? Number(item.displayOrder ?? item.order) : index + 1,
+      group: item.group || item.folder || legend.field || null,
+      folder: item.folder || item.group || null,
+      styleUrl: item.styleUrl || null,
+      styleId: item.styleId || (item.styleUrl ? String(item.styleUrl).replace(/^#/u, "") : null),
+      iconHref: item.iconHref || null,
+      iconImageUrl: item.iconImageUrl || null,
+      symbolType: item.symbolType || (item.iconHref || item.iconImageUrl ? "icon" : "color"),
+      geometryRole: item.geometryRole || null,
+      legendField: item.legendField || legend.styleField || legend.field || null,
+    }));
+    syncPreviewLayerLegendFromDraft();
+    renderRasterLegendEditor();
+    syncUploadSectionSummaries();
+  }
+
   function renderRasterLegendEditor() {
     if (!elements.rasterLegendList) return;
+    const isVectorLegend = state.uploadDraft.legendKind === "vector";
+    const heading = elements.rasterLegendEditor?.querySelector("h3");
+    if (heading) heading.textContent = isVectorLegend ? "Simbología de la capa" : "Leyenda raster";
+    if (elements.detectRasterLegendColors) {
+      elements.detectRasterLegendColors.hidden = true;
+      elements.detectRasterLegendColors.textContent = "Precargar colores";
+      elements.detectRasterLegendColors.disabled = true;
+      elements.detectRasterLegendColors.title = "";
+    }
+    if (elements.addRasterLegendItem) {
+      elements.addRasterLegendItem.hidden = true;
+    }
+    if (elements.rasterLegendPreview) {
+      elements.rasterLegendPreview.innerHTML = buildRasterLegendPreviewMarkup();
+    }
     elements.rasterLegendList.innerHTML = state.uploadDraft.rasterLegendItems.length
       ? state.uploadDraft.rasterLegendItems
           .map((item, index) => `
             <div class="raster-legend-item" data-raster-legend-index="${index}">
-              <input type="color" value="${escapeHtml(item.color || "#7a203a")}" data-raster-legend-color="${index}" aria-label="Color de leyenda raster" />
-              <input type="text" maxlength="80" value="${escapeHtml(item.label || "")}" data-raster-legend-label="${index}" placeholder="Etiqueta oficial" />
-              <input type="text" maxlength="40" value="${escapeHtml(item.value || "")}" data-raster-legend-value="${index}" placeholder="Valor o rango" aria-label="Valor o rango asociado" />
-              <input type="number" min="1" max="99" step="1" value="${escapeHtml(String(item.order || index + 1))}" data-raster-legend-order="${index}" aria-label="Orden" />
-              <button class="icon-button icon-button--small" type="button" data-raster-legend-remove="${index}" aria-label="Eliminar elemento">x</button>
+              ${buildLegendEditorSymbolControl(item, index)}
+              <input type="text" maxlength="80" value="${escapeHtml(item.displayLabel || item.label || "")}" data-raster-legend-label="${index}" placeholder="Nombre visible en la leyenda" aria-label="Nombre visible en la leyenda" />
             </div>
           `)
           .join("")
-        : `<p class="empty-state">Sin leyenda manual. Se mostrará simbología incorporada en la imagen.</p>`;
+        : `<p class="empty-state">${isVectorLegend ? "No se detectó una clasificación de simbología en el archivo." : "No se detectó una clasificación de simbología en el archivo."}</p>`;
 
     elements.rasterLegendList.querySelectorAll("[data-raster-legend-label]").forEach((input) => {
       input.addEventListener("input", () => {
         const item = state.uploadDraft.rasterLegendItems[Number(input.dataset.rasterLegendLabel)];
-        if (item) item.label = input.value;
-      });
-    });
-    elements.rasterLegendList.querySelectorAll("[data-raster-legend-value]").forEach((input) => {
-      input.addEventListener("input", () => {
-        const item = state.uploadDraft.rasterLegendItems[Number(input.dataset.rasterLegendValue)];
-        if (item) item.value = input.value;
-      });
-    });
-    elements.rasterLegendList.querySelectorAll("[data-raster-legend-order]").forEach((input) => {
-      input.addEventListener("input", () => {
-        const item = state.uploadDraft.rasterLegendItems[Number(input.dataset.rasterLegendOrder)];
-        const order = Number(input.value);
-        if (item && Number.isFinite(order)) item.order = order;
+        if (item) {
+          item.displayLabel = input.value;
+        }
+        syncPreviewLayerLegendFromDraft();
+        syncUploadSectionSummaries();
       });
     });
     elements.rasterLegendList.querySelectorAll("[data-raster-legend-color]").forEach((input) => {
       input.addEventListener("input", () => {
         const item = state.uploadDraft.rasterLegendItems[Number(input.dataset.rasterLegendColor)];
-        if (item) item.color = input.value;
+        if (item) {
+          item.displayColor = input.value;
+        }
+        syncPreviewLayerLegendFromDraft();
+        syncUploadSectionSummaries();
       });
     });
-    elements.rasterLegendList.querySelectorAll("[data-raster-legend-remove]").forEach((button) => {
-      button.addEventListener("click", () => {
-        state.uploadDraft.rasterLegendItems.splice(Number(button.dataset.rasterLegendRemove), 1);
-        renderRasterLegendEditor();
-      });
+  }
+
+  function buildLegendEditorSymbolControl(item, index) {
+    const color = escapeHtml(item.displayColor || item.color || item.originalColor || "#7a203a");
+    const label = escapeHtml(item.displayLabel || item.label || `Clase ${index + 1}`);
+    const ariaLabel = `Cambiar color de ${label}`;
+    if (isLegendItemIconBased(item)) {
+      const title = canRecolorLegendIcon(item)
+        ? "Símbolo detectado; el color se aplicará al mapa y la leyenda."
+        : "Este icono conserva los colores definidos en el archivo.";
+      if (!canRecolorLegendIcon(item)) {
+        return `<span class="raster-legend-symbol raster-legend-symbol--icon raster-legend-symbol--locked" title="${escapeHtml(title)}" aria-label="${escapeHtml(title)}">${renderLegendSymbolMarkup(item)}</span>`;
+      }
+      const recoloredPreviewItem = { ...item, iconImageUrl: null, symbolType: "fallback-icon" };
+      return `<label class="raster-legend-symbol raster-legend-symbol--picker raster-legend-symbol--icon" title="${escapeHtml(title)}" aria-label="${ariaLabel}">
+        ${renderLegendSymbolMarkup(recoloredPreviewItem)}
+        <input type="color" value="${color}" data-raster-legend-color="${index}" aria-label="${ariaLabel}" />
+      </label>`;
+    }
+    return `<label class="raster-legend-symbol raster-legend-symbol--picker" title="${ariaLabel}" aria-label="${ariaLabel}">
+      ${renderLegendSymbolMarkup(item)}
+      <input type="color" value="${color}" data-raster-legend-color="${index}" aria-label="${ariaLabel}" />
+    </label>`;
+  }
+
+  function isLegendItemIconBased(item) {
+    return item?.symbolType === "icon" || Boolean(item?.iconHref);
+  }
+
+  function canRecolorLegendIcon(item = {}) {
+    const role = normalizeAttributeKey(item.geometryRole || item.folder || item.group || item.label || "");
+    return role.includes("manantial") || role.includes("pozo") || item.symbolType === "fallback-icon";
+  }
+
+  function buildUploadVectorLegendFromLayer(layer) {
+    if (!layer || isImageBackedLayer(layer) && !layer.data?.features?.length) return null;
+    const sublayers = getLayerVectorSublayers(layer);
+    if (!sublayers.length) return layer?.legend?.type && layer.legend.type !== "raster" ? layer.legend : null;
+
+    const classes = [];
+    sublayers.forEach((sublayer) => {
+      const groupTitle = sublayer.title || sublayer.folder || "Simbología";
+      const legendClasses = Array.isArray(sublayer.legend?.classes) ? sublayer.legend.classes : [];
+      if (legendClasses.length) {
+        legendClasses.forEach((item) => {
+          classes.push(buildEditableLegendClass({
+            ...item,
+            group: groupTitle,
+            folder: sublayer.folder || groupTitle,
+            geometryRole: sublayer.geometryRole || null,
+            legendField: sublayer.legendField || sublayer.legend?.styleField || sublayer.legend?.field || null,
+            symbolType: sublayer.geometryCounts?.Point || sublayer.geometryRole === "manantial" || sublayer.geometryRole === "pozo" ? "icon" : "color",
+          }, classes.length));
+        });
+        return;
+      }
+
+      const styleUrl = Array.isArray(sublayer.styleUrls) ? sublayer.styleUrls[0] : null;
+      classes.push(buildEditableLegendClass({
+        label: groupTitle,
+        value: styleUrl || sublayer.geometryRole || groupTitle,
+        color: getRepresentativeSublayerColor(layer, sublayer),
+        group: groupTitle,
+        folder: sublayer.folder || groupTitle,
+        styleUrl,
+        styleId: styleUrl ? String(styleUrl).replace(/^#/u, "") : null,
+        geometryRole: sublayer.geometryRole || null,
+        symbolType: sublayer.geometryCounts?.Point || sublayer.geometryRole === "manantial" || sublayer.geometryRole === "pozo" ? "icon" : "color",
+      }, classes.length));
     });
+
+    return classes.length
+      ? {
+          type: "categorical",
+          field: "Simbología",
+          styleField: sublayers.find((item) => item.legendField)?.legendField || layer.legend?.styleField || layer.legend?.field || "Intensidad",
+          classes,
+          grouped: true,
+        }
+      : null;
+  }
+
+  function getLayerVectorSublayers(layer) {
+    return Array.isArray(layer?.vectorSublayers)
+      ? layer.vectorSublayers
+      : Array.isArray(layer?.metadata?.geospatialDiagnostics?.vectorSublayers)
+        ? layer.metadata.geospatialDiagnostics.vectorSublayers
+        : Array.isArray(layer?.metadata?.properties?.vectorSublayers)
+          ? layer.metadata.properties.vectorSublayers
+          : [];
+  }
+
+  function buildEditableLegendClass(item, index) {
+    const color = normalizeHexColor(item.originalColor || item.color || item.displayColor, "#7a203a");
+    const displayColor = normalizeHexColor(item.displayColor, color);
+    const label = String(item.originalLabel || item.label || item.group || item.value || `Clase ${index + 1}`).trim();
+    const displayLabel = String(item.displayLabel || label).trim();
+    const originalValue = String(item.originalValue || item.value || item.label || item.styleUrl || label).trim();
+    return {
+      label,
+      displayLabel,
+      originalLabel: label,
+      color,
+      originalColor: color,
+      displayColor,
+      value: originalValue,
+      originalValue,
+      sourceOrder: Number.isFinite(Number(item.sourceOrder ?? item.order)) ? Number(item.sourceOrder ?? item.order) : null,
+      displayOrder: Number.isFinite(Number(item.displayOrder)) ? Number(item.displayOrder) : index + 1,
+      order: Number.isFinite(Number(item.displayOrder ?? item.order)) ? Number(item.displayOrder ?? item.order) : index + 1,
+      group: item.group || item.folder || null,
+      folder: item.folder || item.group || null,
+      styleUrl: item.styleUrl || null,
+      styleId: item.styleId || (item.styleUrl ? String(item.styleUrl).replace(/^#/u, "") : null),
+      iconHref: item.iconHref || null,
+      iconImageUrl: item.iconImageUrl || null,
+      symbolType: item.symbolType || (item.iconHref ? "icon" : "color"),
+      geometryRole: item.geometryRole || null,
+      legendField: item.legendField || null,
+    };
+  }
+
+  function getRepresentativeSublayerColor(layer, sublayer) {
+    const features = layer?.data?.features || [];
+    const folder = normalizeLegendComparisonValue(sublayer.folder || sublayer.title || "");
+    const role = normalizeLegendComparisonValue(sublayer.geometryRole || "");
+    const feature = features.find((candidate) => {
+      const properties = candidate.properties || {};
+      return (
+        normalizeLegendComparisonValue(properties.__geometryRole || "") === role ||
+        normalizeLegendComparisonValue(properties.__kmlFolder || "") === folder
+      );
+    });
+    const properties = feature?.properties || {};
+    return properties.__styleIcon || properties.__styleFill || properties.__styleLine || properties.__styleStroke || "#005ce6";
+  }
+
+  function syncPreviewLayerLegendFromDraft() {
+    const legend = buildUploadLegendFromDraft();
+    state.uploadDraft.previewLayers.forEach((layer) => {
+      if (legend && state.uploadDraft.legendKind === "vector" && layer.data?.features?.length) {
+        layer.legend = legend;
+        applyDraftLegendStyleToLayer(layer, legend);
+      } else if (legend && state.uploadDraft.legendKind === "raster") {
+        layer.legend = legend;
+      }
+      refreshLayerSourceData(layer);
+    });
+    renderFloatingLegendForUploadDraft();
+  }
+
+  function applyDraftLegendStyleToLayer(layer, legend) {
+    if (!Array.isArray(layer?.data?.features) || !Array.isArray(legend?.classes)) return;
+    const classes = legend.classes;
+    layer.data.features.forEach((feature) => {
+      const properties = feature.properties || {};
+      const item = classes.find((candidate) => legendClassMatchesFeature(candidate, properties, legend));
+      if (!item) return;
+      const color = normalizeHexColor(item.displayColor || item.color);
+      if (!color) return;
+      if (["Point", "MultiPoint"].includes(feature.geometry?.type)) {
+        const iconImageId = getDraftLegendPointIconImageId(item, properties, color);
+        if (iconImageId) {
+          feature.properties = { ...properties, __styleIcon: color, __styleIconImageId: iconImageId };
+        } else if (item.symbolType !== "icon") {
+          feature.properties = { ...properties, __styleIcon: color };
+        }
+      } else {
+        feature.properties = { ...properties, __styleFill: color, __styleLine: properties.__styleLine || color };
+      }
+    });
+  }
+
+  function getDraftLegendPointIconImageId(item = {}, properties = {}, color = "") {
+    if (!canRecolorLegendIcon(item)) return null;
+    const shape = getLegendPointIconShape(item, properties);
+    const hex = normalizeHexColor(color);
+    if (!hex) return null;
+    const imageId = `egem-draft-${shape}-${hex.replace("#", "")}`;
+    if (!map.hasImage(imageId)) {
+      map.addImage(imageId, createFallbackPointIcon(shape === "triangle" ? "triangle" : "dot", hex), { pixelRatio: 1 });
+    }
+    return imageId;
+  }
+
+  function getLegendPointIconShape(item = {}, properties = {}) {
+    const role = normalizeAttributeKey(
+      item.geometryRole ||
+      item.folder ||
+      item.group ||
+      item.label ||
+      properties.__geometryRole ||
+      properties.__kmlFolder ||
+      ""
+    );
+    return role.includes("pozo") ? "triangle" : "dot";
+  }
+
+  function legendClassMatchesFeature(item, properties, legend) {
+    return legendClassMatchesFeatureByIdentity(item, properties, legend);
+  }
+
+  function refreshLayerSourceData(layer) {
+    const source = layer?.id ? map.getSource(`source-${layer.id}`) : null;
+    if (source?.setData && layer.data) source.setData(layer.data);
+  }
+
+  function renderFloatingLegendForUploadDraft() {
+    if (!state.activeLegendLayerId) return;
+    const layer = state.uploadDraft.previewLayers.find((item) => item.id === state.activeLegendLayerId);
+    if (layer) renderFloatingLegend(layer);
+  }
+
+  function buildRasterLegendPreviewMarkup() {
+    const items = state.uploadDraft.rasterLegendItems || [];
+    if (!items.length) {
+      return '<p class="empty-state">Simbología definida por el archivo o pendiente de detección.</p>';
+    }
+    const visibleItems = items.slice(0, 4).map((item) => `
+      <span class="raster-legend-preview__item">
+        <span class="raster-legend-preview__swatch" style="${escapeHtml(getLegendSwatchStyle(item))}"></span>
+        <span>${escapeHtml(item.displayLabel || item.label || "Clase")}</span>
+      </span>
+    `).join("");
+    const remaining = items.length > 4 ? `<span class="raster-legend-preview__more">+${items.length - 4}</span>` : "";
+    return `<div class="raster-legend-preview__list">${visibleItems}${remaining}</div>`;
   }
 
   function buildRasterLegendFromDraft() {
@@ -5710,7 +6811,10 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       .map((item, index) => ({
         label: String(item.label || "").trim(),
         color: /^#[0-9a-f]{6}$/i.test(item.color || "") ? item.color.toLowerCase() : "#7a203a",
-        value: String(item.value || "").trim() || null,
+        displayLabel: String(item.displayLabel || item.label || "").trim(),
+        displayColor: /^#[0-9a-f]{6}$/i.test(item.displayColor || item.color || "") ? (item.displayColor || item.color).toLowerCase() : "#7a203a",
+        value: String(item.originalValue || item.value || "").trim() || null,
+        originalValue: String(item.originalValue || item.value || "").trim() || null,
         order: Number.isFinite(Number(item.order)) ? Number(item.order) : index + 1,
       }))
       .filter((item) => item.label);
@@ -5725,6 +6829,17 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
   }
 
   async function preloadRasterLegendColorsFromPreview() {
+    if (state.uploadDraft.legendKind === "vector") {
+      const vectorLayer = state.uploadDraft.previewLayers.find((layer) => layer.legend?.type && layer.legend.type !== "raster");
+      if (!vectorLayer?.legend?.classes?.length) {
+        elements.uploadLayerFeedback.textContent = "No se detectaron estilos vectoriales para precargar.";
+        return;
+      }
+      seedLegendEditorFromPreviewLayer(vectorLayer);
+      elements.uploadLayerFeedback.textContent = "Clases vectoriales precargadas desde los estilos del archivo.";
+      return;
+    }
+
     const rasterLayer = state.uploadDraft.previewLayers.find((layer) => {
       return layer.imageUrl || (Array.isArray(layer.groundOverlays) && layer.groundOverlays.some((overlay) => overlay.imageUrl));
     });
@@ -5801,29 +6916,176 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
 
   function validateRasterLegendDraft() {
     const items = state.uploadDraft.rasterLegendItems || [];
-    const hasAnyValue = items.some((item) => String(item.label || item.value || "").trim() || /^#[0-9a-f]{6}$/i.test(item.color || ""));
+    const hasAnyValue = items.some((item) => String(item.label || item.value || "").trim() || /^#[0-9a-f]{6}$/i.test(item.displayColor || item.color || ""));
     if (!hasAnyValue) return "";
+    const legendLabel = state.uploadDraft.legendKind === "vector" ? "simbología vectorial" : "leyenda raster";
 
     const completeItems = items.filter((item) => String(item.label || "").trim());
-    if (!completeItems.length) return "La leyenda raster necesita al menos una etiqueta.";
-    if (completeItems.length !== items.length) return "Todas las clases de la leyenda raster deben tener etiqueta.";
+    if (!completeItems.length) return `La ${legendLabel} necesita al menos una etiqueta.`;
+    if (completeItems.length !== items.length) return `Todas las clases de la ${legendLabel} deben tener etiqueta.`;
 
-    const colors = new Set();
-    for (const item of completeItems) {
-      const color = String(item.color || "").trim().toLowerCase();
-      if (!/^#[0-9a-f]{6}$/i.test(color)) return "Cada clase de la leyenda raster necesita un color hexadecimal válido.";
-      if (colors.has(color)) return "La leyenda raster contiene colores duplicados; confirma o corrige la clasificación antes de publicar.";
-      colors.add(color);
+    if (state.uploadDraft.legendKind === "vector") {
+      const identities = new Set();
+      for (const item of completeItems) {
+        const color = String(item.displayColor || item.color || "").trim().toLowerCase();
+        if (!/^#[0-9a-f]{6}$/i.test(color)) return `Cada clase de la ${legendLabel} necesita un color hexadecimal válido.`;
+        const identity = buildLegendClassIdentity(item, state.uploadDraft.vectorLegend);
+        if (identities.has(identity)) {
+          return `La ${legendLabel} contiene una clase repetida para "${item.group || item.folder || item.originalValue || item.value || item.label}".`;
+        }
+        identities.add(identity);
+      }
+    } else {
+      const colors = new Set();
+      for (const item of completeItems) {
+        const color = String(item.color || "").trim().toLowerCase();
+        if (!/^#[0-9a-f]{6}$/i.test(color)) return `Cada clase de la ${legendLabel} necesita un color hexadecimal válido.`;
+        if (colors.has(color)) return `La ${legendLabel} contiene colores duplicados; confirma o corrige la clasificación antes de publicar.`;
+        colors.add(color);
+      }
     }
 
-    const orders = completeItems
-      .map((item, index) => Number.isFinite(Number(item.order)) ? Number(item.order) : index + 1);
-    if (new Set(orders).size !== orders.length) return "La leyenda raster contiene órdenes duplicadas.";
+    const sharedColorWarning = state.uploadDraft.legendKind === "vector" ? getSharedVectorLegendColorWarning(completeItems) : "";
+    if (sharedColorWarning && elements.uploadLayerFeedback && !elements.uploadLayerFeedback.textContent.trim()) {
+      elements.uploadLayerFeedback.textContent = sharedColorWarning;
+    }
+
+    if (state.uploadDraft.legendKind !== "vector") {
+      const orders = completeItems
+        .map((item, index) => Number.isFinite(Number(item.order)) ? Number(item.order) : index + 1);
+      if (new Set(orders).size !== orders.length) return `La ${legendLabel} contiene órdenes duplicadas.`;
+    }
     return "";
+  }
+
+  function normalizeVectorLegendClassOrders(classes, legend = {}) {
+    const groups = new Map();
+    classes.forEach((item, index) => {
+      const enriched = {
+        ...item,
+        sourceOrder: Number.isFinite(Number(item.sourceOrder ?? item.order)) ? Number(item.sourceOrder ?? item.order) : null,
+        __sourceIndex: Number.isFinite(Number(item.__sourceIndex)) ? Number(item.__sourceIndex) : index,
+        __identity: buildLegendClassIdentity(item, legend),
+      };
+      const groupKey = buildVectorLegendOrderGroupKey(enriched, legend);
+      if (!groups.has(groupKey)) {
+        groups.set(groupKey, {
+          ordinal: isOrdinalVectorLegendGroup(enriched, legend),
+          items: [],
+        });
+      }
+      groups.get(groupKey).items.push(enriched);
+    });
+
+    return [...groups.values()].flatMap((group) => {
+      return group.items
+        .sort((a, b) => compareVectorLegendOrder(a, b, group.ordinal))
+        .map((item, index) => {
+          const displayOrder = index + 1;
+          const {
+            __sourceIndex: _sourceIndex,
+            __identity: _identity,
+            ...publicItem
+          } = item;
+          return {
+            ...publicItem,
+            sourceOrder: item.sourceOrder,
+            displayOrder,
+            order: displayOrder,
+          };
+        });
+    });
+  }
+
+  function buildVectorLegendOrderGroupKey(item, legend = {}) {
+    return [
+      item.group || item.folder || "sin-grupo",
+      item.legendField || legend?.styleField || legend?.field || "sin-campo",
+    ].map((value) => normalizeLegendComparisonValue(value || "")).join("|");
+  }
+
+  function compareVectorLegendOrder(a, b, useOrdinalOrder = false) {
+    if (useOrdinalOrder) {
+      const ordinalA = getSemanticVectorLegendOrder(a.originalValue || a.value || a.label);
+      const ordinalB = getSemanticVectorLegendOrder(b.originalValue || b.value || b.label);
+      if (ordinalA !== ordinalB) return ordinalA - ordinalB;
+    }
+    const orderA = Number.isFinite(Number(a.sourceOrder)) ? Number(a.sourceOrder) : Number.POSITIVE_INFINITY;
+    const orderB = Number.isFinite(Number(b.sourceOrder)) ? Number(b.sourceOrder) : Number.POSITIVE_INFINITY;
+    if (orderA !== orderB) return orderA - orderB;
+    if (a.__sourceIndex !== b.__sourceIndex) return a.__sourceIndex - b.__sourceIndex;
+    const valueCompare = normalizeLegendComparisonValue(a.originalValue || a.value || a.label)
+      .localeCompare(normalizeLegendComparisonValue(b.originalValue || b.value || b.label), "es");
+    if (valueCompare) return valueCompare;
+    const styleCompare = normalizeLegendComparisonValue(a.styleId || a.styleUrl)
+      .localeCompare(normalizeLegendComparisonValue(b.styleId || b.styleUrl), "es");
+    if (styleCompare) return styleCompare;
+    return normalizeLegendComparisonValue(a.__identity).localeCompare(normalizeLegendComparisonValue(b.__identity), "es");
+  }
+
+  function isOrdinalVectorLegendGroup(item, legend = {}) {
+    const text = [
+      item.group,
+      item.folder,
+      item.legendField,
+      legend?.styleField,
+      legend?.field,
+    ].map((value) => normalizeLegendComparisonValue(value || "")).join(" ");
+    return /\b(intensidad|intensid|peligro|amenaza|descarga)/u.test(text);
+  }
+
+  function getSemanticVectorLegendOrder(value) {
+    const order = new Map([
+      ["muy alto", 1],
+      ["muy alta", 1],
+      ["alto", 2],
+      ["alta", 2],
+      ["medio", 3],
+      ["media", 3],
+      ["bajo", 4],
+      ["baja", 4],
+      ["muy bajo", 5],
+      ["muy baja", 5],
+    ]);
+    return order.get(normalizeLegendComparisonValue(value).replace(/\s+/gu, " ").trim()) ?? Number.POSITIVE_INFINITY;
+  }
+
+  function buildLegendClassIdentity(item, legend = {}) {
+    const technicalParts = [
+      item.group || item.folder,
+      item.legendField || legend?.styleField || legend?.field,
+      item.originalValue || item.value,
+      item.styleId || item.styleUrl,
+      item.symbolType || item.symbolKind,
+      item.geometryRole,
+      item.iconHref,
+    ].map((value) => normalizeLegendComparisonValue(value || ""));
+    if (!technicalParts.some(Boolean)) {
+      technicalParts.push(normalizeLegendComparisonValue(item.label || item.displayLabel || ""));
+    }
+    return technicalParts.join("|");
+  }
+
+  function getSharedVectorLegendColorWarning(items) {
+    const byColor = new Map();
+    items.forEach((item) => {
+      const color = String(item.displayColor || item.color || "").trim().toLowerCase();
+      if (!byColor.has(color)) byColor.set(color, []);
+      byColor.get(color).push(item);
+    });
+    const ambiguousSharedColor = [...byColor.values()].some((classes) => {
+      if (classes.length < 2) return false;
+      const symbolTypes = new Set(classes.map((item) => normalizeLegendComparisonValue(item.symbolType || item.symbolKind || "")));
+      const geometryRoles = new Set(classes.map((item) => normalizeLegendComparisonValue(item.geometryRole || "")));
+      const iconRefs = new Set(classes.map((item) => normalizeLegendComparisonValue(item.iconHref || item.styleId || item.styleUrl || "")));
+      return symbolTypes.size <= 1 && geometryRoles.size <= 1 && iconRefs.size <= 1;
+    });
+    return ambiguousSharedColor ? "Algunos elementos comparten color, pero corresponden a categorías diferentes." : "";
   }
 
   function buildLayerMetadata(metadata = {}, layer = {}) {
     const geometrySummary = summarizeLayerGeometry(layer);
+    const existingMetadata = layer.metadata || {};
     const coverage =
       metadata.municipality ||
       layer.municipality ||
@@ -5839,6 +7101,9 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       featureCount: geometrySummary.featureCount,
       coverage,
       rasterLegend: metadata.rasterLegend || layer.legend || null,
+      vectorLegend: metadata.vectorLegend || (layer.legend?.type !== "raster" ? layer.legend : null),
+      extractedMetadata: existingMetadata.extractedMetadata || existingMetadata.geospatialDiagnostics?.extractedMetadata || null,
+      geospatialDiagnostics: existingMetadata.geospatialDiagnostics || null,
     };
   }
 
@@ -6214,10 +7479,29 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       getLayerGroundOverlays(layer).forEach((overlay) => {
         overlay.coordinates.forEach((coordinate) => bounds.extend(coordinate));
       });
-      map.fitBounds(bounds, { padding: 30, maxZoom: 12 });
+      map.fitBounds(bounds, { padding: getLayerFitPadding(), maxZoom: 12 });
       return;
     }
-    fitGeoJSON(layer.data, { padding: 30, maxZoom: 12 });
+    fitGeoJSON(layer.data, { padding: getLayerFitPadding(), maxZoom: 12 });
+  }
+
+  function getLayerFitPadding() {
+    const basePadding = 30;
+    if (!elements.uploadLayerModal?.open || state.uploadDraft.minimized) return basePadding;
+    const rect = elements.uploadLayerModal.getBoundingClientRect();
+    if (!rect.width || window.innerWidth <= 760) {
+      return { top: basePadding, right: basePadding, bottom: Math.max(basePadding, rect.height + 24), left: basePadding };
+    }
+    const mapRect = map.getCanvas().getBoundingClientRect();
+    const overlapLeft = Math.max(0, Math.min(rect.right, mapRect.right) - Math.max(rect.left, mapRect.left));
+    const formCenter = rect.left + rect.width / 2;
+    const mapCenter = mapRect.left + mapRect.width / 2;
+    return {
+      top: basePadding,
+      right: formCenter >= mapCenter ? Math.ceil(overlapLeft + 28) : basePadding,
+      bottom: basePadding,
+      left: formCenter < mapCenter ? Math.ceil(overlapLeft + 28) : basePadding,
+    };
   }
 
   function fitGeoJSON(geojson, options = { padding: 30, maxZoom: 11 }) {
@@ -6390,6 +7674,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     const layer = state.userLayers.find((item) => item.id === layerId) || state.uploadDraft.previewLayers.find((item) => item.id === layerId);
     [
       `${layerId}-point`,
+      `${layerId}-point-icon`,
       `${layerId}-line`,
       `${layerId}-fill`,
       `${layerId}-raster`,
@@ -6398,11 +7683,71 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       if (map.getLayer(id)) map.removeLayer(id);
     });
 
+    (layer?.__pointIconImages || []).forEach((icon) => {
+      if (icon.imageId && map.hasImage(icon.imageId)) {
+        map.removeImage(icon.imageId);
+      }
+    });
+
     [`source-${layerId}`, `source-${layerId}-raster`, ...(layer?.imageSourceIds || [])].forEach((sourceId) => {
       if (map.getSource(sourceId)) {
         map.removeSource(sourceId);
       }
     });
+    if (layer) {
+      revokeLayerObjectUrls(layer);
+    }
+  }
+
+  function clearPrivateLayerPayload(layer) {
+    if (!layer || isPublishedStatus(layer.status)) return;
+    revokeLayerObjectUrls(layer);
+    delete layer.data;
+    delete layer.symbology;
+    delete layer.__geometryTypes;
+    delete layer.__pointIconImages;
+    if (Array.isArray(layer.groundOverlays)) {
+      layer.groundOverlays = layer.groundOverlays.map((overlay) => ({
+        ...overlay,
+        imageUrl: overlay.originalImageUrl || overlay.imageUrl,
+        revokeUrl: false,
+      }));
+    }
+    if (layer.originalImageUrl) {
+      layer.imageUrl = layer.originalImageUrl;
+    }
+  }
+
+  function clearPrivateRuntimeState() {
+    state.privateResourceEpoch += 1;
+    state.pendingLayerLoads.clear();
+    state.userLayers.forEach((layer) => {
+      if (!isPublishedStatus(layer.status)) {
+        removeLayerBundle(layer.id);
+        clearPrivateLayerPayload(layer);
+        state.renderedLayers.delete(layer.id);
+      }
+    });
+  }
+
+  async function downloadLayerFileUrl(layer, file) {
+    if (!file?.url) return;
+    if (!getPrivateLayerToken(layer)) {
+      const link = document.createElement("a");
+      link.href = file.url;
+      link.download = file.name;
+      link.rel = "noopener";
+      link.target = "_blank";
+      link.click();
+      return;
+    }
+    const objectUrl = await fetchLayerBlobUrl(layer, file.url);
+    const link = document.createElement("a");
+    link.href = objectUrl;
+    link.download = file.name;
+    link.rel = "noopener";
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
   }
 
   async function createLayersFromFiles(files) {
@@ -6454,6 +7799,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     const analysis = await analyzeGeospatialFile(file);
     const text = analysis.kmlText || (extension === "kmz" ? await readKmz(file) : await file.text());
     const geojson = analysis.vector.geometryCount ? parseKml(text) : { type: "FeatureCollection", features: [] };
+    applyDetectedVectorLegendStyle(geojson, analysis.vectorLegend);
     const groundOverlays = createGroundOverlayObjectUrls(analysis.groundOverlays);
 
     if (!geojson.features.length && !groundOverlays.length) {
@@ -6484,6 +7830,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       fillColor: geojson.meta?.fillColor || null,
       iconColor: geojson.meta?.iconColor || null,
       metadata: {
+        extractedMetadata: analysis.extractedMetadata || null,
         geospatialDiagnostics: {
           type: analysis.kind,
           selectedKml: analysis.selectedKml || analysis.sourceName || "",
@@ -6492,10 +7839,14 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
           groundOverlayCount: analysis.groundOverlays.length,
           internalImages: analysis.internalImages || [],
           bbox: analysis.bbox,
+          extractedMetadata: analysis.extractedMetadata || null,
+          vectorLegend: analysis.vectorLegend || null,
+          vectorSublayers: analysis.vectorSublayers || null,
           warnings: analysis.warnings || [],
           errors: analysis.errors || [],
         },
       },
+      legend: analysis.vectorLegend || null,
     });
   }
 
@@ -6855,6 +8206,27 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     return values;
   }
 
+  function applyDetectedVectorLegendStyle(geojson, legend) {
+    const field = legend?.styleField || legend?.field;
+    if (!field || !Array.isArray(legend.classes) || !Array.isArray(geojson?.features)) return;
+    const colorByValue = new Map(legend.classes.map((item) => [normalizeLegendComparisonValue(item.value || item.label), item.color]));
+    geojson.features.forEach((feature) => {
+      const properties = feature.properties || {};
+      const color = colorByValue.get(normalizeLegendComparisonValue(properties[field]));
+      if (!color) return;
+      if (["Point", "MultiPoint"].includes(feature.geometry?.type)) {
+        properties.__styleIcon = color;
+      } else {
+        properties.__styleFill = properties.__styleFill || color;
+      }
+      feature.properties = properties;
+    });
+  }
+
+  function normalizeLegendComparisonValue(value) {
+    return String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/gu, "").trim().toLowerCase();
+  }
+
   function readKmlStyles(xml) {
     const styles = new Map();
 
@@ -6907,6 +8279,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     const cleaned = (value || "").trim().replace("#", "");
     if (cleaned.length < 8) return null;
     const alpha = parseInt(cleaned.slice(0, 2), 16) / 255;
+    if (alpha <= 0) return null;
     const blue = parseInt(cleaned.slice(2, 4), 16);
     const green = parseInt(cleaned.slice(4, 6), 16);
     const red = parseInt(cleaned.slice(6, 8), 16);
@@ -7219,6 +8592,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
   }
 
   function logout() {
+    clearPrivateRuntimeState();
     clearPreviewStateOnRoleChange();
     resetThematicRuntimeState();
     state.session = createVisitorSession();
@@ -7231,6 +8605,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
   }
 
   function mapBackendRole(roleCode) {
+    if (roleCode === "admin" || roleCode === "director" || roleCode === "visitante") return roleCode;
     if (roleCode === "ADMIN") return "admin";
     if (roleCode === "DATA_PROVIDER") return "director";
     return "visitante";
@@ -7278,11 +8653,14 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
   }
 
   function canPreviewLayer(layer) {
-    return !isPublishedStatus(layer.status) && layer.sourceKind !== "static";
+    return !isPublishedStatus(layer.status) && canSeeLayer(layer) && canVisualizeLayer(layer);
   }
 
   function canVisualizeLayer(layer) {
-    return layer.sourceKind !== "static" && Boolean(layer.isVisualizable && layer.processedGeojsonUrl);
+    return layer.sourceKind !== "static" && Boolean(
+      layer.isVisualizable &&
+      (layer.processedGeojsonUrl || (Array.isArray(layer.groundOverlays) && layer.groundOverlays.length))
+    );
   }
 
   function getProcessingStatusLabel(status) {
@@ -7591,6 +8969,8 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
           updatedAt: institutionalMetadata.updatedAt,
           scaleOrResolution: institutionalMetadata.scaleOrResolution,
           crs: institutionalMetadata.crs,
+          rasterLegend: institutionalMetadata.rasterLegend,
+          vectorLegend: institutionalMetadata.vectorLegend,
         },
         files
       );
@@ -7669,24 +9049,28 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
 
   async function hydrateBackendLayer(record) {
     const remoteFiles = [...(record.files || [])];
-    if (!remoteFiles.length) {
-      throw new Error("La capa no tiene archivos asociados.");
-    }
-
-    const sourceType = (record.sourceType || remoteFiles[0].extension || "").toLowerCase();
+    const sourceType = (record.sourceType || remoteFiles[0]?.extension || "").toLowerCase();
     const category = extractCategoryFromRecord(record);
     let hydratedLayer = null;
 
     const resourceType = record.resourceType || record.metadata?.properties?.resourceType || "vector";
-    if ((resourceType === "ground-overlay" || resourceType === "mixed") && record.groundOverlays?.length) {
+    const recordIsVisualizable = getBackendRecordIsVisualizable(record);
+    if (!recordIsVisualizable) {
+      hydratedLayer = createBackendStatusLayerFromRecord(record);
+    } else if (!remoteFiles.length) {
+      throw new Error("La capa no tiene archivos asociados.");
+    } else if ((resourceType === "ground-overlay" || resourceType === "mixed") && record.groundOverlays?.length) {
       hydratedLayer = createGroundOverlayLayerFromBackend(record);
+      if (!isPublishedStatus(record.status)) {
+        await hydratePrivateGroundOverlayImages(hydratedLayer);
+      }
       if (resourceType === "mixed" && record.processedGeojsonUrl) {
         hydratedLayer.processedGeojsonUrl = record.processedGeojsonUrl;
         hydratedLayer.isVectorDataDeferred = true;
         hydratedLayer.symbology = getPersistedVectorSymbology(record);
         hydratedLayer.legend = record.rasterLegend || hydratedLayer.legend || getPersistedVectorLegend(record);
       }
-    } else if (record.isVisualizable && record.processedGeojsonUrl) {
+    } else if (recordIsVisualizable && record.processedGeojsonUrl) {
       hydratedLayer = createDeferredProcessedGeoJsonLayerFromBackend(record);
     } else if (sourceType === "geojson") {
       hydratedLayer = await createGeoJsonLayerFromRemoteRecord(record, remoteFiles[0]);
@@ -7711,16 +9095,21 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       category,
       group: getThematicGroupTitle(category),
       municipality: record.municipality || "Cobertura estatal",
-      createdBy: record.createdBy?.name || "Sistema",
-      createdById: record.createdBy?.id || null,
+      createdBy: record.submittedBy?.name || record.createdBy?.name || "Sistema",
+      createdById: record.submittedBy?.id || record.createdBy?.id || null,
       status: record.status,
       createdAt: record.createdAt || hydratedLayer.createdAt,
       approvedAt: record.approvedAt || null,
       publishedAt: record.publishedAt || null,
       fileType: sourceType,
-      isVisualizable: Boolean(record.isVisualizable || record.processedGeojsonUrl),
+      isVisualizable: recordIsVisualizable,
       resourceType,
-      groundOverlays: record.groundOverlays || hydratedLayer.groundOverlays || [],
+      submittedBy: record.submittedBy || record.createdBy || null,
+      submittedAt: record.submittedAt || record.createdAt || null,
+      reviewStatus: record.reviewStatus || record.status,
+      groundOverlays: hydratedLayer.groundOverlays || record.groundOverlays || [],
+      pointIcons: hydratedLayer.pointIcons || record.pointIcons || record.metadata?.properties?.pointIcons || [],
+      vectorSublayers: record.vectorSublayers || record.metadata?.properties?.vectorSublayers || [],
       processedGeojsonUrl: record.processedGeojsonUrl || null,
       processingStatus: record.processingStatus || record.metadata?.properties?.processingStatus || null,
       metadata: normalizeBackendLayerMetadata(record, hydratedLayer),
@@ -7732,6 +9121,48 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
         })),
       },
     };
+  }
+
+  function createBackendStatusLayerFromRecord(record) {
+    return {
+      title: record.title,
+      category: extractCategoryFromRecord(record),
+      fileType: record.sourceType || record.files?.[0]?.extension || "",
+      sourceKind: "backend-status",
+      resourceType: record.resourceType || record.metadata?.properties?.resourceType || "vector",
+      data: null,
+      description: record.description || "Capa registrada en el backend institucional.",
+      symbology: null,
+      legend: null,
+      visible: false,
+      opacity: 1,
+      processingStatus: record.processingStatus || record.metadata?.properties?.processingStatus || null,
+    };
+  }
+
+  async function hydratePrivateGroundOverlayImages(layer) {
+    if (!state.session.token || !Array.isArray(layer.groundOverlays)) return;
+    const loadEpoch = state.privateResourceEpoch;
+    const overlays = [];
+    for (const overlay of layer.groundOverlays) {
+      const sourceUrl = overlay.originalImageUrl || overlay.imageUrl;
+      if (!sourceUrl || sourceUrl.startsWith("blob:")) {
+        overlays.push(overlay);
+        continue;
+      }
+      const objectUrl = await fetchLayerBlobUrl(layer, sourceUrl);
+      if (loadEpoch !== state.privateResourceEpoch || !state.session.token) {
+        URL.revokeObjectURL(objectUrl);
+        throw new Error("Recurso raster privado descartado por cambio de sesión.");
+      }
+      overlays.push({
+        ...overlay,
+        imageUrl: objectUrl,
+        revokeUrl: true,
+      });
+    }
+    layer.groundOverlays = overlays;
+    layer.imageUrl = overlays[0]?.imageUrl || layer.imageUrl;
   }
 
   function normalizeBackendLayerMetadata(record, hydratedLayer) {
@@ -7757,13 +9188,26 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       groundOverlays: record.groundOverlays || properties.groundOverlays || hydratedLayer.groundOverlays || [],
       rasterLegend: normalizePublishedRasterLegend(record) || record.rasterLegend || properties.rasterLegend || hydratedLayer.legend || null,
       vectorLegend: normalizePublishedVectorLegend(record) || null,
-      isVisualizable: Boolean(record.isVisualizable || properties.isVisualizable),
+      vectorSublayers: record.vectorSublayers || properties.vectorSublayers || [],
+      isVisualizable: getBackendRecordIsVisualizable(record),
       properties: {
         ...properties,
         coverage: properties.coverage || record.municipality || hydratedLayer.municipality,
         vectorLegend: normalizePublishedVectorLegend(record) || null,
+        vectorSublayers: record.vectorSublayers || properties.vectorSublayers || [],
       },
     };
+  }
+
+  function getBackendRecordIsVisualizable(record) {
+    if (Object.prototype.hasOwnProperty.call(record, "isVisualizable")) {
+      return record.isVisualizable === true;
+    }
+    const properties = record.metadata?.properties || {};
+    if (Object.prototype.hasOwnProperty.call(properties, "isVisualizable")) {
+      return properties.isVisualizable === true;
+    }
+    return Boolean(record.processedGeojsonUrl || record.groundOverlays?.length);
   }
 
   function createDeferredProcessedGeoJsonLayerFromBackend(record) {
@@ -7781,6 +9225,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       status: record.status,
       metadata: record.metadata || null,
       processedGeojsonUrl: record.processedGeojsonUrl,
+      pointIcons: record.pointIcons || record.metadata?.properties?.pointIcons || [],
       symbology: getPersistedVectorSymbology(record),
       legend: getPersistedVectorLegend(record),
     });
@@ -7796,12 +9241,10 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
   }
 
   async function createProcessedGeoJsonLayerFromBackend(record) {
-    const response = await fetch(record.processedGeojsonUrl);
-    if (!response.ok) {
-      throw new Error("No se pudo descargar el GeoJSON procesado del backend.");
-    }
-
-    const normalizedRemote = normalizeBackendProcessedGeoJson(ensureFeatureCollection(await response.json()), record);
+    const normalizedRemote = normalizeBackendProcessedGeoJson(
+      ensureFeatureCollection(await fetchLayerJson({ status: record.status }, record.processedGeojsonUrl)),
+      record
+    );
     const geojson = normalizedRemote.geojson;
     console.info("Capa cargada desde backend:", record.title);
     return createUserLayer({
@@ -7840,6 +9283,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
         id: overlay.id || `ground-overlay-${index + 1}`,
         name: overlay.name || `GroundOverlay ${index + 1}`,
         imageUrl: overlay.imageUrl,
+        originalImageUrl: overlay.imageUrl,
         coordinates: overlay.coordinates,
         bounds: overlay.bounds,
         bbox: overlay.bbox,
@@ -7908,15 +9352,46 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
         features: featuresWithExistingStyle.map((feature) => ({
           ...feature,
           properties: applyBackendFeatureSortKey(
-            applyNoAplicaDisplayStyleFlag(
-              applyBackendFeatureStyle(feature.properties || {}, symbology, { preserveExistingStyle: existingStyleIsUsable }),
-              symbology
-            )
+            applyPersistedVectorLegendDisplayStyle(
+              {
+                ...feature,
+                properties: applyNoAplicaDisplayStyleFlag(
+                  applyBackendFeatureStyle(feature.properties || {}, symbology, { preserveExistingStyle: existingStyleIsUsable }),
+                  symbology
+                ),
+              },
+              symbology?.legend
+            ).properties || {}
           ),
         })),
       },
       symbology,
       legend: symbology?.legend || null,
+    };
+  }
+
+  function applyPersistedVectorLegendDisplayStyle(feature, legend = null) {
+    if (!feature || !Array.isArray(legend?.classes)) return feature;
+    const properties = feature.properties || {};
+    const item = legend.classes.find((candidate) => legendClassMatchesFeature(candidate, properties, legend));
+    const color = normalizeHexColor(item?.displayColor, normalizeHexColor(item?.color || item?.originalColor));
+    if (!item || !color) return feature;
+    if (["Point", "MultiPoint"].includes(feature.geometry?.type)) {
+      const iconImageId = getDraftLegendPointIconImageId(item, properties, color);
+      return {
+        ...feature,
+        properties: iconImageId
+          ? { ...properties, __styleIcon: color, __styleIconImageId: iconImageId }
+          : { ...properties, __styleIcon: color },
+      };
+    }
+    return {
+      ...feature,
+      properties: {
+        ...properties,
+        __styleFill: color,
+        __styleLine: properties.__styleLine || color,
+      },
     };
   }
 

@@ -57,6 +57,7 @@ export async function analyzeKmzFile(file, options = {}) {
       analysis: analyzeKmlText(item.text, { sourceName: item.entry.name }),
     }))
   );
+  const iconColors = await readKmzIconColors(entries, selected.entry.name);
   const overlays = await Promise.all(
     selected.analysis.groundOverlays.map(async (overlay) => {
       const imageEntry = resolveKmzHrefEntry(entries, selected.entry.name, overlay.href);
@@ -86,6 +87,8 @@ export async function analyzeKmzFile(file, options = {}) {
 
   return {
     ...selected.analysis,
+    vectorLegend: buildKmlVectorLegend(selected.text, { iconColors }),
+    vectorSublayers: analyzeKmlVectorSublayers(selected.text, { iconColors }),
     kind: detectKind(selected.analysis.vector.geometryCount, overlays.length),
     fileName: file.name,
     compressedSize: file.size,
@@ -111,6 +114,9 @@ export function analyzeKmlText(kmlText, options = {}) {
     groundOverlays,
     hasKmlStyles: /<Style\b/i.test(kmlText) || /<StyleMap\b/i.test(kmlText),
     hasHtmlDescriptions: /<description\b[^>]*>[\s\S]*?<(table|tr|td|div|ul|li|br)\b/i.test(kmlText),
+    extractedMetadata: extractKmlMetadata(kmlText),
+    vectorLegend: buildKmlVectorLegend(kmlText),
+    vectorSublayers: analyzeKmlVectorSublayers(kmlText),
     warnings,
     errors,
     bbox: mergeBboxes([vector.bbox, ...groundOverlays.map((overlay) => overlay.bbox)]),
@@ -146,14 +152,226 @@ function choosePrimaryKmlAnalysis(items) {
 function analyzeKmlVectorContent(kmlText) {
   const geometryTypes = new Set();
   let geometryCount = 0;
-  VECTOR_TAGS.forEach((tag) => {
-    const matches = kmlText.match(new RegExp(`<${tag}\\b`, "gi")) || [];
-    if (matches.length) {
-      geometryTypes.add(tag);
-      geometryCount += matches.length;
-    }
-  });
+  const placemarkRegex = /<Placemark\b[^>]*>([\s\S]*?)<\/Placemark>/gi;
+  let match = null;
+  while ((match = placemarkRegex.exec(kmlText))) {
+    const body = match[1] || "";
+    let hasGeometry = false;
+    VECTOR_TAGS.forEach((tag) => {
+      const matches = body.match(new RegExp(`<${tag}\\b`, "gi")) || [];
+      if (!matches.length) return;
+      hasGeometry = true;
+      if (tag !== "MultiGeometry" && tag !== "GeometryCollection") geometryTypes.add(tag);
+    });
+    if (hasGeometry) geometryCount += 1;
+  }
   return { geometryCount, geometryTypes: [...geometryTypes], bbox: null };
+}
+
+export function extractKmlMetadata(kmlText) {
+  const folderDescription = decodeCdata(readFirstFolderDescription(kmlText));
+  const text = normalizeText(stripHtml(folderDescription));
+  const scale = text.match(/Escala\s*:?\s*(1\s*:\s*[\d,.]+)/iu)?.[1]?.replace(/\s+/g, "") || null;
+  const years = [...new Set([...text.matchAll(/\b(?:19|20)\d{2}\b/g)].map((item) => item[0]))].sort();
+  const sources = [];
+  if (/\bINEGI\b|Instituto Nacional de Estad[íi]stica y Geograf[íi]a/iu.test(text)) sources.push("Instituto Nacional de Estadística y Geografía - INEGI");
+  if (/\bCONAGUA\b|\bSINA\b|Sistema Nacional de Informaci[óo]n del Agua/iu.test(text)) sources.push("Sistema Nacional de Información del Agua - CONAGUA-SINA");
+  return {
+    description: { value: text || null, origin: text ? "extraído del archivo" : "valor de fallback" },
+    scaleOrResolution: { value: scale || "No especificada por la fuente.", origin: scale ? "extraído del archivo" : "valor de fallback" },
+    crs: { value: "WGS 84 (EPSG:4326)", origin: "inferido por estándar KML", note: "CRS de intercambio/visualización del KML." },
+    source: { value: sources.join("; ") || null, origin: sources.length ? "extraído del archivo" : "valor de fallback" },
+    updatedAt: { value: years.at(-1) || null, years, origin: years.length ? "extraído del archivo" : "valor de fallback" },
+    responsibleAgency: { value: null, origin: "ingresado por el usuario" },
+  };
+}
+
+export function buildKmlVectorLegend(kmlText, options = {}) {
+  const styles = readBasicKmlStyles(kmlText, options);
+  const placemarks = readFolderAwareLegendPlacemarks(kmlText);
+  const folderLegends = [...groupLegendPlacemarksByFolder(placemarks).entries()]
+    .map(([folder, folderPlacemarks]) => {
+      const legend = buildIntensityPolygonLegend(folderPlacemarks, styles) || buildCategoricalStyleLegend(folderPlacemarks, styles);
+      return legend ? {
+        ...legend,
+        appliesToFolder: folder || null,
+        appliesToGeometryRole: inferGeometryRole(folder, folderPlacemarks[0]?.geometryType),
+      } : null;
+    })
+    .filter(Boolean);
+  return folderLegends.find((legend) => normalizeLegendKey(legend.field).includes("intens")) || folderLegends[0] || null;
+}
+
+export function analyzeKmlVectorSublayers(kmlText, options = {}) {
+  const styles = readBasicKmlStyles(kmlText, options);
+  return [...groupLegendPlacemarksByFolder(readFolderAwareLegendPlacemarks(kmlText)).entries()].map(([folder, placemarks]) => {
+    const legend = buildIntensityPolygonLegend(placemarks, styles) || buildCategoricalStyleLegend(placemarks, styles);
+    const styleUrls = [...new Set(placemarks.map((item) => item.styleUrl).filter(Boolean))];
+    return {
+      id: normalizeSublayerId(folder || "kml"),
+      title: folder || "Sin carpeta",
+      folder: folder || null,
+      placemarkCount: placemarks.length,
+      geometryRole: inferGeometryRole(folder, placemarks[0]?.geometryType),
+      geometryCounts: countPlacemarkGeometries(placemarks),
+      styleUrls,
+      attributeFields: [...new Set(placemarks.flatMap((item) => Object.keys(item.attributes || {})))].sort(),
+      legendField: legend?.styleField || legend?.field || null,
+      legend: legend ? { ...legend, appliesToFolder: folder || null } : null,
+      symbology: legend ? "legend" : styleUrls.length <= 1 ? "file-style" : "file-style-mixed",
+    };
+  });
+}
+
+function readFolderAwareLegendPlacemarks(kmlText) {
+  const placemarks = [];
+  const folderStack = [];
+  const tokenRegex = /<Folder\b[^>]*>|<\/Folder>|<Placemark\b[^>]*>[\s\S]*?<\/Placemark>/gi;
+  let match = null;
+  while ((match = tokenRegex.exec(kmlText))) {
+    const token = match[0] || "";
+    if (/^<Folder\b/i.test(token)) {
+      const bodyStart = tokenRegex.lastIndex;
+      const nextToken = kmlText.slice(bodyStart).search(/<Folder\b|<Placemark\b|<\/Folder>/i);
+      const directBody = nextToken >= 0 ? kmlText.slice(bodyStart, bodyStart + nextToken) : "";
+      folderStack.push(decodeXmlText(readXmlTag(directBody, "name")) || null);
+      continue;
+    }
+    if (/^<\/Folder>/i.test(token)) {
+      folderStack.pop();
+      continue;
+    }
+    const body = token.match(/^<Placemark\b[^>]*>([\s\S]*?)<\/Placemark>$/i)?.[1] || "";
+    const folder = [...folderStack].reverse().find(Boolean) || null;
+    placemarks.push({
+      folder,
+      styleUrl: readXmlTag(body, "styleUrl"),
+      attributes: parseDescriptionTableAttributes(decodeCdata(readXmlTagBody(body, "description"))),
+      geometryType: getKmlPlacemarkGeometryType(body),
+      geometryRole: inferGeometryRole(folder, getKmlPlacemarkGeometryType(body)),
+    });
+  }
+  return placemarks;
+}
+
+function groupLegendPlacemarksByFolder(placemarks) {
+  return placemarks.reduce((groups, placemark) => {
+    const key = placemark.folder || "";
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(placemark);
+    return groups;
+  }, new Map());
+}
+
+function countPlacemarkGeometries(placemarks) {
+  return placemarks.reduce((counts, placemark) => {
+    const type = placemark.geometryType || "Unknown";
+    counts[type] = (counts[type] || 0) + 1;
+    return counts;
+  }, {});
+}
+
+function getKmlPlacemarkGeometryType(body) {
+  const hasPoint = /<Point\b/i.test(body);
+  const hasLine = /<LineString\b/i.test(body);
+  const hasPolygon = /<Polygon\b/i.test(body);
+  if ([hasPoint, hasLine, hasPolygon].filter(Boolean).length > 1 || /<MultiGeometry\b/i.test(body)) return "MultiGeometry";
+  if (hasPoint) return "Point";
+  if (hasLine) return "LineString";
+  if (hasPolygon) return "Polygon";
+  return "Unknown";
+}
+
+function inferGeometryRole(folder, geometryType) {
+  const key = normalizeLegendKey(folder || "");
+  if (key.includes("manantial")) return "manantial";
+  if (key.includes("pozo")) return "pozo";
+  if (key.includes("estanque")) return "estanque";
+  if (key.includes("acuifero")) return "acuifero";
+  if (key.includes("veda")) return "vedas";
+  if (key.includes("descarga")) return "descargas-sin-tratamientos";
+  if (String(geometryType || "").toLowerCase().includes("point")) return "point";
+  if (String(geometryType || "").toLowerCase().includes("polygon")) return "polygon";
+  return "kml-feature";
+}
+
+function normalizeSublayerId(value) {
+  return normalizeLegendKey(value || "kml")
+    .replace(/[^a-z0-9]+/gu, "-")
+    .replace(/^-+|-+$/gu, "") || "kml";
+}
+
+function buildIntensityPolygonLegend(placemarks, styles) {
+  const classes = new Map();
+  for (const placemark of placemarks) {
+    const style = styles.get(placemark.styleUrl);
+    const label = normalizeLegendIntensity(placemark.attributes.Intensidad || placemark.attributes.Intensid_1 || placemark.attributes.Intensidad_1);
+    if (!label || !style?.fill) continue;
+    const key = normalizeLegendKey(label);
+    if (!classes.has(key)) {
+      classes.set(key, {
+        label,
+        value: label,
+        color: style.fill,
+        outlineColor: style.stroke || "#f0f0f0",
+        order: getLegendOrder(label),
+        count: 0,
+      });
+    }
+    classes.get(key).count += 1;
+  }
+  const ordered = [...classes.values()].sort((a, b) => a.order - b.order);
+  return ordered.length ? { type: "categorical", field: "Intensidad", styleField: "Intensidad", classes: ordered } : null;
+}
+
+function buildCategoricalStyleLegend(placemarks, styles) {
+  const candidates = new Map();
+  for (const placemark of placemarks) {
+    if (!placemark.styleUrl || !styles.has(placemark.styleUrl)) continue;
+    Object.entries(placemark.attributes || {}).forEach(([field, rawValue]) => {
+      const value = normalizeText(rawValue);
+      if (!isUsableLegendField(field, value)) return;
+      if (!candidates.has(field)) candidates.set(field, new Map());
+      const byValue = candidates.get(field);
+      if (!byValue.has(value)) byValue.set(value, { styleUrls: new Set(), count: 0 });
+      byValue.get(value).styleUrls.add(placemark.styleUrl);
+      byValue.get(value).count += 1;
+    });
+  }
+  const selected = [...candidates.entries()]
+    .map(([field, values]) => {
+      const rows = [...values.entries()];
+      const styleToValue = new Map();
+      let exact = rows.length >= 2;
+      rows.forEach(([value, info]) => {
+        if (info.styleUrls.size !== 1) exact = false;
+        const styleUrl = [...info.styleUrls][0];
+        if (!styleUrl || styleToValue.has(styleUrl)) exact = false;
+        styleToValue.set(styleUrl, value);
+      });
+      return { field, rows, exact, styleCount: styleToValue.size };
+    })
+    .filter((candidate) => candidate.exact && candidate.rows.length === candidate.styleCount)
+    .sort((a, b) => scoreLegendField(b.field) - scoreLegendField(a.field))[0];
+  if (!selected) return null;
+  return {
+    type: "categorical",
+    field: selected.field,
+    styleField: selected.field,
+    classes: selected.rows.map(([label, info], index) => {
+      const styleUrl = [...info.styleUrls][0];
+      const style = styles.get(styleUrl);
+      return {
+        label,
+        value: label,
+        color: style?.icon || style?.fill || style?.stroke || "#7a203a",
+        iconHref: style?.iconHref || null,
+        styleUrl,
+        order: index + 1,
+        count: info.count,
+      };
+    }),
+  };
 }
 
 function parseGroundOverlays(kmlText) {
@@ -320,4 +538,149 @@ function dirname(value) {
 
 function ascii(bytes, start, end) {
   return String.fromCharCode(...bytes.slice(start, end));
+}
+
+function readFirstFolderDescription(kmlText) {
+  const text = String(kmlText || "");
+  const documentBody = text.match(/<Document\b[^>]*>([\s\S]*?)<\/Document>/i)?.[1] || "";
+  const folderBody = text.match(/<Folder\b[^>]*>([\s\S]*?)<\/Folder>/i)?.[1] || "";
+  return readDirectDescription(documentBody) || readDirectDescription(folderBody) || "";
+}
+
+function readDirectDescription(body) {
+  const scoped = String(body || "").split(/<Placemark\b|<Folder\b/i)[0] || "";
+  return scoped.match(/<description\b[^>]*>([\s\S]*?)<\/description>/i)?.[1] || "";
+}
+
+function decodeCdata(value) {
+  return decodeXmlText(String(value || "").replace(/^<!\[CDATA\[/iu, "").replace(/\]\]>$/u, ""));
+}
+
+function stripHtml(value) {
+  return decodeXmlText(String(value || "").replace(/<[^>]*>/gu, " "));
+}
+
+function normalizeText(value) {
+  return String(value || "").replace(/\s+/gu, " ").trim();
+}
+
+async function readKmzIconColors(entries, kmlEntryName) {
+  const colors = new Map();
+  const kmlDir = dirname(kmlEntryName);
+  const iconEntries = entries.filter((entry) => !entry.dir && getExtension(entry.name) === "png");
+  await Promise.all(iconEntries.map(async (entry) => {
+    const blob = await entry.async("blob");
+    const color = await detectDominantPngBlobColor(blob).catch(() => null);
+    const normalized = normalizeArchivePath(entry.name);
+    colors.set(normalized, color);
+    colors.set(basename(normalized), color);
+    if (kmlDir && kmlDir !== ".") colors.set(normalizeArchivePath(normalized.replace(`${kmlDir}/`, "")), color);
+  }));
+  return colors;
+}
+
+function readBasicKmlStyles(kmlText, options = {}) {
+  const styles = new Map();
+  const styleRegex = /<Style\b([^>]*)>([\s\S]*?)<\/Style>/gi;
+  let match = null;
+  while ((match = styleRegex.exec(kmlText))) {
+    const id = readXmlAttribute(match[1], "id");
+    if (!id) continue;
+    const polyStyle = readXmlTagBody(match[2], "PolyStyle");
+    const lineStyle = readXmlTagBody(match[2], "LineStyle");
+    const iconStyle = readXmlTagBody(match[2], "IconStyle");
+    const fill = polyStyle ? parseKmlColor(readXmlTag(polyStyle, "color")) : null;
+    const stroke = lineStyle ? parseKmlColor(readXmlTag(lineStyle, "color")) : null;
+    const icon = iconStyle ? parseKmlColor(readXmlTag(iconStyle, "color")) : null;
+    const iconHref = iconStyle ? readXmlTag(readXmlTagBody(iconStyle, "Icon"), "href") || null : null;
+    styles.set(`#${id}`, {
+      fill: fill?.hex || null,
+      stroke: stroke?.hex || null,
+      icon: icon?.opacity > 0 ? icon.hex : options.iconColors?.get(normalizeArchivePath(iconHref)) || options.iconColors?.get(basename(iconHref)) || null,
+      iconHref,
+    });
+  }
+  return styles;
+}
+
+function isUsableLegendField(field, value) {
+  const normalizedField = normalizeLegendKey(field);
+  if (!field || !value) return false;
+  if (/^(fid|id|objectid|clave|cve|mun ?cve|lat|long|lon|altitud|elev|caudal|shape)/iu.test(normalizedField)) return false;
+  if (value.length > 80) return false;
+  return true;
+}
+
+function scoreLegendField(field) {
+  const normalized = normalizeLegendKey(field);
+  if (normalized.includes("status") || normalized.includes("estado")) return 100;
+  if (normalized.includes("tipo")) return 80;
+  if (normalized.includes("intens")) return 70;
+  if (normalized.includes("clas")) return 60;
+  return 10;
+}
+
+async function detectDominantPngBlobColor(blob) {
+  const bitmap = await createImageBitmap(blob);
+  const canvas = document.createElement("canvas");
+  canvas.width = bitmap.width;
+  canvas.height = bitmap.height;
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  context.drawImage(bitmap, 0, 0);
+  const data = context.getImageData(0, 0, canvas.width, canvas.height).data;
+  const colors = new Map();
+  for (let index = 0; index < data.length; index += 4) {
+    const alpha = data[index + 3];
+    if (alpha < 16) continue;
+    const color = `#${[data[index], data[index + 1], data[index + 2]].map((value) => value.toString(16).padStart(2, "0")).join("")}`;
+    colors.set(color, (colors.get(color) || 0) + 1);
+  }
+  bitmap.close?.();
+  return [...colors.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+}
+
+function parseDescriptionTableAttributes(description) {
+  const attributes = {};
+  const rowRegex = /<tr\b[^>]*>([\s\S]*?)<\/tr>/giu;
+  let rowMatch = null;
+  while ((rowMatch = rowRegex.exec(description || ""))) {
+    const cells = [...rowMatch[1].matchAll(/<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/giu)]
+      .map((cell) => normalizeText(stripHtml(cell[1])));
+    if (cells.length >= 2 && cells[0] && cells[1]) attributes[cells[0].replace(/:$/u, "").trim()] = cells[1];
+  }
+  return attributes;
+}
+
+function normalizeLegendIntensity(value) {
+  const labels = {
+    "muy alto": "Muy alto",
+    alto: "Alto",
+    medio: "Medio",
+    bajo: "Bajo",
+    "muy bajo": "Muy bajo",
+  };
+  return labels[normalizeLegendKey(value).replace(/\s+/gu, " ").trim()] || normalizeText(value);
+}
+
+function getLegendOrder(label) {
+  return new Map([
+    ["muy alto", 1],
+    ["alto", 2],
+    ["medio", 3],
+    ["bajo", 4],
+    ["muy bajo", 5],
+  ]).get(normalizeLegendKey(label).replace(/\s+/gu, " ").trim()) || 100;
+}
+
+function normalizeLegendKey(value) {
+  return String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/gu, "").toLowerCase();
+}
+
+function parseKmlColor(value) {
+  const cleaned = String(value || "").trim().replace("#", "");
+  if (!/^[0-9a-f]{8}$/i.test(cleaned)) return null;
+  return {
+    hex: `#${cleaned.slice(6, 8)}${cleaned.slice(4, 6)}${cleaned.slice(2, 4)}`.toLowerCase(),
+    opacity: Number((parseInt(cleaned.slice(0, 2), 16) / 255).toFixed(3)),
+  };
 }

@@ -76,7 +76,7 @@ export async function listOwnLayersController(req, res) {
 }
 
 export async function getLayerDetailController(req, res) {
-  const layer = await getLayerDetail(req.validated.params.id);
+  const layer = await getLayerDetail(req.validated.params.id, req.user);
   return sendSuccess(res, {
     statusCode: 200,
     message: "Detalle de capa obtenido correctamente.",
@@ -85,7 +85,7 @@ export async function getLayerDetailController(req, res) {
 }
 
 export async function getLayerGeoJsonController(req, res) {
-  const geojson = await getLayerGeoJson(req.validated.params.id);
+  const geojson = await getLayerGeoJson(req.validated.params.id, req.user);
   return sendSuccess(res, {
     statusCode: 200,
     message: "GeoJSON de capa obtenido correctamente.",

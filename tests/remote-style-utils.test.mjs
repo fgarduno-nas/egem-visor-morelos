@@ -4,6 +4,7 @@ import { execFile } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
@@ -11,6 +12,7 @@ const modulePath = path.resolve("js/app/utils/remote-style-utils.js");
 const moduleSource = await fs.readFile(modulePath, "utf8");
 const moduleUrl = `data:text/javascript;base64,${Buffer.from(moduleSource).toString("base64")}`;
 const mapSource = await fs.readFile(path.resolve("js/map.js"), "utf8");
+const layersApiSource = await fs.readFile(path.resolve("js/app/services/layers-api.js"), "utf8");
 const cssSource = await fs.readFile(path.resolve("css/style.css"), "utf8");
 const htmlSource = await fs.readFile(path.resolve("index.html"), "utf8");
 const municipiosGeojson = JSON.parse(await fs.readFile(path.resolve("data/base/municipios.geojson"), "utf8"));
@@ -73,9 +75,49 @@ const {
   isPresentValue,
   toFiniteNumber,
 } = await import(moduleUrl);
+const { normalizeHexColor } = await import(pathToFileURL(path.resolve("js/app/utils/color-utils.js")).href);
+const { createFallbackPointIcon } = await import(pathToFileURL(path.resolve("js/app/utils/point-icon-utils.js")).href);
 
 function feature(properties) {
   return { type: "Feature", properties, geometry: { type: "Point", coordinates: [0, 0] } };
+}
+
+function createRecordingCanvasFactory(records) {
+  return (size) => ({
+    width: size,
+    height: size,
+    getContext() {
+      const context = {
+        clearRect: (...args) => records.push(["clearRect", ...args]),
+        beginPath: () => records.push(["beginPath"]),
+        moveTo: (...args) => records.push(["moveTo", ...args]),
+        lineTo: (...args) => records.push(["lineTo", ...args]),
+        closePath: () => records.push(["closePath"]),
+        arc: (...args) => records.push(["arc", ...args]),
+        fill: () => records.push(["fill"]),
+        stroke: () => records.push(["stroke"]),
+        getImageData: (x, y, width, height) => ({ data: new Uint8ClampedArray(width * height * 4), width, height, x, y }),
+      };
+      Object.defineProperties(context, {
+        fillStyle: {
+          set(value) {
+            records.push(["fillStyle", value]);
+          },
+        },
+        strokeStyle: {
+          set(value) {
+            records.push(["strokeStyle", value]);
+          },
+        },
+        lineWidth: {
+          set(value) {
+            records.push(["lineWidth", value]);
+          },
+        },
+      });
+      return context;
+    },
+  });
 }
 
 function extractFunctionSource(source, name) {
@@ -113,6 +155,40 @@ function normalizeTestLabelName(value) {
     .replace(/[.,;:()[\]{}'"’`´_-]+/g, " ")
     .replace(/\s+/g, " ");
 }
+
+test("normaliza colores hexadecimales para canvas y MapLibre sin lanzar errores", () => {
+  assert.equal(normalizeHexColor("#abc", "#000000"), "#aabbcc");
+  assert.equal(normalizeHexColor("#abcd", "#000000"), "#aabbccdd");
+  assert.equal(normalizeHexColor("#AABBCC", "#000000"), "#aabbcc");
+  assert.equal(normalizeHexColor("#AABBCCDD", "#000000"), "#aabbccdd");
+  assert.equal(normalizeHexColor(" aabbcc ", "#000000"), "#aabbcc");
+  assert.equal(normalizeHexColor(null, "#123456"), "#123456");
+  assert.equal(normalizeHexColor(undefined, "#123456"), "#123456");
+  assert.equal(normalizeHexColor("", "#123456"), "#123456");
+  assert.equal(normalizeHexColor("invalid", "#123456"), "#123456");
+});
+
+test("genera iconos fallback puntuales con color valido, abreviado e invalido", () => {
+  const dotRecords = [];
+  const dot = createFallbackPointIcon("dot", "#abc", { canvasFactory: createRecordingCanvasFactory(dotRecords) });
+  assert.equal(dot.width, 8);
+  assert.deepEqual(dotRecords.find((record) => record[0] === "fillStyle"), ["fillStyle", "#aabbcc"]);
+  assert.ok(dotRecords.some((record) => record[0] === "arc"), "el icono de manantial usa circulo");
+
+  const triangleRecords = [];
+  const triangle = createFallbackPointIcon("triangle", "#AABBCC", { canvasFactory: createRecordingCanvasFactory(triangleRecords) });
+  assert.equal(triangle.width, 12);
+  assert.deepEqual(triangleRecords.find((record) => record[0] === "fillStyle"), ["fillStyle", "#aabbcc"]);
+  assert.ok(triangleRecords.some((record) => record[0] === "lineTo"), "el icono de pozo usa triangulo");
+
+  const invalidRecords = [];
+  createFallbackPointIcon("triangle", "invalid", { canvasFactory: createRecordingCanvasFactory(invalidRecords) });
+  assert.deepEqual(invalidRecords.find((record) => record[0] === "fillStyle"), ["fillStyle", "#123c7c"]);
+
+  const nullRecords = [];
+  createFallbackPointIcon("generic-dot", null, { canvasFactory: createRecordingCanvasFactory(nullRecords) });
+  assert.deepEqual(nullRecords.find((record) => record[0] === "fillStyle"), ["fillStyle", "#3b82f6"]);
+});
 
 function walkCoordinatePairs(coordinates, callback) {
   if (!Array.isArray(coordinates)) return;
@@ -1345,7 +1421,7 @@ test("el frontend reconstruye GroundOverlay raster y capas mixtas sin tratarlas 
   assert.match(mapSource, /preloadRasterLegendColorsFromPreview/);
   assert.match(mapSource, /extractRasterLegendColors/);
   assert.match(backendServiceSource, /resourceType:\s*metadataProperties\.resourceType/);
-  assert.match(backendServiceSource, /groundOverlays:\s*metadataProperties\.groundOverlays/);
+  assert.match(backendServiceSource, /groundOverlays:\s*safeGroundOverlays/);
   assert.match(backendServiceSource, /rasterLegend:\s*metadataProperties\.rasterLegend/);
   assert.match(processingSource, /resourceType:\s*"ground-overlay"/);
   assert.match(processingSource, /resourceType:\s*"mixed"/);
@@ -1365,6 +1441,142 @@ test("la carga de capas usa timeout extendido y revisa duplicados tras cancelaci
   assert.match(mapSource, /Procesando capa; esta operación puede tardar varios minutos/);
   assert.match(mapSource, /findRecentlySavedUploadDraftLayer/);
   assert.match(mapSource, /Revisa el catálogo administrativo antes de reintentar/);
+});
+
+test("el formulario de carga separa simbología vectorial de leyenda raster", () => {
+  const metadataSource = extractFunctionSource(mapSource, "buildLayerMetadata");
+  assert.match(mapSource, /buildUploadLegendFromDraft\(\)/);
+  assert.match(mapSource, /buildVectorLegendFromDraft\(\)/);
+  assert.match(mapSource, /vectorLegend:\s*buildVectorLegendFromDraft\(\)/);
+  assert.match(layersApiSource, /formData\.append\("vectorLegend", metadata\.vectorLegend \? JSON\.stringify\(metadata\.vectorLegend\) : ""\)/);
+  assert.match(mapSource, /Simbología de la capa/);
+  assert.match(mapSource, /Clases vectoriales precargadas desde los estilos del archivo/);
+  assert.match(mapSource, /applyExtractedMetadataToUploadForm\(state\.uploadDraft\.previewLayers\[0\]\)/);
+  assert.match(mapSource, /seedLegendEditorFromPreviewLayer\(state\.uploadDraft\.previewLayers\[0\]\)/);
+  assert.match(metadataSource, /extractedMetadata:\s*existingMetadata\.extractedMetadata/);
+  assert.match(metadataSource, /geospatialDiagnostics:\s*existingMetadata\.geospatialDiagnostics/);
+  assert.doesNotMatch(extractFunctionSource(mapSource, "setUploadFieldIfEmpty"), /startsWith\("No especificada"\)/);
+  assert.match(htmlSource, /id="upload-layer-updated-at" type="text"/);
+  assert.doesNotMatch(htmlSource, /id="upload-layer-updated-at" type="date"/);
+});
+
+test("el formulario de carga usa layout adaptable y limpia el borrador derivado", () => {
+  const setFilesSource = extractFunctionSource(mapSource, "setUploadDraftFiles");
+  const removeSource = extractFunctionSource(mapSource, "removeUploadDraftSelection");
+  const resetSource = extractFunctionSource(mapSource, "resetUploadDraft");
+  const cleanupSource = extractFunctionSource(mapSource, "clearUploadDraftDerivedState");
+  const editorSource = extractFunctionSource(mapSource, "renderRasterLegendEditor");
+  const symbolSource = extractFunctionSource(mapSource, "buildLegendEditorSymbolControl");
+  const seedLegendSource = extractFunctionSource(mapSource, "seedLegendEditorFromPreviewLayer");
+  const closeSource = extractFunctionSource(mapSource, "closeUploadModal");
+  const dirtySource = extractFunctionSource(mapSource, "hasUnsavedUploadDraft");
+  const submitSource = extractFunctionSource(mapSource, "submitUploadDraft");
+  const validationSource = extractFunctionSource(mapSource, "validateRasterLegendDraft");
+  const identitySource = extractFunctionSource(mapSource, "buildLegendClassIdentity");
+  const vectorOrderSource = extractFunctionSource(mapSource, "normalizeVectorLegendClassOrders");
+  const vectorDraftSource = extractFunctionSource(mapSource, "buildVectorLegendFromDraft");
+  const warningSource = extractFunctionSource(mapSource, "getSharedVectorLegendColorWarning");
+
+  assert.match(cssSource, /\.modal--upload-panel \{[\s\S]*?top: clamp\(88px, 11vh, 128px\);[\s\S]*?right: clamp\(16px, 7vw, 96px\);[\s\S]*?width: clamp\(390px, 34vw, 480px\);[\s\S]*?max-width: calc\(100vw - 32px\);[\s\S]*?overflow: visible;/);
+  assert.match(cssSource, /\.modal-card--upload-panel,[\s\S]*?\.modal-card--upload-panel \* \{[\s\S]*?box-sizing: border-box;[\s\S]*?min-width: 0;/);
+  assert.match(cssSource, /\.modal-card--upload-panel \{[\s\S]*?height: min\(78vh, 720px\);/);
+  assert.match(cssSource, /\.modal-card--upload-panel \{[\s\S]*?overflow: hidden;/);
+  assert.match(cssSource, /\.upload-draft-grid \{[\s\S]*?grid-template-columns: 1fr;/);
+  assert.match(cssSource, /\.upload-draft-grid \{[\s\S]*?flex: 1 1 auto;[\s\S]*?overflow-y: auto;/);
+  assert.match(cssSource, /\.upload-accordion > summary \{[\s\S]*?grid-template-columns: minmax\(0, max-content\) minmax\(0, 1fr\) auto;/);
+  assert.match(cssSource, /\.modal--upload-panel\.is-minimized/);
+  assert.match(cssSource, /\.modal-card--upload-panel \.modal-actions \{[\s\S]*?position: sticky;[\s\S]*?bottom: 0;/);
+  assert.match(cssSource, /#cancel-upload-layer \{[\s\S]*?border: 1\.5px solid var\(--accent\);[\s\S]*?background: #fff8f6;[\s\S]*?color: var\(--accent\);/);
+  assert.match(cssSource, /#cancel-upload-layer:focus-visible/);
+  assert.match(cssSource, /\.upload-action-button \{[\s\S]*?white-space: normal;[\s\S]*?overflow-wrap: anywhere;/);
+  assert.match(cssSource, /\.raster-legend-preview \{/);
+  assert.match(cssSource, /\.raster-legend-item \{[\s\S]*?grid-template-columns: 42px minmax\(0, 1fr\);/);
+  assert.match(cssSource, /\.raster-legend-symbol/);
+  assert.match(cssSource, /\.legend-swatch--image/);
+  assert.match(editorSource, /elements\.detectRasterLegendColors\.hidden = true/);
+  assert.match(editorSource, /elements\.addRasterLegendItem\.hidden = true/);
+  assert.match(editorSource, /data-raster-legend-label/);
+  assert.match(editorSource, /No se detectó una clasificación de simbología en el archivo\./);
+  assert.doesNotMatch(editorSource, /data-raster-legend-value|data-raster-legend-order|data-raster-legend-remove/);
+  assert.doesNotMatch(editorSource, /Valor o rango|Orden|Eliminar elemento/);
+  assert.match(symbolSource, /raster-legend-symbol--picker/);
+  assert.match(symbolSource, /recoloredPreviewItem/);
+  assert.match(symbolSource, /renderLegendSymbolMarkup\(recoloredPreviewItem\)/);
+  assert.match(symbolSource, /Este icono conserva los colores definidos en el archivo/);
+  assert.match(symbolSource, /data-raster-legend-color/);
+  assert.match(cssSource, /\.raster-legend-symbol--picker input\[type="color"\] \{[\s\S]*?position: absolute;[\s\S]*?inset: 0;[\s\S]*?opacity: 0;/);
+  assert.doesNotMatch(symbolSource, /<\/span>\$\{colorControl\}/);
+  assert.match(seedLegendSource, /attachPointIconUrlsToLegend\(rawLegend, layer\)/);
+  assert.match(seedLegendSource, /normalizeVectorLegendClassOrders\(legend\.classes, legend\)/);
+  assert.match(seedLegendSource, /iconImageUrl: item\.iconImageUrl \|\| null/);
+  assert.match(closeSource, /hasUnsavedUploadDraft\(\)/);
+  assert.match(closeSource, /window\.confirm\("Hay cambios sin guardar\. ¿Quieres cancelar la carga y descartarlos\?"\)/);
+  assert.match(closeSource, /clearUploadDraftPreview\(\)/);
+  assert.match(closeSource, /resetUploadDraft\(\)/);
+  assert.match(dirtySource, /state\.uploadDraft\.files\.length/);
+  assert.match(dirtySource, /state\.uploadDraft\.previewLayers\.length/);
+  assert.match(dirtySource, /state\.uploadDraft\.vectorLegend/);
+  assert.match(dirtySource, /state\.uploadDraft\.extractedMetadata/);
+  assert.match(submitSource, /closeUploadModal\(\{ requireConfirmation: false \}\)/);
+  assert.doesNotMatch(submitSource, /closeUploadModal\(\);/);
+  assert.match(validationSource, /state\.uploadDraft\.legendKind === "vector"/);
+  assert.match(validationSource, /buildLegendClassIdentity\(item, state\.uploadDraft\.vectorLegend\)/);
+  assert.match(validationSource, /state\.uploadDraft\.legendKind !== "vector"/);
+  assert.doesNotMatch(validationSource, /La \$\{legendLabel\} contiene órdenes duplicadas\.[\s\S]*state\.uploadDraft\.legendKind === "vector"/);
+  assert.doesNotMatch(validationSource, /colors\.has\(color\)[\s\S]*simbología vectorial contiene colores duplicados/);
+  assert.match(vectorDraftSource, /normalizeVectorLegendClassOrders\(classes, legend\)/);
+  assert.match(vectorDraftSource, /originalColor/);
+  assert.match(vectorDraftSource, /displayColor/);
+  assert.match(vectorDraftSource, /originalLabel/);
+  assert.match(vectorDraftSource, /sourceOrder: Number\.isFinite\(Number\(item\.sourceOrder \?\? item\.order\)\)/);
+  assert.match(vectorOrderSource, /buildVectorLegendOrderGroupKey/);
+  assert.match(vectorOrderSource, /displayOrder/);
+  assert.match(vectorOrderSource, /order: displayOrder/);
+  assert.match(vectorOrderSource, /sourceOrder: item\.sourceOrder/);
+  assert.match(mapSource, /function getSemanticVectorLegendOrder/);
+  assert.match(identitySource, /item\.group \|\| item\.folder/);
+  assert.match(identitySource, /item\.legendField \|\| legend\?\.styleField \|\| legend\?\.field/);
+  assert.match(identitySource, /item\.originalValue \|\| item\.value/);
+  assert.match(identitySource, /item\.styleId \|\| item\.styleUrl/);
+  assert.match(identitySource, /item\.symbolType \|\| item\.symbolKind/);
+  assert.match(identitySource, /item\.geometryRole/);
+  assert.match(identitySource, /item\.iconHref/);
+  assert.match(warningSource, /Algunos elementos comparten color, pero corresponden a categorías diferentes\./);
+  assert.match(htmlSource, /id="upload-section-file"/);
+  assert.match(htmlSource, /id="upload-section-classification"/);
+  assert.match(htmlSource, /id="upload-section-metadata"/);
+  assert.match(htmlSource, /id="upload-section-symbology"/);
+  assert.match(htmlSource, /id="raster-legend-preview"/);
+  assert.match(setFilesSource, /clearUploadDraftDerivedState\(\{ keepMessage: true \}\)/);
+  assert.match(removeSource, /clearUploadDraftDerivedState\(\{ keepMessage: true \}\)/);
+  assert.match(resetSource, /clearUploadDraftPreview\(\)/);
+  assert.match(cleanupSource, /state\.uploadDraft\.vectorLegend = null/);
+  assert.match(cleanupSource, /state\.uploadDraft\.rasterLegendItems = \[\]/);
+  assert.match(cleanupSource, /state\.uploadDraft\.extractedMetadata = null/);
+  assert.match(cleanupSource, /state\.uploadDraft\.geospatialDiagnostics = null/);
+});
+
+test("capas remotas no visualizables se conservan como filas de estado sin descargar recursos", () => {
+  const hydrateSource = extractFunctionSource(mapSource, "hydrateBackendLayer");
+  const statusLayerSource = extractFunctionSource(mapSource, "createBackendStatusLayerFromRecord");
+  const visualizableSource = extractFunctionSource(mapSource, "getBackendRecordIsVisualizable");
+  const disableSource = extractFunctionSource(mapSource, "shouldDisableLayerToggle");
+  const stateSource = extractFunctionSource(mapSource, "shouldShowProcessingState");
+
+  assert.match(hydrateSource, /const recordIsVisualizable = getBackendRecordIsVisualizable\(record\)/);
+  assert.match(hydrateSource, /!recordIsVisualizable/);
+  assert.match(hydrateSource, /createBackendStatusLayerFromRecord\(record\)/);
+  assert.match(hydrateSource, /isVisualizable:\s*recordIsVisualizable/);
+  assert.match(visualizableSource, /hasOwnProperty\.call\(record, "isVisualizable"\)/);
+  assert.match(visualizableSource, /record\.isVisualizable === true/);
+  assert.match(visualizableSource, /hasOwnProperty\.call\(properties, "isVisualizable"\)/);
+  assert.match(visualizableSource, /properties\.isVisualizable === true/);
+  assert.match(statusLayerSource, /sourceKind:\s*"backend-status"/);
+  assert.match(statusLayerSource, /visible:\s*false/);
+  assert.match(statusLayerSource, /processingStatus:\s*record\.processingStatus/);
+  assert.match(disableSource, /shouldShowProcessingState\(layer\)/);
+  assert.match(stateSource, /!canVisualizeLayer\(layer\)/);
+  assert.doesNotMatch(statusLayerSource, /fetchRemoteFile|fetchLayerJson|fetchLayerBlobUrl|createDeferredProcessedGeoJsonLayerFromBackend/);
 });
 
 test("la reconstruccion backend no conserva estilos colapsados cuando existe campo tematico seguro", () => {
@@ -1713,6 +1925,7 @@ test("la pila de activacion controla prioridad de consulta y cierre de popup", (
   const deactivateSource = extractFunctionSource(mapSource, "deactivateLayerInStack");
   const toggleSource = extractFunctionSource(mapSource, "toggleLayerVisibility");
   const clickSource = extractFunctionSource(mapSource, "getTopThematicPopupHit");
+  const queryableStackSource = extractFunctionSource(mapSource, "getQueryableThematicLayerStack");
   const vectorSource = extractFunctionSource(mapSource, "getVectorPopupHitForLayer");
   const rasterSource = extractFunctionSource(mapSource, "getRasterPopupHitForLayer");
 
@@ -1723,10 +1936,15 @@ test("la pila de activacion controla prioridad de consulta y cierre de popup", (
   assert.match(toggleSource, /activateLayerInStack\(userLayer\.id\)/);
   assert.match(toggleSource, /deactivateLayerInStack\(userLayer\.id\)/);
   assert.match(toggleSource, /closePopupForLayer\(userLayer\.id\)/);
-  assert.match(clickSource, /\[\.\.\.state\.activeLayerStack\]\.reverse\(\)/);
+  assert.match(clickSource, /getQueryableThematicLayerStack\(\)\.reverse\(\)/);
+  assert.match(queryableStackSource, /\[\.\.\.state\.activeLayerStack\]/);
+  assert.match(queryableStackSource, /state\.previewLayerId/);
   assert.match(clickSource, /getVectorPopupHitForLayer\(layer, event\)/);
   assert.match(clickSource, /getRasterPopupHitForLayer\(layer, event\.lngLat\)/);
-  assert.match(vectorSource, /map\.queryRenderedFeatures\(event\.point, \{ layers: layerIds \}\)/);
+  assert.match(vectorSource, /queryRenderedFeaturesWithTolerance\(event\.point, queryableLayers\.symbols, 8\)/);
+  assert.match(vectorSource, /queryRenderedFeaturesWithTolerance\(event\.point, queryableLayers\.circles, 8\)/);
+  assert.match(vectorSource, /queryRenderedFeaturesWithTolerance\(event\.point, queryableLayers\.fills, 2\)/);
+  assert.match(vectorSource, /queryRenderedFeaturesWithTolerance\(event\.point, queryableLayers\.lines, 2\)/);
   assert.match(rasterSource, /pickTopGroundOverlayHit\(candidates, lngLat, getMapLayerOrder\(\)\)/);
 });
 
@@ -1740,7 +1958,9 @@ test("los poligonos ordinales se dibujan y consultan por intensidad visible supe
   assert.match(addLayerSource, /"fill-sort-key": \["coalesce", \["to-number", \["get", "__egemSortKey"\]\], 0\]/);
   assert.match(normalizeSource, /applyBackendFeatureSortKey\(/);
   assert.match(sortSource, /getFeatureVisualPriorityRank\(properties\)/);
-  assert.match(vectorSource, /pickTopVectorPopupFeature\(features\)/);
+  assert.match(vectorSource, /pickNearestPointPopupFeature\(pointFeatures, event\.point\)/);
+  assert.match(vectorSource, /pickTopVectorPopupFeature\(\[/);
+  assert.ok(vectorSource.indexOf("queryableLayers.fills") < vectorSource.indexOf("queryableLayers.lines"));
   assert.match(pickSource, /pickTopFeatureByVisualPriority\(popupFeatures\)/);
   assert.match(mapSource, /pickTopFeatureByVisualPriority,/);
 });
@@ -1856,15 +2076,20 @@ test("el popup tematico tiene prioridad sobre municipios y conserva atributos ut
   assert.match(staticSource, /getStaticPopupHitForLayer\("municipios", \["municipios-hit"\], event\)/);
   assert.match(staticSource, /getStaticPopupHitForLayer\("estado", \["estado-fill"\], event\)/);
   assert.match(staticPopupSource, /resourceType: "static"/);
-  assert.match(vectorPopupSource, /const cleanedAttributes = cleanThematicPopupAttributes\(props, layer\.legend\);/);
+  assert.match(vectorPopupSource, /const \{ layer, feature, mapLayerId, symbolDescriptor \} = hit/);
+  assert.match(vectorPopupSource, /const cleanedAttributes = cleanThematicPopupAttributes\(props, layer\.legend, symbolDescriptor\);/);
   assert.match(vectorPopupSource, /extra: \[\]/);
   assert.match(vectorPopupSource, /legend: null/);
-  assert.match(vectorPopupSource, /html: buildThematicFeaturePopup\(layer\.title, props, layer\.legend\)/);
-  assert.match(thematicPopupSource, /<strong>\$\{escapeHtml\(layerName \|\| "Capa seleccionada"\)\}<\/strong>/);
+  assert.match(vectorPopupSource, /html: buildThematicFeaturePopup\(layer\.title, props, layer\.legend, symbolDescriptor\)/);
+  assert.match(thematicPopupSource, /const popupTitle = getThematicPopupTitle\(layerName, properties\)/);
+  assert.match(thematicPopupSource, /<strong>\$\{escapeHtml\(popupTitle \|\| "Capa seleccionada"\)\}<\/strong>/);
   assert.doesNotMatch(thematicPopupSource, /feature-popup__highlight/);
   assert.match(thematicPopupSource, /Sin información temática disponible\./);
   assert.match(thematicAttributesSource, /parseKmlDescriptionHtmlAttributes/);
-  assert.match(thematicAttributesSource, /applyVisibleLegendLabelForPopup\(mergedProperties, legend\)/);
+  assert.match(thematicAttributesSource, /const exactLegendClass = symbolDescriptor \|\| getFeatureLegendClass\(mergedProperties, legend\)/);
+  assert.match(thematicAttributesSource, /applyVisibleLegendLabelForPopup\(mergedProperties, legend, exactLegendClass\)/);
+  assert.match(thematicAttributesSource, /return \{ Categoría: visibleLegendLabel \}/);
+  assert.match(thematicAttributesSource, /const fallbackCategory = getThematicCategoryFallbackLabel\(lookup\)/);
   assert.match(fieldsSource, /label: "Intensidad"[\s\S]*?"Intensid_1"[\s\S]*?fallbackAliases: \["Magni_unid", "MAGNI_UNID", "Magni_uni"\]/);
   assert.doesNotMatch(fieldsSource, /"Intensidad original"/);
   assert.match(usableValueSource, /value === null \|\| value === undefined/);
@@ -1878,18 +2103,29 @@ test("el popup tematico tiene prioridad sobre municipios y conserva atributos ut
   assert.doesNotMatch(municipiosSource, /updateInfoPanel/);
 });
 
-test("el popup tematico muestra solo cuatro campos en orden y no usa intensidad en el titulo", () => {
+test("el popup tematico conserva cuatro campos para amenazas y agrega ruta puntual por atributos", () => {
   const popupSource = extractFunctionSource(mapSource, "buildThematicFeaturePopup");
   const attributesSource = extractFunctionSource(mapSource, "cleanThematicPopupAttributes");
+  const pointAttributesSource = extractFunctionSource(mapSource, "buildPointKmlPopupAttributes");
+  const titleSource = extractFunctionSource(mapSource, "getThematicPopupTitle");
+  const fallbackCategorySource = extractFunctionSource(mapSource, "getThematicCategoryFallbackLabel");
   const fieldsSource = mapSource.match(/const THEMATIC_POPUP_FIELDS = \[[\s\S]*?\n  \];/)?.[0] || "";
+  const pointFieldsSource = mapSource.match(/const POINT_KML_POPUP_FIELDS = \[[\s\S]*?\n  \];/)?.[0] || "";
 
   assert.match(fieldsSource, /label: "Intensidad"[\s\S]*label: "Detalles"[\s\S]*label: "Clasificación"[\s\S]*label: "Amenaza"/);
   assert.doesNotMatch(fieldsSource, /Municipio|Magnitud|Indicador|Fuente|IVS_FINAL|R_P_V_E_A/);
-  assert.match(popupSource, /THEMATIC_POPUP_FIELDS\s*\n\s*\.filter/);
-  assert.match(popupSource, /<dt>\$\{escapeHtml\(label\)\}:<\/dt>/);
-  assert.match(popupSource, /<dd>\$\{escapeHtml\(String\(attributes\[label\]\)\)\}<\/dd>/);
-  assert.doesNotMatch(popupSource, /mainAttribute|findMainFeatureAttribute|feature-popup__highlight|Clasificación.*<strong>|Intensidad.*<strong>/s);
   assert.match(attributesSource, /return THEMATIC_POPUP_FIELDS\.reduce/);
+  assert.match(attributesSource, /const pointAttributes = buildPointKmlPopupAttributes\(lookup\)/);
+  assert.match(pointFieldsSource, /label: "Estado"[\s\S]*"StatusTipo"[\s\S]*label: "Caudal tratado"[\s\S]*"Caudal_Tra"/);
+  assert.match(pointAttributesSource, /getPopupLookupValue\(lookup, \["PtarNombre", "StatusTipo"\]\)/);
+  assert.match(pointAttributesSource, /attributes\.Coordenadas = `\$\{lat\}, \$\{lon\}`/);
+  assert.match(titleSource, /getPopupLookupValue\(lookup, \["PtarNombre", "Nombre", "Name", "NOMBRE"\]\)/);
+  assert.match(fallbackCategorySource, /manantial: "Manantial"/);
+  assert.match(fallbackCategorySource, /pozo: "Pozo"/);
+  assert.match(fallbackCategorySource, /return roleLabels\[normalizedName\] \|\| null/);
+  assert.match(popupSource, /<dt>\$\{escapeHtml\(label\)\}:<\/dt>/);
+  assert.match(popupSource, /<dd>\$\{escapeHtml\(String\(value\)\)\}<\/dd>/);
+  assert.doesNotMatch(popupSource, /mainAttribute|findMainFeatureAttribute|feature-popup__highlight|Clasificación.*<strong>|Intensidad.*<strong>/s);
 });
 
 test("el popup tematico omite campos ausentes, conserva cero y deduplica aliases", () => {
@@ -1897,6 +2133,7 @@ test("el popup tematico omite campos ausentes, conserva cero y deduplica aliases
   const valueSource = extractFunctionSource(mapSource, "getThematicPopupFieldValue");
   const usableSource = extractFunctionSource(mapSource, "isUsablePopupValue");
   const applyVisibleSource = extractFunctionSource(mapSource, "applyVisibleLegendLabelForPopup");
+  const shouldApplySource = extractFunctionSource(mapSource, "shouldApplyLegendLabelAsThematicValue");
   const genericSource = extractFunctionSource(mapSource, "isGenericPopupLegendLabel");
   const fieldsSource = mapSource.match(/const THEMATIC_POPUP_FIELDS = \[[\s\S]*?\n  \];/)?.[0] || "";
 
@@ -1909,6 +2146,10 @@ test("el popup tematico omite campos ausentes, conserva cero y deduplica aliases
   assert.match(valueSource, /fallbackAliases/);
   assert.match(valueSource, /field\.acceptsFallback\(fallbackValue\)/);
   assert.match(applyVisibleSource, /isGenericPopupLegendLabel\(visibleLabel\)/);
+  assert.match(applyVisibleSource, /shouldApplyLegendLabelAsThematicValue\(properties, legend, visibleLabel\)/);
+  assert.match(shouldApplySource, /isIntensityCategoryValue\(visibleLabel\)/);
+  assert.match(shouldApplySource, /properties\.__legendField/);
+  assert.match(shouldApplySource, /getPropertyValueByAlias\(properties, \[field\]\)/);
   assert.match(genericSource, /normalized === "clase"/);
   assert.match(genericSource, /clase sin etiqueta/);
   assert.match(fieldsSource, /"Detalles", "DETALLES", "Detalle", "DETALLE"/);
@@ -1924,7 +2165,7 @@ test("el popup tematico sanitiza HTML y descarta campos tecnicos visibles", () =
   assert.match(sanitizerSource, /querySelectorAll\("script, style, iframe, object, embed"\)/);
   assert.match(sanitizerSource, /node\.remove\(\)/);
   assert.match(sanitizerSource, /textContent/);
-  assert.match(popupSource, /escapeHtml\(String\(attributes\[label\]\)\)/);
+  assert.match(popupSource, /escapeHtml\(String\(value\)\)/);
   assert.doesNotMatch(popupSource, /innerHTML|setHTML/);
   assert.doesNotMatch(attributesSource, /sourceEntries\.forEach/);
   assert.doesNotMatch(attributesSource, /attributes\[key\]/);
@@ -1988,6 +2229,8 @@ test("la leyenda flotante separa cabecera y cuerpo compacto sin cambiar las clas
   const floatingSource = extractFunctionSource(mapSource, "renderFloatingLegend");
   const floatingContentSource = extractFunctionSource(mapSource, "renderFloatingLegendContent");
   const renderLegendSource = extractFunctionSource(mapSource, "renderLayerLegend");
+  const symbolSource = extractFunctionSource(mapSource, "renderLegendSymbolMarkup");
+  const groupingSource = extractFunctionSource(mapSource, "groupLegendClassesForDisplay");
 
   assert.match(floatingSource, /map-legend-float__header/);
   assert.match(floatingSource, /map-legend-float__body/);
@@ -2003,7 +2246,10 @@ test("la leyenda flotante separa cabecera y cuerpo compacto sin cambiar las clas
   assert.match(renderLegendSource, /function renderLayerLegend\(legend, options = \{\}\)/);
   assert.match(renderLegendSource, /legend-list--compact/);
   assert.match(renderLegendSource, /legend-item--compact/);
-  assert.match(renderLegendSource, /aria-hidden="true"/);
+  assert.match(renderLegendSource, /renderLegendSymbolMarkup\(item\)/);
+  assert.match(symbolSource, /aria-hidden="true"/);
+  assert.match(symbolSource, /legend-swatch--image/);
+  assert.match(groupingSource, /hasNamedGroups/);
   assert.match(renderLegendSource, /!options\.hideField && shouldRenderLegendField\(legend\)/);
   assert.match(renderLegendSource, /getLegendClassDescriptor\(item, legend\)/);
 });
@@ -2084,13 +2330,178 @@ test("la carga diferida evita descargar GeoJSON de capas apagadas y reutiliza un
   assert.match(ensureSource, /state\.pendingLayerLoads\.has\(layer\.id\)/);
   assert.match(ensureSource, /state\.pendingLayerLoads\.set\(layer\.id, loadPromise\)/);
   assert.match(ensureSource, /layer\.isLoading = true/);
-  assert.match(loadSource, /fetch\(layer\.processedGeojsonUrl\)/);
+  assert.match(loadSource, /fetchLayerJson\(layer, layer\.processedGeojsonUrl\)/);
   assert.match(loadSource, /layer\.data = normalizedRemote\.geojson/);
   assert.match(toggleSource, /await ensureLayerResourcesLoaded\(userLayer\)/);
   assert.match(toggleSource, /userLayer\.visible = false/);
   assert.match(previewSource, /await ensureLayerResourcesLoaded\(layer\)/);
   assert.match(renderItemSource, /Cargando capa\.\.\./);
-  assert.match(renderItemSource, /layer\.isLoading \? "disabled"/);
+  assert.match(renderItemSource, /shouldDisableLayerToggle\(layer\)/);
+});
+
+test("previsualizacion privada usa token, Object URL y limpieza segura", () => {
+  const fetchResourceSource = extractFunctionSource(mapSource, "fetchLayerResource");
+  const fetchBlobSource = extractFunctionSource(mapSource, "fetchLayerBlobUrl");
+  const hydrateOverlaySource = extractFunctionSource(mapSource, "hydratePrivateGroundOverlayImages");
+  const removeBundleSource = extractFunctionSource(mapSource, "removeLayerBundle");
+  const logoutSource = extractFunctionSource(mapSource, "logout");
+  const clearPrivateSource = extractFunctionSource(mapSource, "clearPrivateRuntimeState");
+  const clearPayloadSource = extractFunctionSource(mapSource, "clearPrivateLayerPayload");
+  const ensureSource = extractFunctionSource(mapSource, "ensureLayerResourcesLoaded");
+  const canPreviewSource = extractFunctionSource(mapSource, "canPreviewLayer");
+  const canVisualizeSource = extractFunctionSource(mapSource, "canVisualizeLayer");
+  const renderItemSource = extractFunctionSource(mapSource, "renderLayerItem");
+
+  assert.match(fetchResourceSource, /getPrivateLayerToken\(layer\)/);
+  assert.match(fetchResourceSource, /headers\.Authorization = `Bearer \$\{token\}`/);
+  assert.match(fetchResourceSource, /fetch\(url, \{ headers \}\)/);
+  assert.match(fetchBlobSource, /URL\.createObjectURL\(blob\)/);
+  assert.match(hydrateOverlaySource, /fetchLayerBlobUrl\(layer, sourceUrl\)/);
+  assert.match(hydrateOverlaySource, /revokeUrl: true/);
+  assert.match(hydrateOverlaySource, /loadEpoch !== state\.privateResourceEpoch/);
+  assert.match(hydrateOverlaySource, /URL\.revokeObjectURL\(objectUrl\)/);
+  assert.match(removeBundleSource, /revokeLayerObjectUrls\(layer\)/);
+  assert.match(logoutSource, /clearPrivateRuntimeState\(\)/);
+  assert.match(clearPrivateSource, /state\.privateResourceEpoch \+= 1/);
+  assert.match(clearPrivateSource, /state\.pendingLayerLoads\.clear\(\)/);
+  assert.match(clearPrivateSource, /clearPrivateLayerPayload\(layer\)/);
+  assert.match(clearPayloadSource, /delete layer\.data/);
+  assert.match(clearPayloadSource, /revokeLayerObjectUrls\(layer\)/);
+  assert.match(ensureSource, /loadEpoch !== state\.privateResourceEpoch/);
+  assert.match(canPreviewSource, /canSeeLayer\(layer\) && canVisualizeLayer\(layer\)/);
+  assert.match(canVisualizeSource, /layer\.processedGeojsonUrl \|\| \(Array\.isArray\(layer\.groundOverlays\)/);
+  assert.match(renderItemSource, /shouldShowProcessingState\(layer\)/);
+});
+
+test("panel de carga queda flotante, compacto y sin redimensionar el mapa", () => {
+  const openUploadSource = extractFunctionSource(mapSource, "openUploadModal");
+  const minimizeSource = extractFunctionSource(mapSource, "minimizeUploadModal");
+  const dockSource = extractFunctionSource(mapSource, "syncUploadPanelDock");
+  const fitPaddingSource = extractFunctionSource(mapSource, "getLayerFitPadding");
+  const previewSource = extractFunctionSource(mapSource, "refreshUploadDraftPreview");
+  const uploadPanelRule = cssSource.match(/\.modal--upload-panel\s*\{[\s\S]*?\}/)?.[0] || "";
+
+  assert.match(cssSource, /\.modal--upload-panel\s*\{[\s\S]*top: clamp\(88px, 11vh, 128px\)/);
+  assert.match(cssSource, /\.modal--upload-panel\s*\{[\s\S]*right: clamp\(16px, 7vw, 96px\)/);
+  assert.match(cssSource, /\.modal--upload-panel\s*\{[\s\S]*bottom: auto/);
+  assert.match(cssSource, /\.modal--upload-panel\s*\{[\s\S]*width: clamp\(390px, 34vw, 480px\)/);
+  assert.match(cssSource, /\.modal-card--upload-panel\s*\{[\s\S]*max-height: min\(78vh, 720px\)/);
+  assert.doesNotMatch(uploadPanelRule, /left: 50%/);
+  assert.match(cssSource, /\.modal--upload-panel\.is-minimized/);
+  assert.match(cssSource, /\.upload-draft-grid\s*\{[\s\S]*grid-template-columns: 1fr/);
+  assert.match(htmlSource, /<details class="user-admin-block upload-accordion" id="upload-section-file" open>/);
+  assert.match(htmlSource, /<details class="user-admin-block upload-accordion" id="upload-section-metadata">/);
+  assert.match(openUploadSource, /syncUploadPanelDock\(\)/);
+  assert.match(minimizeSource, /state\.uploadDraft\.minimized/);
+  assert.match(dockSource, /classList\.toggle\("is-minimized"/);
+  assert.doesNotMatch(dockSource, /queueMapResize\(\)/);
+  assert.match(previewSource, /compactUploadSectionsAfterPreview\(\)/);
+  assert.match(previewSource, /fitUploadDraftPreviewLayers\(\)/);
+  assert.match(fitPaddingSource, /map\.getCanvas\(\)\.getBoundingClientRect\(\)/);
+  assert.match(fitPaddingSource, /overlapLeft \+ 28/);
+});
+
+test("KMZ con iconos PNG registra symbol layer y evita circulos grandes duplicados", async () => {
+  const addGeoJsonSource = extractFunctionSource(mapSource, "addGeoJsonLayerToMap");
+  const ensureIconSource = extractFunctionSource(mapSource, "ensurePointIconImagesForLayer");
+  const loadImageSource = extractFunctionSource(mapSource, "loadMapImage");
+  const featureIconSource = extractFunctionSource(mapSource, "applyPointIconFeatureIds");
+  const fallbackIconSource = extractFunctionSource(mapSource, "applyPointFallbackIconFeatureIds");
+  const opacitySource = extractFunctionSource(mapSource, "applyUserLayerOpacityToMap");
+  const visibilitySource = extractFunctionSource(mapSource, "setUserLayerLayoutVisibility");
+  const removeBundleSource = extractFunctionSource(mapSource, "removeLayerBundle");
+  const backendProcessingSource = await fs.readFile(path.resolve("backend/src/modules/layers/layer-processing.service.js"), "utf8");
+  const layerServiceSource = await fs.readFile(path.resolve("backend/src/modules/layers/layers.service.js"), "utf8");
+  const assetMiddlewareSource = await fs.readFile(path.resolve("backend/src/modules/layers/layer-assets.middleware.js"), "utf8");
+
+  assert.match(addGeoJsonSource, /const pointIconId = `\$\{layer\.id\}-point-icon`/);
+  assert.match(addGeoJsonSource, /const hasPointIconFeatures = hasPoints && layer\.data\?\.features\?\.some/);
+  assert.match(addGeoJsonSource, /map\.hasImage\(imageId\)/);
+  assert.match(addGeoJsonSource, /type: "symbol"/);
+  assert.match(addGeoJsonSource, /"icon-image": \["coalesce", \["get", "__styleIconImageId"\], "egem-fallback-point-dot"\]/);
+  assert.match(addGeoJsonSource, /\["!=", \["get", "__styleIconImageId"\], null\]/);
+  assert.match(addGeoJsonSource, /\["!=", \["get", "__styleIconImageId"\], ""\]/);
+  assert.match(addGeoJsonSource, /const pointSymbolDescriptorFilter = getPointSymbolDescriptorFilter\(\)/);
+  assert.match(addGeoJsonSource, /\["!", pointSymbolDescriptorFilter\]/);
+  assert.match(loadImageSource, /map\.loadImage/);
+  assert.match(ensureIconSource, /map\.addImage\(imageId, image/);
+  assert.match(featureIconSource, /styleUrl/);
+  assert.match(featureIconSource, /normalizeLegendComparisonValue\(properties\[field\]\)/);
+  assert.match(featureIconSource, /properties\.__styleIcon/);
+  assert.match(fallbackIconSource, /properties\.__styleIconImageId && map\.hasImage\(properties\.__styleIconImageId\)/);
+  assert.match(fallbackIconSource, /getFallbackPointIconImageId/);
+  assert.match(mapSource, /egem-fallback-manantial-dot/);
+  assert.match(mapSource, /egem-fallback-pozo-triangle/);
+  assert.match(mapSource, /egem-fallback-point-dot/);
+  assert.match(mapSource, /import \{ createFallbackPointIcon \} from "\.\/app\/utils\/point-icon-utils\.js";/);
+  assert.match(mapSource, /import \{ normalizeHexColor \} from "\.\/app\/utils\/color-utils\.js";/);
+  assert.match(extractFunctionSource(mapSource, "hasPointSymbolDescriptor"), /properties\.__kmlStyleId/);
+  assert.match(extractFunctionSource(mapSource, "hasPointSymbolDescriptor"), /properties\.styleUrl/);
+  assert.match(extractFunctionSource(mapSource, "hasPointSymbolDescriptor"), /properties\.iconHref/);
+  assert.match(extractFunctionSource(mapSource, "getPointSymbolDescriptorFilter"), /\["has", "__kmlStyleId"\]/);
+  assert.match(extractFunctionSource(mapSource, "getPointSymbolDescriptorFilter"), /\["has", "styleUrl"\]/);
+  assert.match(extractFunctionSource(mapSource, "getPointSymbolDescriptorFilter"), /\["has", "iconHref"\]/);
+  assert.match(opacitySource, /safeSetPaintProperty\(pointIconId, "icon-opacity", opacity\)/);
+  assert.match(visibilitySource, /`\$\{layer\.id\}-point-icon`/);
+  assert.match(removeBundleSource, /map\.removeImage\(icon\.imageId\)/);
+  assert.match(backendProcessingSource, /function extractKmzPointIconAssets/);
+  assert.match(backendProcessingSource, /point-icons/);
+  assert.match(backendProcessingSource, /mimeType: "image\/png"/);
+  assert.match(layerServiceSource, /pointIcons/);
+  assert.match(layerServiceSource, /function normalizePublicPointIcons/);
+  assert.match(extractFunctionSource(layerServiceSource, "normalizePublicPointIcons"), /imagePath/);
+  assert.match(extractFunctionSource(layerServiceSource, "normalizePublicPointIcons"), /sourceEntry/);
+  assert.match(assetMiddlewareSource, /properties\.pointIcons/);
+});
+
+test("hit testing prioriza puntos tematicos sobre raster y municipios base", () => {
+  const topHitSource = extractFunctionSource(mapSource, "getTopThematicPopupHit");
+  const queryableStackSource = extractFunctionSource(mapSource, "getQueryableThematicLayerStack");
+  const vectorHitSource = extractFunctionSource(mapSource, "getVectorPopupHitForLayer");
+  const groupLayersSource = extractFunctionSource(mapSource, "groupVectorPopupLayerIdsByPriority");
+  const nearestPointSource = extractFunctionSource(mapSource, "pickNearestPointPopupFeature");
+  const queryToleranceSource = extractFunctionSource(mapSource, "queryRenderedFeaturesWithTolerance");
+  const handleClickSource = extractFunctionSource(mapSource, "handleMapToolClick");
+  const previewSource = extractFunctionSource(mapSource, "previewLayer");
+  const queryableLayerSource = extractFunctionSource(mapSource, "isThematicQueryableLayer");
+
+  assert.doesNotMatch(queryableLayerSource, /layer\.id !== state\.previewLayerId/);
+  assert.match(previewSource, /activateLayerInStack\(layer\.id\)/);
+  assert.match(queryableStackSource, /state\.previewLayerId/);
+  assert.match(queryableStackSource, /state\.userLayers\.forEach/);
+  assert.match(topHitSource, /const vectorHit = getVectorPopupHitForLayer\(layer, event\)/);
+  assert.match(topHitSource, /const rasterHit = getRasterPopupHitForLayer\(layer, event\.lngLat\)/);
+  assert.ok(topHitSource.indexOf("getVectorPopupHitForLayer") < topHitSource.indexOf("getRasterPopupHitForLayer"));
+  assert.match(vectorHitSource, /groupVectorPopupLayerIdsByPriority\(layerIds\)/);
+  assert.match(vectorHitSource, /queryRenderedFeaturesWithTolerance\(event\.point, queryableLayers\.symbols, 8\)/);
+  assert.match(vectorHitSource, /queryRenderedFeaturesWithTolerance\(event\.point, queryableLayers\.circles, 8\)/);
+  assert.match(vectorHitSource, /pickNearestPointPopupFeature\(pointFeatures, event\.point\)/);
+  assert.ok(vectorHitSource.indexOf("queryableLayers.symbols") < vectorHitSource.indexOf("queryableLayers.circles"));
+  assert.ok(vectorHitSource.indexOf("queryableLayers.fills") < vectorHitSource.indexOf("queryableLayers.lines"));
+  assert.match(groupLayersSource, /type === "symbol"/);
+  assert.match(groupLayersSource, /type === "circle"/);
+  assert.match(groupLayersSource, /type === "fill"/);
+  assert.match(groupLayersSource, /type === "line"/);
+  assert.match(nearestPointSource, /getFeaturePointScreenDistance\(a, point\)/);
+  assert.match(nearestPointSource, /getPointHitLayerPriority\(a\)/);
+  assert.match(queryToleranceSource, /map\.queryRenderedFeatures\(queryGeometry, \{ layers: layerIds \}\)/);
+  assert.ok(handleClickSource.indexOf("getTopThematicPopupHit") < handleClickSource.indexOf("getTopStaticPopupHit"));
+});
+
+test("panel de informacion muestra datos seguros del envio", () => {
+  const selectSource = extractFunctionSource(mapSource, "selectLayer");
+  const submissionSource = extractFunctionSource(mapSource, "buildSubmissionInfoLines");
+  const hydrateSource = extractFunctionSource(mapSource, "hydrateBackendLayer");
+
+  assert.match(selectSource, /extra: buildSubmissionInfoLines\(layer\)/);
+  assert.match(submissionSource, /Información del envío/);
+  assert.match(submissionSource, /Usuario que subió/);
+  assert.match(submissionSource, /Rol del usuario/);
+  assert.match(submissionSource, /Identificador de la capa/);
+  assert.match(submissionSource, /Motivo de rechazo/);
+  assert.match(submissionSource, /state\.session\.role === "admin" \|\| layer\.createdById === state\.session\.userId/);
+  assert.match(hydrateSource, /submittedBy: record\.submittedBy \|\| record\.createdBy \|\| null/);
+  assert.match(hydrateSource, /reviewStatus: record\.reviewStatus \|\| record\.status/);
 });
 
 test("el backend puede entregar leyenda vectorial de catalogo sin modificar la capa", async () => {
@@ -2148,4 +2559,32 @@ test("no quedan separadores mojibakeados en textos publicos", async () => {
   assert.equal(html.includes(mojibakeSeparator), false);
   assert.equal(mapSource.includes(mojibakeSeparator), false);
   assert.doesNotMatch(extractFunctionSource(mapSource, "renderLayerItem"), /&middot;| · /u);
+});
+
+test("SE 02 usa subcapas KML, iconos puntuales pequenos y popups por Folder", async () => {
+  const layerProcessingSource = await fs.readFile(path.resolve("backend/src/modules/layers/layer-processing.service.js"), "utf8");
+  const geospatialImporterSource = await fs.readFile(path.resolve("backend/src/modules/layers/geospatial-importer.service.js"), "utf8");
+  const layerServiceSource = await fs.readFile(path.resolve("backend/src/modules/layers/layers.service.js"), "utf8");
+
+  assert.match(geospatialImporterSource, /function analyzeKmlVectorSublayers/);
+  assert.match(geospatialImporterSource, /appliesToFolder/);
+  assert.match(geospatialImporterSource, /descargas-sin-tratamientos/);
+  assert.match(layerProcessingSource, /__kmlFolder/);
+  assert.match(layerProcessingSource, /__kmlStyleId/);
+  assert.match(layerProcessingSource, /__geometryRole/);
+  assert.match(layerProcessingSource, /__legendField/);
+  assert.match(layerServiceSource, /vectorSublayers/);
+  assert.match(mapSource, /byStyleId/);
+  assert.match(mapSource, /egem-fallback-manantial-dot/);
+  assert.match(mapSource, /egem-fallback-pozo-triangle/);
+  assert.match(mapSource, /createFallbackPointIcon\("triangle"\)/);
+  assert.match(mapSource, /Categoría/);
+  assert.match(mapSource, /Nombre conocido/);
+  assert.match(mapSource, /Localidad/);
+  assert.match(mapSource, /Código/);
+  assert.match(mapSource, /Condición/);
+  assert.doesNotMatch(mapSource, /Uso\/tipo/);
+  assert.doesNotMatch(extractFunctionSource(mapSource, "buildFolderKmlPopupAttributes"), /StatusTipo|Activa|Fuera de Operación/);
+  assert.match(extractFunctionSource(mapSource, "getVectorPopupHitForLayer"), /queryableLayers\.symbols/);
+  assert.match(extractFunctionSource(mapSource, "getVectorPopupHitForLayer"), /queryableLayers\.fills/);
 });

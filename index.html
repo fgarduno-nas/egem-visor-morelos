@@ -357,18 +357,24 @@
       </p>
 
       <div class="upload-draft-grid">
-        <section class="user-admin-block">
-          <h3>Archivo</h3>
+        <details class="user-admin-block upload-accordion" id="upload-section-file" open>
+          <summary>
+            <span>Archivo</span>
+            <small id="upload-file-summary">Selecciona un archivo</small>
+          </summary>
           <button class="ghost-button upload-file-button upload-action-button" id="upload-select-files" type="button">
             Seleccionar archivo
           </button>
           <div class="upload-selected-files" id="upload-selected-files">
             <p class="empty-state">Aún no has seleccionado archivos.</p>
           </div>
-        </section>
+        </details>
 
-        <section class="user-admin-block">
-          <h3>Clasificación</h3>
+        <details class="user-admin-block upload-accordion" id="upload-section-classification" open>
+          <summary>
+            <span>Clasificación</span>
+            <small id="upload-classification-summary">Fenómeno y nombre</small>
+          </summary>
           <label class="form-field">
             <span>Fenómeno</span>
             <select id="upload-layer-category" required>
@@ -390,7 +396,13 @@
             <span>Descripción</span>
             <textarea id="upload-layer-description" maxlength="2000" rows="3" placeholder="Describe el contenido y uso institucional de la capa"></textarea>
           </label>
+        </details>
 
+        <details class="user-admin-block upload-accordion" id="upload-section-metadata">
+          <summary>
+            <span>Metadatos</span>
+            <small id="upload-metadata-summary">Estado de Morelos · 1:50,000 · WGS 84</small>
+          </summary>
           <div class="metadata-grid">
             <label class="form-field">
               <span>Municipio o cobertura</span>
@@ -409,7 +421,7 @@
 
             <label class="form-field">
               <span>Fecha de actualización</span>
-              <input id="upload-layer-updated-at" type="date" />
+              <input id="upload-layer-updated-at" type="text" maxlength="40" placeholder="Ej. 2026" />
             </label>
 
             <label class="form-field">
@@ -422,7 +434,13 @@
               <input id="upload-layer-crs" type="text" maxlength="120" placeholder="Ej. EPSG:4326" />
             </label>
           </div>
+        </details>
 
+        <details class="user-admin-block upload-accordion" id="upload-section-symbology" open>
+          <summary>
+            <span>Simbología</span>
+            <small id="upload-symbology-summary">Sin leyenda detectada</small>
+          </summary>
           <div class="raster-legend-editor" id="raster-legend-editor">
             <div class="raster-legend-editor__header">
               <h3>Leyenda raster</h3>
@@ -439,9 +457,16 @@
               <span>Título de leyenda</span>
               <input id="raster-legend-title" type="text" maxlength="80" placeholder="Ej. Inestabilidad" />
             </label>
+            <div class="raster-legend-preview" id="raster-legend-preview"></div>
             <div class="raster-legend-list" id="raster-legend-list"></div>
           </div>
+        </details>
 
+        <details class="user-admin-block upload-accordion upload-accordion--preview" open>
+          <summary>
+            <span>Vista previa</span>
+            <small id="upload-preview-summary">Automática</small>
+          </summary>
           <div class="upload-preview-actions">
             <button class="ghost-button upload-action-button upload-action-button--secondary" id="upload-preview-toggle" type="button">
               Vista previa
@@ -450,7 +475,7 @@
               La capa se visualiza automáticamente al seleccionar el archivo.
             </span>
           </div>
-        </section>
+        </details>
       </div>
 
       <p class="form-feedback" id="upload-layer-feedback"></p>

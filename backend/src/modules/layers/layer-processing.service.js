@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import crypto from "node:crypto";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import zlib from "node:zlib";
@@ -10,6 +11,8 @@ import {
   analyzeKmlText,
   analyzeKmzFile,
   extractGroundOverlayImages,
+  inferGeometryRole,
+  readFolderAwareLegendPlacemarks,
   readZipEntries,
   readZipEntryBuffer,
   readZipEntryText,
@@ -125,6 +128,8 @@ export function processKml(layer, file, originalFileNames = []) {
     originalFileNames,
     kmlStyleIndex,
     diagnostics: analysis,
+    vectorLegend: analysis.vectorLegend,
+    extractedMetadata: analysis.extractedMetadata,
     singleLayerName: "layer",
   });
 }
@@ -147,6 +152,14 @@ export async function processKmz(layer, file, originalFileNames = []) {
     archivePath: file.path,
     entries,
     kmlEntryName: kmlEntry.name,
+  });
+  const pointIcons = extractKmzPointIconAssets({
+    archivePath: file.path,
+    layerId: layer.id,
+    entries,
+    kmlEntryName: kmlEntry.name,
+    kmlStyleIndex,
+    vectorLegend: analysis.diagnostics?.vectorLegend,
   });
   const validOverlays = analysis.groundOverlays.filter((overlay) => overlay.isValid && overlay.imageEntry);
   const groundOverlays = validOverlays.length
@@ -189,6 +202,7 @@ export async function processKmz(layer, file, originalFileNames = []) {
       groundOverlays,
       rasterLegend: rasterLegendDetection.rasterLegend,
       rasterLegendDiagnostics: rasterLegendDetection.diagnostics,
+      pointIcons,
       diagnostics: analysis.diagnostics,
     });
   }
@@ -206,6 +220,9 @@ export async function processKmz(layer, file, originalFileNames = []) {
     kmlStyleIndex,
     logSuccess: "GeoJSON procesado generado.",
     diagnostics: analysis.diagnostics,
+    vectorLegend: analysis.diagnostics?.vectorLegend,
+    extractedMetadata: analysis.diagnostics?.extractedMetadata,
+    pointIcons,
     singleLayerName: "layer",
   });
 
@@ -221,6 +238,7 @@ export async function processKmz(layer, file, originalFileNames = []) {
     groundOverlays,
     rasterLegend: rasterLegendDetection.rasterLegend,
     rasterLegendDiagnostics: rasterLegendDetection.diagnostics,
+    pointIcons,
     diagnostics: analysis.diagnostics,
   });
 }
@@ -252,6 +270,9 @@ export async function convertWithOgr2Ogr({
   logSuccess = null,
   kmlStyleIndex = null,
   diagnostics = null,
+  vectorLegend = null,
+  extractedMetadata = null,
+  pointIcons = [],
   singleLayerName = null,
 }) {
   const hasOgr = await hasOgr2Ogr();
@@ -261,6 +282,9 @@ export async function convertWithOgr2Ogr({
       message: "La capa fue cargada, pero requiere procesamiento GDAL para visualizacion.",
       originalFileNames,
       diagnostics,
+      vectorLegend,
+      extractedMetadata,
+      pointIcons,
     });
   }
 
@@ -294,7 +318,7 @@ export async function convertWithOgr2Ogr({
   if (logSuccess) {
     console.info(logSuccess);
   }
-  return summarizeProcessedGeoJson(geojson, outputPath, originalFileNames, diagnostics);
+  return summarizeProcessedGeoJson(geojson, outputPath, originalFileNames, diagnostics, { vectorLegend, extractedMetadata, pointIcons });
 }
 
 function normalizeGeoJson(value) {
@@ -315,7 +339,7 @@ function normalizeGeoJson(value) {
   throw new Error("El archivo GeoJSON debe ser FeatureCollection o Feature.");
 }
 
-function summarizeProcessedGeoJson(geojson, outputPath, originalFileNames, diagnostics = null) {
+function summarizeProcessedGeoJson(geojson, outputPath, originalFileNames, diagnostics = null, options = {}) {
   const geometryTypes = new Set();
   const bbox = [Infinity, Infinity, -Infinity, -Infinity];
 
@@ -339,6 +363,10 @@ function summarizeProcessedGeoJson(geojson, outputPath, originalFileNames, diagn
     crs: "EPSG:4326",
     originalFileNames,
     diagnostics,
+    vectorLegend: options.vectorLegend || diagnostics?.vectorLegend || null,
+    vectorSublayers: options.vectorSublayers || diagnostics?.vectorSublayers || null,
+    extractedMetadata: options.extractedMetadata || diagnostics?.extractedMetadata || null,
+    pointIcons: options.pointIcons || [],
   });
 }
 
@@ -414,7 +442,7 @@ function readKmlStyles(kmlText) {
   while ((match = styleRegex.exec(kmlText))) {
     const id = readXmlAttribute(match[1], "id");
     if (!id) continue;
-    styles.set(`#${id}`, extractKmlStyle(match[2]));
+    styles.set(`#${id}`, { id, ...extractKmlStyle(match[2]) });
   }
 
   return styles;
@@ -434,7 +462,7 @@ function readKmlStyleMaps(kmlText, styles) {
     });
     const styleUrl = normalPair ? readXmlTag(normalPair[1], "styleUrl") : null;
     if (styleUrl && styles.has(styleUrl)) {
-      styleMaps.set(`#${id}`, styles.get(styleUrl));
+      styleMaps.set(`#${id}`, { ...styles.get(styleUrl), id });
     }
   }
 
@@ -442,15 +470,9 @@ function readKmlStyleMaps(kmlText, styles) {
 }
 
 function readKmlPlacemarks(kmlText, styles) {
-  const placemarks = [];
-  const placemarkRegex = /<Placemark\b[^>]*>([\s\S]*?)<\/Placemark>/gi;
-  let match = null;
-
-  while ((match = placemarkRegex.exec(kmlText))) {
-    const body = match[1];
-    const name = decodeXmlText(readXmlTag(body, "name"));
-    const styleUrl = readXmlTag(body, "styleUrl");
-    const inlineStyle = extractFirstInlineKmlStyle(body);
+  return readFolderAwareLegendPlacemarks(kmlText).map((placemark) => {
+    const styleUrl = placemark.styleUrl;
+    const inlineStyle = null;
     const linkedStyle = styleUrl ? styles.get(styleUrl) || null : null;
     const style = mergeKmlStyles(linkedStyle, inlineStyle);
 
@@ -458,10 +480,17 @@ function readKmlPlacemarks(kmlText, styles) {
       console.info("Placemark con styleUrl:", styleUrl);
     }
 
-    placemarks.push({ name, styleUrl, style });
-  }
-
-  return placemarks;
+    return {
+      name: placemark.name,
+      folder: placemark.folder,
+      styleUrl,
+      styleId: placemark.styleId,
+      geometryType: placemark.geometryType,
+      geometryRole: placemark.geometryRole,
+      legendField: getKmlLegendFieldForPlacemark(placemark),
+      style,
+    };
+  });
 }
 
 function extractFirstInlineKmlStyle(value) {
@@ -476,12 +505,14 @@ function extractKmlStyle(styleBody) {
   const fill = polyStyle ? parseKmlColor(readXmlTag(polyStyle, "color")) : null;
   const stroke = lineStyle ? parseKmlColor(readXmlTag(lineStyle, "color")) : null;
   const icon = iconStyle ? parseKmlColor(readXmlTag(iconStyle, "color")) : null;
+  const scale = iconStyle ? toFiniteNumber(readXmlTag(iconStyle, "scale")) : null;
 
   return {
     fill: fill?.hex || null,
     stroke: stroke?.hex || null,
-    icon: icon?.hex || null,
+    icon: icon?.opacity > 0 ? icon.hex : null,
     iconHref: iconStyle ? readXmlTag(readXmlTagBody(iconStyle, "Icon"), "href") || null : null,
+    scale,
     opacity: fill?.opacity ?? stroke?.opacity ?? icon?.opacity ?? null,
   };
 }
@@ -501,12 +532,19 @@ export function enrichGeoJsonWithKmlStyles(geojson, kmlStyleIndex) {
     ...geojson,
     features: geojson.features.map((feature, index) => {
       const properties = feature.properties || {};
+      const placemark = kmlStyleIndex.placemarks[index] || {};
       const style = resolveFeatureKmlStyle(properties, index, kmlStyleIndex);
-      if (!style?.fill && !style?.stroke && !style?.icon) return feature;
+      const hasStyle = Boolean(style?.fill || style?.stroke || style?.icon);
+      if (!hasStyle && !placemark.folder && !placemark.geometryRole && !placemark.styleId) return feature;
       const isPointGeometry = ["Point", "MultiPoint"].includes(feature.geometry?.type);
+      const geometryRole = placemark.geometryRole || inferGeometryRole(placemark.folder, feature.geometry?.type);
 
       const enrichedProperties = {
         ...properties,
+        ...(placemark.folder ? { __kmlFolder: placemark.folder } : {}),
+        ...(placemark.styleId ? { __kmlStyleId: placemark.styleId } : {}),
+        ...(geometryRole ? { __geometryRole: geometryRole } : {}),
+        ...(placemark.legendField ? { __legendField: placemark.legendField } : {}),
         ...(style.fill && !isPointGeometry ? { __styleFill: style.fill } : {}),
         ...(style.stroke ? { __styleStroke: style.stroke, __styleLine: style.stroke } : {}),
         ...(style.icon ? { __styleIcon: style.icon } : {}),
@@ -561,6 +599,82 @@ export function enrichKmlStyleIndexWithKmzIconColors(kmlStyleIndex, { archivePat
   }
 
   return kmlStyleIndex;
+}
+
+function getKmlLegendFieldForPlacemark(placemark) {
+  const attributes = placemark?.attributes || {};
+  if (placemark?.geometryRole === "descargas-sin-tratamientos" && isUsableKmlAttribute(attributes.Intensidad)) return "Intensidad";
+  return null;
+}
+
+function isUsableKmlAttribute(value) {
+  return value !== null && value !== undefined && String(value).trim() !== "";
+}
+
+function extractKmzPointIconAssets({ archivePath, layerId, entries, kmlEntryName, kmlStyleIndex, vectorLegend }) {
+  if (!kmlStyleIndex?.styles?.size || !Array.isArray(entries)) return [];
+  const outputDir = path.join(env.UPLOAD_BASE_DIR, "processed", layerId, "point-icons");
+  const iconsByHref = new Map();
+  const styles = [...kmlStyleIndex.styles.entries()]
+    .map(([styleUrl, style]) => ({ styleUrl, style }))
+    .filter((item) => item.style?.iconHref);
+  const legendClasses = Array.isArray(vectorLegend?.classes) ? vectorLegend.classes : [];
+
+  for (const { styleUrl, style } of styles) {
+    const entry = resolveKmzRelativeEntry(entries, kmlEntryName, style.iconHref);
+    if (!entry || getExtension(entry.name) !== "png") continue;
+    const normalizedEntryName = normalizeArchivePath(entry.name);
+    const buffer = readZipEntryBuffer(archivePath, entry);
+    const decoded = decodeSimplePng(buffer, { maxWidth: 512, maxHeight: 512, maxBytes: 1024 * 1024 });
+    if (!decoded) continue;
+
+    let icon = iconsByHref.get(normalizedEntryName);
+    if (!icon) {
+      const hash = crypto.createHash("sha256").update(buffer).digest("hex").slice(0, 16);
+      const safeBaseName = path.basename(normalizedEntryName).replace(/[^a-z0-9_.-]+/gi, "_") || "icon.png";
+      const outputPath = path.join(outputDir, `${hash}-${safeBaseName}`);
+      ensureSafeOutputPath(outputPath);
+      fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+      fs.writeFileSync(outputPath, buffer);
+      icon = {
+        id: hash,
+        href: style.iconHref,
+        sourceEntry: normalizedEntryName,
+        imagePath: outputPath,
+        imageUrl: buildPublicFileUrl(env.PUBLIC_BASE_URL, outputPath),
+        mimeType: "image/png",
+        width: decoded.width,
+        height: decoded.height,
+        styles: [],
+      };
+      iconsByHref.set(normalizedEntryName, icon);
+    }
+
+    const matchingClass = legendClasses.find((item) => item.styleUrl === styleUrl || item.iconHref === style.iconHref);
+    icon.styles.push({
+      styleUrl,
+      styleId: String(styleUrl || "").replace(/^#/u, "") || style.id || null,
+      label: matchingClass?.label || null,
+      value: matchingClass?.value ?? matchingClass?.label ?? null,
+      color: style.icon || matchingClass?.color || null,
+      scale: style.scale ?? null,
+    });
+  }
+
+  return [...iconsByHref.values()].flatMap((icon) => {
+    const styles = icon.styles.length ? icon.styles : [{ styleUrl: null, label: null, value: null, color: null }];
+    return styles.map((style, index) => ({
+      ...icon,
+      id: `${icon.id}-${index + 1}`,
+      styles: undefined,
+      styleUrl: style.styleUrl,
+      styleId: style.styleId,
+      label: style.label,
+      value: style.value,
+      color: style.color,
+      scale: style.scale,
+    }));
+  });
 }
 
 function resolveKmzRelativeEntry(entries, kmlEntryName, href) {
@@ -706,6 +820,11 @@ function toHexByte(value) {
   return value.toString(16).padStart(2, "0");
 }
 
+function toFiniteNumber(value) {
+  const number = Number(String(value || "").trim());
+  return Number.isFinite(number) ? number : null;
+}
+
 function parseKmlColor(value) {
   const cleaned = String(value || "").trim().replace("#", "");
   if (!/^[0-9a-f]{8}$/i.test(cleaned)) return null;
@@ -840,6 +959,10 @@ function buildProcessingResult({
   groundOverlays = [],
   rasterLegend = null,
   rasterLegendDiagnostics = null,
+  vectorLegend = null,
+  vectorSublayers = null,
+  extractedMetadata = null,
+  pointIcons = [],
   diagnostics = null,
 }) {
   return {
@@ -857,6 +980,10 @@ function buildProcessingResult({
     originalFileNames,
     rasterLegend,
     rasterLegendDiagnostics,
+    vectorLegend,
+    vectorSublayers,
+    extractedMetadata,
+    pointIcons,
     diagnostics,
   };
 }

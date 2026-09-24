@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -15,10 +16,12 @@ import {
   enrichKmlStyleIndexWithKmzIconColors,
   enrichGeoJsonWithKmlStyles,
   parseKmlStyleIndex,
+  processKmz,
 } from "../backend/src/modules/layers/layer-processing.service.js";
 
 const pngBytes = Buffer.from("89504e470d0a1a0a0000000d49484452", "hex");
 const jpgBytes = Buffer.from("ffd8ffe000104a464946", "hex");
+const realSe02KmzPath = "D:/EGEM_Mapas/4.- SE Fenómeno Sanitario - Ecológico-20260812T192017Z-1-001/4.- SE Fenómeno Sanitario - Ecológico/SE 02 Sitios de descargas de aguas residuales sin tratamiento.kmz";
 
 test("detecta KMZ GroundOverlay válido y extrae imagen georreferenciada", () => {
   const filePath = writeKmz({
@@ -254,12 +257,271 @@ test("KML y KMZ fuerzan una capa GeoJSON unica al invocar ogr2ogr", () => {
   assert.doesNotMatch(source, /Gasoliner/);
 });
 
+test("clasifica KMZ vectorial con estilos, metadatos y leyenda sin tratarlo como raster", () => {
+  const kml = vectorSanitarioKml();
+  const filePath = writeKmz({ "doc.kml": kml });
+  const analysis = analyzeKmzFile(filePath);
+
+  assert.equal(analysis.kind, "vector");
+  assert.equal(analysis.vector.geometryCount, 36);
+  assert.deepEqual(analysis.vector.geometryTypes, ["Polygon"]);
+  assert.equal(analysis.groundOverlays.length, 0);
+  assert.deepEqual(analysis.diagnostics.internalImages, []);
+  assert.equal(analysis.diagnostics.extractedMetadata.scaleOrResolution.value, "1:50,000");
+  assert.equal(analysis.diagnostics.extractedMetadata.crs.value, "WGS 84 (EPSG:4326)");
+  assert.match(analysis.diagnostics.extractedMetadata.source.value, /INEGI/);
+  assert.match(analysis.diagnostics.extractedMetadata.source.value, /CONAGUA-SINA/);
+  assert.equal(analysis.diagnostics.vectorLegend.type, "categorical");
+  assert.equal(analysis.diagnostics.vectorLegend.field, "Intensidad");
+  assert.deepEqual(analysis.diagnostics.vectorLegend.classes.map((item) => item.label), [
+    "Muy alto",
+    "Alto",
+    "Medio",
+    "Bajo",
+    "Muy bajo",
+  ]);
+  assert.deepEqual(analysis.diagnostics.vectorLegend.classes.map((item) => item.color), [
+    "#ff0000",
+    "#ffaa00",
+    "#ffff00",
+    "#98e600",
+    "#38a800",
+  ]);
+  assert.deepEqual(analysis.diagnostics.vectorLegend.classes.map((item) => item.count), [4, 7, 11, 10, 4]);
+});
+
+test("clasifica KMZ puntual con IconStyle, StatusTipo y metadatos seguros", () => {
+  const filePath = writeKmz({
+    "doc.kml": treatmentPlantsKml(),
+    "Layer0_Symbol_4044fea8_0.png": buildRgbaPng(Array.from({ length: 4 }, () => [56, 168, 0, 255]), 2, 2),
+    "Layer0_Symbol_404527c8_0.png": buildRgbaPng(Array.from({ length: 4 }, () => [255, 0, 0, 255]), 2, 2),
+  });
+  const analysis = analyzeKmzFile(filePath);
+
+  assert.equal(analysis.kind, "vector");
+  assert.equal(analysis.vector.geometryCount, 57);
+  assert.deepEqual(analysis.vector.geometryTypes, ["Point"]);
+  assert.equal(analysis.groundOverlays.length, 0);
+  assert.deepEqual(analysis.diagnostics.internalImages, [
+    "Layer0_Symbol_4044fea8_0.png",
+    "Layer0_Symbol_404527c8_0.png",
+  ]);
+  assert.equal(analysis.diagnostics.extractedMetadata.description.value, null);
+  assert.equal(analysis.diagnostics.extractedMetadata.scaleOrResolution.value, "No especificada por la fuente.");
+  assert.equal(analysis.diagnostics.extractedMetadata.crs.value, "WGS 84 (EPSG:4326)");
+  assert.equal(analysis.diagnostics.extractedMetadata.source.value, null);
+  assert.equal(analysis.diagnostics.extractedMetadata.updatedAt.value, null);
+
+  const legend = analysis.diagnostics.vectorLegend;
+  assert.equal(legend.type, "categorical");
+  assert.equal(legend.field, "StatusTipo");
+  assert.equal(legend.styleField, "StatusTipo");
+  assert.deepEqual(legend.classes.map((item) => item.label), ["Activa", "Fuera de Operación"]);
+  assert.deepEqual(legend.classes.map((item) => item.count), [39, 18]);
+  assert.equal(legend.classes[0].color, "#38a800");
+  assert.equal(legend.classes[0].iconHref, "Layer0_Symbol_4044fea8_0.png");
+  assert.equal(legend.classes[0].styleUrl, "#IconStyle00");
+  assert.equal(legend.classes[1].color, "#ff0000");
+  assert.equal(legend.classes[1].iconHref, "Layer0_Symbol_404527c8_0.png");
+  assert.equal(legend.classes[1].styleUrl, "#IconStyle01");
+});
+
+test("detecta carpetas y leyendas independientes en el KMZ real SE 02", () => {
+  assert.ok(fs.existsSync(realSe02KmzPath), `No se encontro el KMZ real SE 02 en ${realSe02KmzPath}`);
+  const sha256 = crypto.createHash("sha256").update(fs.readFileSync(realSe02KmzPath)).digest("hex");
+  assert.equal(sha256, "c668a62b90b2f24f3cf0305b39f37e387eaa9bb6de9865338f84ef8715d44345");
+
+  const analysis = analyzeKmzFile(realSe02KmzPath);
+  assert.equal(analysis.kind, "vector");
+  assert.equal(analysis.vector.geometryCount, 1263);
+  assert.deepEqual(analysis.vector.geometryTypes, ["Point", "Polygon"]);
+  assert.equal(analysis.groundOverlays.length, 0);
+  assert.deepEqual(analysis.diagnostics.internalImages, [
+    "Layer1_Symbol_4014f648_0.png",
+    "Layer5_Symbol_4014fab0_0.png",
+  ]);
+
+  const byFolder = new Map(analysis.diagnostics.vectorSublayers.map((item) => [item.folder, item]));
+  assert.equal(byFolder.get("Manantial").placemarkCount, 220);
+  assert.equal(byFolder.get("Manantial").geometryCounts.Point, 220);
+  assert.equal(byFolder.get("Pozo").placemarkCount, 643);
+  assert.equal(byFolder.get("Pozo").geometryCounts.Point, 643);
+  assert.equal(byFolder.get("Estanque").placemarkCount, 357);
+  assert.equal(byFolder.get("Acuifero").placemarkCount, 4);
+  assert.equal(byFolder.get("Vedas").placemarkCount, 3);
+  assert.equal(byFolder.get("Descargas sin tratamientos").placemarkCount, 36);
+  assert.equal(byFolder.get("Manantial").legend, null);
+  assert.equal(byFolder.get("Pozo").legend, null);
+  assert.equal(byFolder.get("Descargas sin tratamientos").legendField, "Intensidad");
+  assert.deepEqual(byFolder.get("Descargas sin tratamientos").legend.classes.map((item) => [item.label, item.count]), [
+    ["Muy alto", 2],
+    ["Alto", 2],
+    ["Medio", 6],
+    ["Bajo", 11],
+    ["Muy bajo", 15],
+  ]);
+  assert.equal(analysis.diagnostics.vectorLegend.appliesToFolder, "Descargas sin tratamientos");
+  assert.equal(analysis.diagnostics.vectorLegend.appliesToGeometryRole, "descargas-sin-tratamientos");
+  assert.equal(JSON.stringify(analysis.diagnostics.vectorSublayers).includes("StatusTipo"), false);
+  assert.equal(JSON.stringify(analysis.diagnostics.vectorSublayers).includes("Activa"), false);
+  assert.equal(JSON.stringify(analysis.diagnostics.vectorSublayers).includes("Fuera de Operación"), false);
+});
+
+test("processKmz preserva Folder, roles, estilos e iconos en el KMZ real SE 02", async () => {
+  assert.ok(fs.existsSync(realSe02KmzPath), `No se encontro el KMZ real SE 02 en ${realSe02KmzPath}`);
+  const layerId = `se02-real-${Date.now()}`;
+  const result = await processKmz(
+    { id: layerId, title: "SE 02 Sitios de descargas de aguas residuales sin tratamiento", metadata: { properties: {} } },
+    { path: realSe02KmzPath, originalname: path.basename(realSe02KmzPath) },
+    [path.basename(realSe02KmzPath)]
+  );
+
+  try {
+    assert.equal(result.processingStatus, "processed");
+    assert.equal(result.resourceType, "vector");
+    assert.equal(result.featureCount, 1263);
+    assert.equal(result.groundOverlays.length, 0);
+    assert.equal(result.pointIcons.length, 2);
+    assert.deepEqual(result.pointIcons.map((item) => item.styleId).sort(), ["IconStyle10", "IconStyle50"]);
+    assert.deepEqual(result.pointIcons.map((item) => [item.width, item.height]).sort((a, b) => a[0] - b[0]), [[6, 6], [12, 12]]);
+
+    const geojson = JSON.parse(fs.readFileSync(result.processedGeojsonPath, "utf8"));
+    const counts = countProcessedSe02Features(geojson.features);
+    assert.equal(counts.total, 1263);
+    assert.equal(counts.points, 863);
+    assert.equal(counts.polygonParts, 407);
+    assert.equal(counts.roles.get("manantial"), 220);
+    assert.equal(counts.roles.get("pozo"), 643);
+    assert.equal(counts.roles.get("estanque"), 357);
+    assert.equal(counts.roles.get("acuifero"), 4);
+    assert.equal(counts.roles.get("vedas"), 3);
+    assert.equal(counts.roles.get("descargas-sin-tratamientos"), 36);
+    assert.equal(counts.legendFields.get("Intensidad"), 36);
+    assert.equal(counts.legendFields.size, 1);
+
+    const manantial = geojson.features.find((feature) => feature.properties.__geometryRole === "manantial");
+    const pozo = geojson.features.find((feature) => feature.properties.__geometryRole === "pozo");
+    const descarga = geojson.features.find((feature) => feature.properties.__geometryRole === "descargas-sin-tratamientos");
+    assert.equal(manantial.properties.__kmlFolder, "Manantial");
+    assert.equal(manantial.properties.__kmlStyleId, "IconStyle10");
+    assert.equal(pozo.properties.__kmlFolder, "Pozo");
+    assert.equal(pozo.properties.__kmlStyleId, "IconStyle50");
+    assert.equal(descarga.properties.__legendField, "Intensidad");
+    assert.equal("StatusTipo" in pozo.properties, false);
+    assert.equal(Object.values(pozo.properties).includes("Activa"), false);
+    assert.equal(Object.values(pozo.properties).includes("Fuera de Operación"), false);
+  } finally {
+    fs.rmSync(path.dirname(result.processedGeojsonPath), { recursive: true, force: true });
+  }
+});
+
+test("enriquece puntos con color de icono dominante y conserva valores cero", () => {
+  const kml = treatmentPlantsKml();
+  const filePath = writeKmz({
+    "doc.kml": kml,
+    "Layer0_Symbol_4044fea8_0.png": buildRgbaPng(Array.from({ length: 4 }, () => [56, 168, 0, 255]), 2, 2),
+    "Layer0_Symbol_404527c8_0.png": buildRgbaPng(Array.from({ length: 4 }, () => [255, 0, 0, 255]), 2, 2),
+  });
+  const styleIndex = parseKmlStyleIndex(kml);
+  enrichKmlStyleIndexWithKmzIconColors(styleIndex, {
+    archivePath: filePath,
+    entries: readZipEntries(filePath),
+    kmlEntryName: "doc.kml",
+  });
+  const geojson = {
+    type: "FeatureCollection",
+    features: Array.from({ length: 57 }, (_item, index) => ({
+      type: "Feature",
+      properties: {
+        Name: `PTAR ${index + 1}`,
+        StatusTipo: index < 39 ? "Activa" : "Fuera de Operación",
+        Caudal_Tra: index === 39 ? "0" : `${index + 1}`,
+      },
+      geometry: { type: "Point", coordinates: [-99 + index * 0.001, 18 + index * 0.001] },
+    })),
+  };
+
+  const enriched = enrichGeoJsonWithKmlStyles(geojson, styleIndex);
+
+  assert.equal(enriched.features[0].properties.__styleIcon, "#38a800");
+  assert.equal(enriched.features[39].properties.__styleIcon, "#ff0000");
+  assert.equal(enriched.features[39].properties.Caudal_Tra, "0");
+});
+
 function writeAndAnalyzeUnsafeKmz(unsafeName) {
   const filePath = writeKmz({
     "doc.kml": kmlWithOverlay({ href: "Layer0.png" }),
     [unsafeName]: pngBytes,
   });
   return analyzeKmzFile(filePath);
+}
+
+function vectorSanitarioKml() {
+  const classes = [
+    ["#PolyStyle00", "Muy Alto", "7d0000ff", 4],
+    ["#PolyStyle07", "Alto", "7d00aaff", 7],
+    ["#PolyStyle01", "Medio", "7d00ffff", 11],
+    ["#PolyStyle04", "Bajo", "7d00e698", 10],
+    ["#PolyStyle06", "Muy Bajo", "7d00a838", 4],
+  ];
+  const styles = classes.map(([id, _label, color]) => {
+    return `<Style id="${id.slice(1)}"><PolyStyle><color>${color}</color></PolyStyle></Style>`;
+  }).join("");
+  const placemarks = classes.flatMap(([styleUrl, label, _color, count]) => {
+    return Array.from({ length: count }, (_item, index) => `
+      <Placemark>
+        <name>${label} ${index + 1}</name>
+        <description><![CDATA[<table><tr><td>Intensidad</td><td>${label}</td></tr><tr><td>Fuente</td><td>México en cifras INEGI, 2020</td></tr></table>]]></description>
+        <styleUrl>${styleUrl}</styleUrl>
+        <MultiGeometry><Polygon><outerBoundaryIs><LinearRing><coordinates>-99,18,0 -98,18,0 -98,19,0 -99,19,0 -99,18,0</coordinates></LinearRing></outerBoundaryIs></Polygon></MultiGeometry>
+      </Placemark>
+    `);
+  }).join("");
+  return `<kml><Document>${styles}<Folder><description><![CDATA[Permite identificar zonas de peligro. Fuentes de Información, elaboración propia con datos de: Instituto Nacional de Estadística y Geografía - INEGI. Escala: 1:50,000 año 2025. Sistema Nacional de Información del Agua - CONAGUA-SINA. Año 2026.]]></description>${placemarks}</Folder></Document></kml>`;
+}
+
+function treatmentPlantsKml() {
+  const styles = `
+    <Style id="IconStyle00">
+      <IconStyle><color>00000000</color><scale>1.125000</scale><Icon><href>Layer0_Symbol_4044fea8_0.png</href></Icon></IconStyle>
+    </Style>
+    <Style id="IconStyle01">
+      <IconStyle><color>00000000</color><scale>1.125000</scale><Icon><href>Layer0_Symbol_404527c8_0.png</href></Icon></IconStyle>
+    </Style>
+  `;
+  const placemarks = [
+    ...Array.from({ length: 39 }, (_item, index) => treatmentPlantPlacemark(index + 1, "Activa", "#IconStyle00", `${1.5 + index}`)),
+    ...Array.from({ length: 18 }, (_item, index) => treatmentPlantPlacemark(index + 40, "Fuera de Operación", "#IconStyle01", index === 0 ? "0" : `${index}`)),
+  ].join("");
+  return `<kml><Document><name>SE 2.1 Plantas de tratamiento</name>${styles}<Folder><name>Layer0</name>${placemarks}</Folder></Document></kml>`;
+}
+
+function treatmentPlantPlacemark(index, status, styleUrl, caudal) {
+  const lon = (-99 + index * 0.001).toFixed(6);
+  const lat = (18.5 + index * 0.001).toFixed(6);
+  return `
+    <Placemark>
+      <name>PTAR ${index}</name>
+      <description><![CDATA[${treatmentPlantDescription({ index, status, caudal, lat, lon })}]]></description>
+      <styleUrl>${styleUrl}</styleUrl>
+      <Point><coordinates>${lon},${lat},1420</coordinates></Point>
+    </Placemark>
+  `;
+}
+
+function treatmentPlantDescription({ index = 1, status = "Activa", caudal = "0", lat = "18.500000", lon = "-99.000000" } = {}) {
+  return `<table>
+    <tr><td>FID</td><td>${index}</td></tr>
+    <tr><td>MunCve</td><td>017</td></tr>
+    <tr><td>MunNom</td><td>Puente de Ixtla</td></tr>
+    <tr><td>LocNom</td><td>Xoxocotla Centro</td></tr>
+    <tr><td>PtarNombre</td><td>PTAR ${index}</td></tr>
+    <tr><td>Caudal_Tra</td><td>${caudal}</td></tr>
+    <tr><td>StatusTipo</td><td>${status}</td></tr>
+    <tr><td>Lat</td><td>${lat}</td></tr>
+    <tr><td>Long</td><td>${lon}</td></tr>
+    <tr><td>ALTITUD</td><td>1420</td></tr>
+  </table>`;
 }
 
 function kmlWithOverlay(options = {}) {
@@ -285,6 +547,35 @@ function tempDir() {
   const dir = path.join(os.tmpdir(), "egem-geospatial-tests");
   fs.mkdirSync(dir, { recursive: true });
   return dir;
+}
+
+function countProcessedSe02Features(features) {
+  return features.reduce((counts, feature) => {
+    counts.total += 1;
+    if (["Point", "MultiPoint"].includes(feature.geometry?.type)) counts.points += 1;
+    counts.polygonParts += countPolygonParts(feature.geometry);
+    const role = feature.properties?.__geometryRole || null;
+    if (role) counts.roles.set(role, (counts.roles.get(role) || 0) + 1);
+    const legendField = feature.properties?.__legendField || null;
+    if (legendField) counts.legendFields.set(legendField, (counts.legendFields.get(legendField) || 0) + 1);
+    return counts;
+  }, {
+    total: 0,
+    points: 0,
+    polygonParts: 0,
+    roles: new Map(),
+    legendFields: new Map(),
+  });
+}
+
+function countPolygonParts(geometry) {
+  if (!geometry) return 0;
+  if (geometry.type === "Polygon") return 1;
+  if (geometry.type === "MultiPolygon") return geometry.coordinates?.length || 0;
+  if (geometry.type === "GeometryCollection") {
+    return (geometry.geometries || []).reduce((total, item) => total + countPolygonParts(item), 0);
+  }
+  return 0;
 }
 
 function buildZip(entries) {

@@ -15,6 +15,7 @@ import {
 } from "../../shared/utils/file-utils.js";
 import { getRequestMetadata } from "../../shared/utils/request-metadata.js";
 import { processUploadedLayer } from "./layer-processing.service.js";
+import { isLayerPubliclyAccessible } from "./layer-public-policy.js";
 
 const vectorLegendPreviewCache = new Map();
 
@@ -30,6 +31,7 @@ export async function uploadLayer({ body, files, actor, req }) {
     actor.role === ROLE_CODES.ADMIN ? LAYER_STATUS.APPROVED : LAYER_STATUS.PENDING_REVIEW;
   const institutionalMetadata = buildInstitutionalMetadata(body, files, sourceType);
   const rasterLegend = parseRasterLegend(body.rasterLegend);
+  const vectorLegend = parseVectorLegend(body.vectorLegend);
 
   const created = await prisma.layer.create({
     data: {
@@ -71,6 +73,10 @@ export async function uploadLayer({ body, files, actor, req }) {
   });
   const processing = await processUploadedLayer(created, files);
   const persistedRasterLegend = rasterLegend || processing.rasterLegend || null;
+  const persistedVectorLegend = vectorLegend || processing.vectorLegend || null;
+  const extractedMetadata = processing.extractedMetadata || null;
+  const pointIcons = Array.isArray(processing.pointIcons) ? processing.pointIcons : [];
+  const vectorSublayers = Array.isArray(processing.vectorSublayers) ? processing.vectorSublayers : [];
   const updated = await prisma.layer.update({
     where: { id: created.id },
     data: {
@@ -89,6 +95,10 @@ export async function uploadLayer({ body, files, actor, req }) {
             : null,
           properties: {
             ...(created.metadata?.properties ?? {}),
+            source: created.metadata?.properties?.source || extractedMetadata?.source?.value || null,
+            updatedAt: created.metadata?.properties?.updatedAt || extractedMetadata?.updatedAt?.value || null,
+            scaleOrResolution: created.metadata?.properties?.scaleOrResolution || extractedMetadata?.scaleOrResolution?.value || null,
+            crs: created.metadata?.properties?.crs || extractedMetadata?.crs?.value || null,
             resourceType: processing.resourceType,
             processingStatus: processing.processingStatus,
             processingMessage: processing.processingMessage,
@@ -96,7 +106,11 @@ export async function uploadLayer({ body, files, actor, req }) {
             processedGeojsonUrl: processing.processedGeojsonUrl,
             groundOverlays: processing.groundOverlays,
             geospatialDiagnostics: processing.diagnostics,
+            extractedMetadata,
             rasterLegend: persistedRasterLegend,
+            vectorLegend: persistedVectorLegend,
+            vectorSublayers,
+            pointIcons,
             rasterLegendDetection: processing.rasterLegendDiagnostics,
             isVisualizable: processing.isVisualizable,
             originalFileNames: processing.originalFileNames,
@@ -125,7 +139,7 @@ export async function uploadLayer({ body, files, actor, req }) {
     userAgent: requestInfo.userAgent,
   });
 
-  return mapLayer(updated);
+  return mapLayer(updated, { audience: actor.role === ROLE_CODES.ADMIN ? "admin" : "owner", actor });
 }
 
 export async function listPublicLayers() {
@@ -142,7 +156,7 @@ export async function listPublicLayers() {
     orderBy: { publishedAt: "desc" },
   });
 
-  return layers.map(mapLayer);
+  return layers.filter(isLayerPubliclyAccessible).map((layer) => mapLayer(layer, { audience: "public" }));
 }
 
 export async function listPendingLayers() {
@@ -163,7 +177,7 @@ export async function listPendingLayers() {
     orderBy: { createdAt: "desc" },
   });
 
-  return layers.map(mapLayer);
+  return layers.map((layer) => mapLayer(layer, { audience: "admin" }));
 }
 
 export async function listAdminLayers() {
@@ -183,7 +197,7 @@ export async function listAdminLayers() {
     orderBy: { createdAt: "desc" },
   });
 
-  return layers.map(mapLayer);
+  return layers.map((layer) => mapLayer(layer, { audience: "admin" }));
 }
 
 export function listLayersForUser(actor) {
@@ -216,10 +230,10 @@ export async function listOwnLayers(actor) {
     orderBy: { createdAt: "desc" },
   });
 
-  return layers.map(mapLayer);
+  return layers.map((layer) => mapLayer(layer, { audience: "owner", actor }));
 }
 
-export async function getLayerDetail(id) {
+export async function getLayerDetail(id, actor) {
   const layer = await prisma.layer.findUnique({
     where: { id },
     include: {
@@ -237,21 +251,25 @@ export async function getLayerDetail(id) {
     throw new AppError("Capa no encontrada.", 404);
   }
 
-  return mapLayer(layer);
+  assertLayerReadable(layer, actor);
+  return mapLayer(layer, { audience: actor?.role === ROLE_CODES.ADMIN ? "admin" : "owner", actor });
 }
 
-export async function getLayerGeoJson(id) {
+export async function getLayerGeoJson(id, actor) {
   const layer = await prisma.layer.findUnique({
     where: { id },
     include: {
       files: true,
       metadata: true,
+      createdBy: { include: { role: true } },
     },
   });
 
   if (!layer || layer.isDeleted) {
     throw new AppError("Capa no encontrada.", 404);
   }
+
+  assertLayerReadable(layer, actor);
 
   const processedGeojsonPath = layer.metadata?.properties?.processedGeojsonPath;
   if (!processedGeojsonPath) {
@@ -329,7 +347,7 @@ async function changeLayerStatus({ id, actor, req, toStatus, reason = null, desc
     userAgent: requestInfo.userAgent,
   });
 
-  return mapLayer(updated);
+  return mapLayer(updated, { audience: actor.role === ROLE_CODES.ADMIN ? "admin" : "owner", actor });
 }
 
 export async function updateLayerRasterLegend(id, rasterLegendPayload) {
@@ -373,7 +391,7 @@ export async function updateLayerRasterLegend(id, rasterLegendPayload) {
     },
   });
 
-  return mapLayer(updated);
+  return mapLayer(updated, { audience: "admin" });
 }
 
 export function approveLayer(id, actor, req) {
@@ -440,14 +458,40 @@ export async function deleteLayer(id, actor, req) {
     userAgent: requestInfo.userAgent,
   });
 
-  return mapLayer(deleted);
+  return mapLayer(deleted, { audience: "admin", actor });
 }
 
-function mapLayer(layer) {
+export function mapLayer(layer, options = {}) {
+  const audience = options.audience || "public";
+  const includeAdmin = audience === "admin";
+  const includeOwner = includeAdmin || audience === "owner";
   const metadataProperties = layer.metadata?.properties ?? {};
-  const { rasterLegendDetection, ...publicMetadataProperties } = metadataProperties;
+  const {
+    rasterLegendDetection,
+    processedGeojsonPath,
+    geospatialDiagnostics,
+    ...publicMetadataProperties
+  } = metadataProperties;
   const vectorLegend = metadataProperties.vectorLegend ?? buildVectorLegendPreview(metadataProperties);
-  return {
+  const vectorSublayers = Array.isArray(metadataProperties.vectorSublayers) ? metadataProperties.vectorSublayers : [];
+  const isPublished = layer.status === LAYER_STATUS.PUBLISHED;
+  const processingStatus = Object.prototype.hasOwnProperty.call(layer, "processingStatus")
+    ? layer.processingStatus
+    : metadataProperties.processingStatus ?? "pending";
+  const isVisualizable = Object.prototype.hasOwnProperty.call(layer, "isVisualizable")
+    ? layer.isVisualizable === true
+    : metadataProperties.isVisualizable === true;
+  const safeGroundOverlays = normalizePublicGroundOverlays(metadataProperties.groundOverlays);
+  const safePointIcons = normalizePublicPointIcons(metadataProperties.pointIcons);
+  const safeFiles = (layer.files ?? []).map((file) => ({
+    id: file.id,
+    originalName: file.originalName,
+    extension: file.extension,
+    mimeType: file.mimeType,
+    sizeBytes: file.sizeBytes,
+    publicUrl: isPublished || includeOwner ? buildPublicFileUrl(env.PUBLIC_BASE_URL, file.storagePath) : null,
+  }));
+  const base = {
     id: layer.id,
     title: layer.title,
     slug: layer.slug,
@@ -461,55 +505,105 @@ function mapLayer(layer) {
     publishedAt: layer.publishedAt,
     createdAt: layer.createdAt,
     updatedAt: layer.updatedAt,
-    processingStatus: metadataProperties.processingStatus ?? "pending",
+    processingStatus,
     resourceType: metadataProperties.resourceType ?? inferResourceTypeFromProperties(metadataProperties),
     processedGeojsonUrl: metadataProperties.processedGeojsonUrl ?? null,
-    groundOverlays: metadataProperties.groundOverlays ?? [],
+    groundOverlays: safeGroundOverlays,
+    pointIcons: safePointIcons,
     rasterLegend: metadataProperties.rasterLegend ?? null,
     vectorLegend,
-    isVisualizable: Boolean(metadataProperties.isVisualizable),
-    createdBy: layer.createdBy
-      ? {
-          id: layer.createdBy.id,
-          name: layer.createdBy.name,
-          email: layer.createdBy.email,
-          role: layer.createdBy.role.code,
-        }
-      : null,
-    files: (layer.files ?? []).map((file) => ({
-      id: file.id,
-      originalName: file.originalName,
-      extension: file.extension,
-      mimeType: file.mimeType,
-      sizeBytes: file.sizeBytes,
-      storagePath: file.storagePath,
-      publicUrl: buildPublicFileUrl(env.PUBLIC_BASE_URL, file.storagePath),
-    })),
+    vectorSublayers,
+    isVisualizable,
+    files: safeFiles,
     metadata: layer.metadata
       ? {
           ...layer.metadata,
           properties: {
             ...publicMetadataProperties,
+            groundOverlays: safeGroundOverlays,
+            pointIcons: safePointIcons,
             vectorLegend,
+            vectorSublayers,
           },
         }
       : null,
-    approvals:
+    approvals: includeOwner
+      ? (
       layer.approvals?.map((approval) => ({
         id: approval.id,
         fromStatus: approval.fromStatus,
         toStatus: approval.toStatus,
         note: approval.note,
         createdAt: approval.createdAt,
-        actor: approval.actor
-          ? {
-              id: approval.actor.id,
-              name: approval.actor.name,
-              email: approval.actor.email,
-            }
-          : null,
-      })) ?? [],
+        actor: mapSafeUser(approval.actor, { includeEmail: includeAdmin }),
+      })) ?? []
+      )
+      : [],
   };
+  if (includeOwner) {
+    base.createdBy = mapSafeUser(layer.createdBy, { includeEmail: includeAdmin });
+    base.submittedBy = mapSafeUser(layer.createdBy, { includeEmail: includeAdmin });
+    base.submittedAt = layer.createdAt;
+    base.reviewStatus = layer.status;
+  }
+  return base;
+}
+
+function normalizePublicGroundOverlays(value) {
+  if (!Array.isArray(value)) return [];
+  return value.map((overlay) => {
+    const {
+      imagePath,
+      sourcePath,
+      internalPath,
+      ...safeOverlay
+    } = overlay || {};
+    return safeOverlay;
+  });
+}
+
+function normalizePublicPointIcons(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((icon) => {
+      const {
+        imagePath,
+        sourceEntry,
+        styles,
+        ...safeIcon
+      } = icon || {};
+      return safeIcon;
+    })
+    .filter((icon) => icon.imageUrl && icon.mimeType === "image/png");
+}
+
+export function assertLayerReadable(layer, actor) {
+  if (layer.status === LAYER_STATUS.PUBLISHED) return;
+  if (!actor) {
+    throw new AppError("Token de autenticación requerido.", 401);
+  }
+  if (actor.role === ROLE_CODES.ADMIN) return;
+  if (actor.role === ROLE_CODES.DATA_PROVIDER && layer.createdById === actor.sub) return;
+  throw new AppError("No tienes permisos para consultar esta capa.", 403);
+}
+
+function mapSafeUser(user, options = {}) {
+  if (!user) {
+    return {
+      id: null,
+      name: "Usuario no disponible",
+      role: null,
+    };
+  }
+  const safe = {
+    id: user.id,
+    name: normalizeOptionalText(user.name) || "Usuario no disponible",
+    role: user.role?.code || null,
+  };
+  if (options.includeEmail && user.email) {
+    safe.email = user.email;
+  }
+  return safe;
 }
 
 function buildInstitutionalMetadata(body, files, sourceType) {
@@ -584,6 +678,180 @@ function parseRasterLegend(value) {
     if (_error instanceof AppError) throw _error;
     return null;
   }
+}
+
+function parseVectorLegend(value) {
+  if (!value) return null;
+  try {
+    const parsed = typeof value === "string" ? JSON.parse(value) : value;
+    const rawClasses = Array.isArray(parsed) ? parsed : parsed?.classes || parsed?.items;
+    if (!Array.isArray(rawClasses)) return null;
+    const seenSignatures = new Set();
+    const classes = rawClasses
+      .map((item, index) => {
+        const label = normalizeOptionalText(item?.originalLabel) || normalizeOptionalText(item?.label);
+        const color = normalizeHexColor(item?.originalColor) || normalizeHexColor(item?.color);
+        const sourceOrder = Number.isFinite(Number(item?.sourceOrder ?? item?.order)) ? Number(item.sourceOrder ?? item.order) : null;
+        if (!label || !color) {
+          throw new AppError("Cada clase de la leyenda vectorial debe tener etiqueta y color válido.", 400);
+        }
+        const signature = buildVectorLegendClassIdentity(item, parsed);
+        if (seenSignatures.has(signature)) return null;
+        seenSignatures.add(signature);
+        return {
+          label,
+          displayLabel: normalizeOptionalText(item?.displayLabel) || label,
+          originalLabel: label,
+          color,
+          originalColor: color,
+          displayColor: normalizeHexColor(item?.displayColor) || color,
+          value: normalizeOptionalText(item?.value),
+          originalValue: normalizeOptionalText(item?.originalValue) || normalizeOptionalText(item?.value),
+          min: item?.min,
+          max: item?.max,
+          sourceOrder,
+          order: sourceOrder ?? index + 1,
+          group: normalizeOptionalText(item?.group),
+          folder: normalizeOptionalText(item?.folder),
+          styleUrl: normalizeOptionalText(item?.styleUrl),
+          styleId: normalizeOptionalText(item?.styleId),
+          iconHref: normalizeSafeIconReference(item?.iconHref),
+          symbolType: normalizeOptionalText(item?.symbolType),
+          geometryRole: normalizeOptionalText(item?.geometryRole),
+          legendField: normalizeOptionalText(item?.legendField),
+          __sourceIndex: index,
+          __identity: signature,
+        };
+      })
+      .filter(Boolean)
+      .slice(0, 24);
+    const normalizedClasses = normalizeVectorLegendClassOrders(classes, parsed);
+    return classes.length
+      ? {
+          type: parsed?.type === "continuous" ? "continuous" : "categorical",
+          field: normalizeOptionalText(parsed?.field || parsed?.title || parsed?.name) || "Intensidad",
+          styleField: normalizeOptionalText(parsed?.styleField) || normalizeOptionalText(parsed?.field) || "Intensidad",
+          classes: normalizedClasses,
+        }
+      : null;
+  } catch (_error) {
+    if (_error instanceof AppError) throw _error;
+    return null;
+  }
+}
+
+function normalizeVectorLegendClassOrders(classes, legend = {}) {
+  const groups = new Map();
+  classes.forEach((item) => {
+    const groupKey = buildVectorLegendOrderGroupKey(item, legend);
+    if (!groups.has(groupKey)) {
+      groups.set(groupKey, {
+        index: groups.size,
+        items: [],
+        ordinal: isOrdinalVectorLegendGroup(item, legend),
+      });
+    }
+    groups.get(groupKey).items.push(item);
+  });
+
+  return [...groups.values()].flatMap((group) => {
+    const sorted = [...group.items].sort((a, b) => compareVectorLegendOrder(a, b, group.ordinal));
+    return sorted.map((item, index) => {
+      const displayOrder = index + 1;
+      const {
+        __sourceIndex: _sourceIndex,
+        __identity: _identity,
+        ...publicItem
+      } = item;
+      return {
+        ...publicItem,
+        sourceOrder: item.sourceOrder,
+        displayOrder,
+        order: displayOrder,
+      };
+    });
+  });
+}
+
+function buildVectorLegendOrderGroupKey(item, legend = {}) {
+  return [
+    item?.group || item?.folder || "sin-grupo",
+    item?.legendField || legend?.styleField || legend?.field || "sin-campo",
+  ].map(normalizeLegendIdentityPart).join("|");
+}
+
+function compareVectorLegendOrder(a, b, useOrdinalOrder = false) {
+  if (useOrdinalOrder) {
+    const ordinalA = getSemanticVectorLegendOrder(a?.originalValue || a?.value || a?.label);
+    const ordinalB = getSemanticVectorLegendOrder(b?.originalValue || b?.value || b?.label);
+    if (ordinalA !== ordinalB) return ordinalA - ordinalB;
+  }
+  const orderA = Number.isFinite(Number(a?.sourceOrder)) ? Number(a.sourceOrder) : Number.POSITIVE_INFINITY;
+  const orderB = Number.isFinite(Number(b?.sourceOrder)) ? Number(b.sourceOrder) : Number.POSITIVE_INFINITY;
+  if (orderA !== orderB) return orderA - orderB;
+  if (a.__sourceIndex !== b.__sourceIndex) return a.__sourceIndex - b.__sourceIndex;
+  const valueCompare = normalizeLegendIdentityPart(a?.originalValue || a?.value || a?.label)
+    .localeCompare(normalizeLegendIdentityPart(b?.originalValue || b?.value || b?.label), "es");
+  if (valueCompare) return valueCompare;
+  const styleCompare = normalizeLegendIdentityPart(a?.styleId || a?.styleUrl)
+    .localeCompare(normalizeLegendIdentityPart(b?.styleId || b?.styleUrl), "es");
+  if (styleCompare) return styleCompare;
+  return normalizeLegendIdentityPart(a?.__identity).localeCompare(normalizeLegendIdentityPart(b?.__identity), "es");
+}
+
+function isOrdinalVectorLegendGroup(item, legend = {}) {
+  const text = [
+    item?.group,
+    item?.folder,
+    item?.legendField,
+    legend?.styleField,
+    legend?.field,
+  ].map(normalizeLegendIdentityPart).join(" ");
+  return /\b(intensidad|intensid|peligro|amenaza|descarga)/u.test(text);
+}
+
+function getSemanticVectorLegendOrder(value) {
+  const order = new Map([
+    ["muy alto", 1],
+    ["muy alta", 1],
+    ["alto", 2],
+    ["alta", 2],
+    ["medio", 3],
+    ["media", 3],
+    ["bajo", 4],
+    ["baja", 4],
+    ["muy bajo", 5],
+    ["muy baja", 5],
+  ]);
+  return order.get(normalizeLegendIdentityPart(value).replace(/\s+/gu, " ").trim()) ?? Number.POSITIVE_INFINITY;
+}
+
+function buildVectorLegendClassIdentity(item, legend = {}) {
+  const technicalParts = [
+    item?.group || item?.folder,
+    item?.legendField || legend?.styleField || legend?.field,
+    item?.originalValue || item?.value,
+    item?.styleId || item?.styleUrl,
+    item?.symbolType,
+    item?.geometryRole,
+    item?.iconHref,
+  ].map((value) => normalizeLegendIdentityPart(value));
+  if (!technicalParts.some(Boolean)) {
+    technicalParts.push(normalizeLegendIdentityPart(item?.label || item?.displayLabel));
+  }
+  return technicalParts.join("|");
+}
+
+function normalizeLegendIdentityPart(value) {
+  return normalizeOptionalText(value)?.toLowerCase() || "";
+}
+
+function normalizeSafeIconReference(value) {
+  const text = normalizeOptionalText(value);
+  if (!text) return null;
+  if (/^[a-z][a-z0-9+.-]*:/iu.test(text)) return null;
+  if (text.includes("..") || text.includes("\\") || text.startsWith("/")) return null;
+  return text.slice(0, 240);
 }
 
 function buildVectorLegendPreview(properties = {}) {

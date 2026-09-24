@@ -9,6 +9,7 @@ import { apiRouter } from "./routes.js";
 import { sanitizeInputMiddleware } from "./middlewares/sanitize.middleware.js";
 import { notFoundMiddleware } from "./middlewares/not-found.middleware.js";
 import { errorMiddleware } from "./middlewares/error.middleware.js";
+import { serveLayerAsset } from "./modules/layers/layer-assets.middleware.js";
 
 export const app = express();
 app.set("trust proxy", 1);
@@ -56,13 +57,7 @@ app.use(express.json({ limit: "5mb" }));
 app.use(express.urlencoded({ extended: true, limit: "5mb" }));
 app.use(morgan(env.NODE_ENV === "production" ? "combined" : "dev"));
 app.use(sanitizeInputMiddleware);
-app.use(
-  "/uploads",
-  express.static(env.UPLOAD_BASE_DIR, {
-    etag: true,
-    maxAge: "1h",
-  })
-);
+app.get("/uploads/*", serveLayerAsset);
 
 app.get("/health", (_req, res) => {
   res.json({

@@ -1,3 +1,5 @@
+import { normalizeHexColor } from "./color-utils.js";
+
 const ORDINAL_LABEL_ORDER = new Map([
   ["muy baja", 1],
   ["muy bajo", 1],
@@ -101,10 +103,11 @@ export function normalizePublishedVectorLegend(record = null, options = {}) {
     });
   }
 
-  const classes = dedupeLegendClasses(getLegendClasses(candidate)
+  const classes = dedupeLegendClasses(assignVectorLegendGroupOrder(getLegendClasses(candidate)
     .map((item, index) => normalizeLegendClass(item, index))
-    .filter((item) => item.label && item.color)
-    .sort(compareLegendClasses))
+    .filter((item) => item.label && item.color))
+    .sort(compareLegendClasses)
+    .map(stripLegendInternalOrderFields))
     .slice(0, 24);
 
   if (!classes.length) return null;
@@ -313,29 +316,70 @@ function getLegendClasses(legend) {
 }
 
 function normalizeLegendClass(item, index) {
-  const label = normalizeLegendLabel(item?.label ?? item?.name ?? item?.value ?? item?.title);
-  const sourceColor = normalizeHexColor(item?.color || item?.fillColor || item?.fill || item?.strokeColor || item?.outlineColor);
+  const label = normalizeLegendLabel(item?.originalLabel ?? item?.label ?? item?.name ?? item?.value ?? item?.title);
+  const sourceColor = normalizeHexColor(item?.originalColor || item?.color || item?.fillColor || item?.fill || item?.strokeColor || item?.outlineColor);
   const color = resolveDisplayColor(label, sourceColor);
   const sourceOutlineColor = normalizeHexColor(item?.outlineColor || item?.strokeColor || item?.stroke) || sourceColor;
   const outlineColor = resolveDisplayColor(label, sourceOutlineColor);
-  const explicitOrder = Number(item?.order);
+  const explicitOrder = Number(item?.displayOrder ?? item?.order);
+  const sourceOrder = Number(item?.sourceOrder ?? item?.order);
   const rawValue = item?.value;
   const value = normalizeLegendLabel(rawValue);
   const description = normalizeLegendLabel(item?.description ?? item?.summary ?? item?.text);
   return {
-    label,
+    label: normalizeLegendLabel(item?.displayLabel) || label,
+    displayLabel: normalizeLegendLabel(item?.displayLabel) || label,
+    originalLabel: label,
     color,
+    originalColor: color,
+    displayColor: normalizeHexColor(item?.displayColor) || color,
     outlineColor,
     order: Number.isFinite(explicitOrder) ? explicitOrder : getOrdinalLegendOrder(label, index),
+    displayOrder: Number.isFinite(explicitOrder) ? explicitOrder : getOrdinalLegendOrder(label, index),
+    sourceOrder: Number.isFinite(sourceOrder) ? sourceOrder : null,
+    __sourceIndex: index,
     value: value && !legendTextsAreEquivalent(label, value) ? rawValue : null,
+    originalValue: normalizeLegendLabel(item?.originalValue) || value || rawValue || null,
     min: item?.min,
     max: item?.max,
+    styleUrl: item?.styleUrl || null,
+    styleId: item?.styleId || null,
+    iconHref: item?.iconHref || null,
+    symbolType: item?.symbolType || null,
+    group: item?.group || item?.folder || null,
+    folder: item?.folder || item?.group || null,
+    geometryRole: item?.geometryRole || null,
+    legendField: item?.legendField || null,
     description: description && !legendTextsAreEquivalent(label, description) ? description : null,
   };
 }
 
+function assignVectorLegendGroupOrder(classes) {
+  const groupOrder = new Map();
+  return classes.map((item) => {
+    const groupKey = [
+      item.group || item.folder || "sin-grupo",
+      item.legendField || "sin-campo",
+    ].map(normalizeLegendComparisonText).join("|");
+    if (!groupOrder.has(groupKey)) groupOrder.set(groupKey, groupOrder.size);
+    return { ...item, __groupIndex: groupOrder.get(groupKey) };
+  });
+}
+
+function stripLegendInternalOrderFields(item) {
+  const {
+    __sourceIndex: _sourceIndex,
+    __groupIndex: _groupIndex,
+    ...publicItem
+  } = item;
+  return publicItem;
+}
+
 function compareLegendClasses(a, b) {
-  return a.order - b.order || String(a.label).localeCompare(String(b.label), "es");
+  const groupA = Number.isFinite(Number(a.__groupIndex)) ? Number(a.__groupIndex) : 0;
+  const groupB = Number.isFinite(Number(b.__groupIndex)) ? Number(b.__groupIndex) : 0;
+  if (groupA !== groupB) return groupA - groupB;
+  return a.order - b.order || (a.__sourceIndex ?? 0) - (b.__sourceIndex ?? 0) || String(a.label).localeCompare(String(b.label), "es");
 }
 
 function dedupeLegendClasses(classes) {
@@ -531,11 +575,6 @@ function decodeHtmlCodePoint(code, radix) {
   } catch (_error) {
     return "";
   }
-}
-
-function normalizeHexColor(value) {
-  const normalized = String(value || "").trim();
-  return /^#[0-9a-f]{6}$/i.test(normalized) ? normalized.toLowerCase() : null;
 }
 
 function normalizeLegendKey(value) {
