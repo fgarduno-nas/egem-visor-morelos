@@ -187,7 +187,17 @@ async function readJson(filePath) {
 }
 
 async function writeJson(filePath, value, { pretty = false } = {}) {
-  await fs.writeFile(filePath, `${JSON.stringify(value, null, pretty ? 2 : 0)}\n`, "utf8");
+  let newline = "\n";
+  try {
+    const current = await fs.readFile(filePath, "utf8");
+    newline = current.includes("\r\n") ? "\r\n" : "\n";
+  } catch (error) {
+    if (error.code !== "ENOENT") {
+      throw error;
+    }
+  }
+  const serialized = `${JSON.stringify(value, null, pretty ? 2 : 0)}\n`.replace(/\n/g, newline);
+  await fs.writeFile(filePath, serialized, "utf8");
 }
 
 function initLevelSummary(level) {
