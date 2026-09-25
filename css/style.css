@@ -2746,12 +2746,20 @@ select {
   clip-path: polygon(50% 5%, 96% 95%, 4% 95%);
 }
 
+.legend-swatch--line {
+  height: 10px;
+  border-width: 0 0 3px;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
 .legend-swatch--image {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: transparent;
-  border: 0;
+  position: relative;
+  overflow: hidden;
 }
 
 .legend-swatch--image img {
@@ -2759,6 +2767,16 @@ select {
   max-width: 20px;
   max-height: 20px;
   object-fit: contain;
+  position: relative;
+  z-index: 1;
+}
+
+.legend-swatch__fallback {
+  position: absolute;
+  inset: 2px;
+  background: inherit;
+  clip-path: inherit;
+  border-radius: inherit;
 }
 
 .modal-card--upload-panel .modal-header h2 {

@@ -5199,23 +5199,63 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
   }
 
   function getLegendSwatchStyle(item) {
-    const fill = item.displayColor || item.color || "transparent";
-    const outline = item.outlineColor || item.strokeColor || item.displayColor || item.color || "rgba(70, 36, 49, 0.35)";
+    const descriptor = getLegendSymbolDescriptor(item);
+    const fill = descriptor.displayColor;
+    const outline = descriptor.outlineColor;
     return `background:${fill};border:2px solid ${outline};`;
   }
 
   function renderLegendSymbolMarkup(item) {
-    if (item?.iconImageUrl) {
-      return `<span class="legend-swatch legend-swatch--image" aria-hidden="true"><img src="${escapeHtml(item.iconImageUrl)}" alt="" loading="lazy" /></span>`;
+    const descriptor = getLegendSymbolDescriptor(item);
+    const label = descriptor.accessibleLabel;
+    if (descriptor.iconImageUrl) {
+      return `<span class="legend-swatch legend-swatch--image legend-swatch--${escapeHtml(descriptor.shape)}" style="${escapeHtml(getLegendSwatchStyle(item))}" role="img" aria-label="${escapeHtml(label)}">
+        <span class="legend-swatch__fallback" aria-hidden="true"></span>
+        <img src="${escapeHtml(descriptor.iconImageUrl)}" alt="" loading="lazy" />
+      </span>`;
     }
+    return `<span class="legend-swatch legend-swatch--${escapeHtml(descriptor.shape)}" style="${escapeHtml(getLegendSwatchStyle(item))}" role="img" aria-label="${escapeHtml(label)}"></span>`;
+  }
+
+  function getLegendSymbolDescriptor(item = {}) {
+    const displayColor = normalizeHexColor(
+      item.displayColor,
+      normalizeHexColor(item.originalColor, normalizeHexColor(item.color, "#7a203a"))
+    );
+    const outlineColor = normalizeHexColor(
+      item.outlineColor || item.strokeColor,
+      displayColor
+    );
     const shape = getLegendSymbolShape(item);
-    return `<span class="legend-swatch legend-swatch--${escapeHtml(shape)}" style="${escapeHtml(getLegendSwatchStyle(item))}" aria-hidden="true"></span>`;
+    const iconImageUrl = shouldRenderLegendPngIcon(item, shape) ? item.iconImageUrl : null;
+    const label = item.displayLabel || item.label || item.originalValue || "Clase";
+    const shapeLabel = shape === "triangle" ? "triángulo" : shape === "dot" ? "círculo" : shape === "line" ? "línea" : "muestra";
+    return {
+      shape,
+      displayColor,
+      outlineColor,
+      iconImageUrl,
+      accessibleLabel: `${shapeLabel} de ${label}`,
+    };
+  }
+
+  function shouldRenderLegendPngIcon(item = {}, shape = getLegendSymbolShape(item)) {
+    if (!item.iconImageUrl) return false;
+    const editablePointShape = shape === "dot" || shape === "triangle";
+    const displayColor = normalizeHexColor(item.displayColor);
+    const sourceColor = normalizeHexColor(item.originalColor, normalizeHexColor(item.color));
+    if (editablePointShape && displayColor) return false;
+    if (displayColor && sourceColor && displayColor !== sourceColor) return false;
+    return true;
   }
 
   function getLegendSymbolShape(item = {}) {
     const role = String(item.geometryRole || item.group || item.folder || item.label || "").toLowerCase();
     if (role.includes("pozo")) return "triangle";
     if (role.includes("manantial")) return "dot";
+    const symbolType = String(item.symbolType || item.symbolKind || "").toLowerCase();
+    const geometryRole = String(item.geometryRole || "").toLowerCase();
+    if (symbolType === "line" || geometryRole.includes("line")) return "line";
     if (item.symbolType === "icon") return "dot";
     return "box";
   }
@@ -5311,7 +5351,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
 
   function buildThematicFeaturePopup(layerName, properties = {}, legend = null, symbolDescriptor = null) {
     const attributes = cleanThematicPopupAttributes(properties, legend, symbolDescriptor);
-    const popupTitle = getThematicPopupTitle(layerName, properties);
+    const popupTitle = getThematicPopupTitle(layerName);
     const rows = Object.entries(attributes)
       .map(([label, value]) => `
         <div class="feature-popup__row">
@@ -5357,22 +5397,8 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     { label: "Altitud", aliases: ["ALTITUD", "Altitud"] },
   ];
 
-  function getThematicPopupTitle(layerName, properties = {}) {
-    const descriptionAttributes = parseKmlDescriptionHtmlAttributes(
-      getPropertyValueByAlias(properties, ["description", "Description"])
-    );
-    const lookup = buildPopupAttributeLookup({ ...properties, ...descriptionAttributes });
-    const role = getKmlPopupRole(lookup);
-    if (role === "manantial") {
-      return "Manantial";
-    }
-    if (role === "pozo") {
-      return "Pozo";
-    }
-    if (role === "estanque") {
-      return "Estanque";
-    }
-    return getPopupLookupValue(lookup, ["PtarNombre", "Nombre", "Name", "NOMBRE"]) || layerName;
+  function getThematicPopupTitle(layerName) {
+    return isUsablePopupValue(layerName) ? String(layerName).trim() : "Información de la capa";
   }
 
   function cleanThematicPopupAttributes(properties = {}, legend = null, symbolDescriptor = null) {
@@ -5405,13 +5431,15 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     if (fallbackCategory) {
       return { Categoría: fallbackCategory };
     }
-    return THEMATIC_POPUP_FIELDS.reduce((attributes, field) => {
+    const attributes = THEMATIC_POPUP_FIELDS.reduce((acc, field) => {
       const value = getThematicPopupFieldValue(field, lookup);
       if (isUsablePopupValue(value)) {
-        attributes[field.label] = value;
+        acc[field.label] = value;
       }
-      return attributes;
+      return acc;
     }, {});
+    addElementNamePopupAttribute(attributes, lookup);
+    return attributes;
   }
 
   function getThematicCategoryFallbackLabel(lookup) {
@@ -5518,7 +5546,24 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     if (isUsablePopupValue(lat) && isUsablePopupValue(lon)) {
       attributes.Coordenadas = `${lat}, ${lon}`;
     }
+    addElementNamePopupAttribute(attributes, lookup);
     return attributes;
+  }
+
+  function addElementNamePopupAttribute(attributes, lookup) {
+    if (!attributes || Object.hasOwn(attributes, "Elemento")) return;
+    const name = getPopupLookupValue(lookup, ["PtarNombre", "Nombre", "Name", "name", "NOMBRE"]);
+    if (!isUsablePopupValue(name)) return;
+    const normalizedName = normalizeAttributeKey(name).replace(/\s+/g, " ").trim();
+    if (!normalizedName || isTechnicalPopupTitleValue(normalizedName)) return;
+    const category = attributes.Categoría ? normalizeAttributeKey(attributes.Categoría).replace(/\s+/g, " ").trim() : "";
+    if (category && category === normalizedName) return;
+    attributes.Elemento = name;
+  }
+
+  function isTechnicalPopupTitleValue(normalizedValue) {
+    return /^[+-]?\d+(\.\d+)?$/u.test(normalizedValue) ||
+      ["fid", "id", "objectid", "gid", "null", "undefined"].includes(normalizedValue);
   }
 
   function buildPopupAttributeLookup(properties = {}) {

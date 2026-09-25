@@ -2202,7 +2202,7 @@ test("el popup tematico tiene prioridad sobre municipios y conserva atributos ut
   assert.match(vectorPopupSource, /extra: \[\]/);
   assert.match(vectorPopupSource, /legend: null/);
   assert.match(vectorPopupSource, /html: buildThematicFeaturePopup\(layer\.title, props, layer\.legend, symbolDescriptor\)/);
-  assert.match(thematicPopupSource, /const popupTitle = getThematicPopupTitle\(layerName, properties\)/);
+  assert.match(thematicPopupSource, /const popupTitle = getThematicPopupTitle\(layerName\)/);
   assert.match(thematicPopupSource, /<strong>\$\{escapeHtml\(popupTitle \|\| "Capa seleccionada"\)\}<\/strong>/);
   assert.doesNotMatch(thematicPopupSource, /feature-popup__highlight/);
   assert.match(thematicPopupSource, /Sin información temática disponible\./);
@@ -2235,12 +2235,13 @@ test("el popup tematico conserva cuatro campos para amenazas y agrega ruta puntu
 
   assert.match(fieldsSource, /label: "Intensidad"[\s\S]*label: "Detalles"[\s\S]*label: "Clasificación"[\s\S]*label: "Amenaza"/);
   assert.doesNotMatch(fieldsSource, /Municipio|Magnitud|Indicador|Fuente|IVS_FINAL|R_P_V_E_A/);
-  assert.match(attributesSource, /return THEMATIC_POPUP_FIELDS\.reduce/);
+  assert.match(attributesSource, /const attributes = THEMATIC_POPUP_FIELDS\.reduce/);
+  assert.match(attributesSource, /return attributes/);
   assert.match(attributesSource, /const pointAttributes = buildPointKmlPopupAttributes\(lookup\)/);
   assert.match(pointFieldsSource, /label: "Estado"[\s\S]*"StatusTipo"[\s\S]*label: "Caudal tratado"[\s\S]*"Caudal_Tra"/);
   assert.match(pointAttributesSource, /getPopupLookupValue\(lookup, \["PtarNombre", "StatusTipo"\]\)/);
   assert.match(pointAttributesSource, /attributes\.Coordenadas = `\$\{lat\}, \$\{lon\}`/);
-  assert.match(titleSource, /getPopupLookupValue\(lookup, \["PtarNombre", "Nombre", "Name", "NOMBRE"\]\)/);
+  assert.match(titleSource, /return isUsablePopupValue\(layerName\) \? String\(layerName\)\.trim\(\) : "Información de la capa"/);
   assert.match(fallbackCategorySource, /manantial: "Manantial"/);
   assert.match(fallbackCategorySource, /pozo: "Pozo"/);
   assert.match(fallbackCategorySource, /return roleLabels\[normalizedName\] \|\| null/);
@@ -2276,6 +2277,36 @@ test("el popup tematico omite campos ausentes, conserva cero y deduplica aliases
   assert.match(fieldsSource, /"Detalles", "DETALLES", "Detalle", "DETALLE"/);
   assert.match(fieldsSource, /"Clasificación", "Clasificacion", "Fen_Clasif", "FEN_CLASIF"/);
   assert.match(fieldsSource, /"Amenaza", "Ame_Ampl", "AME_AMPL"/);
+});
+
+test("los popups de capas importadas usan titulo canonico de capa y no codigos de feature", () => {
+  const popupSource = extractFunctionSource(mapSource, "buildThematicFeaturePopup");
+  const titleSource = extractFunctionSource(mapSource, "getThematicPopupTitle");
+  const attributesSource = extractFunctionSource(mapSource, "cleanThematicPopupAttributes");
+  const elementSource = extractFunctionSource(mapSource, "addElementNamePopupAttribute");
+  const technicalTitleSource = extractFunctionSource(mapSource, "isTechnicalPopupTitleValue");
+  const vectorPopupSource = extractFunctionSource(mapSource, "showVectorFeaturePopup");
+  const vectorHitSource = extractFunctionSource(mapSource, "getVectorPopupHitForLayer");
+  const topHitSource = extractFunctionSource(mapSource, "getTopThematicPopupHit");
+
+  assert.match(vectorPopupSource, /html: buildThematicFeaturePopup\(layer\.title, props, layer\.legend, symbolDescriptor\)/);
+  assert.match(vectorPopupSource, /title: layer\.title/);
+  assert.match(vectorHitSource, /return \{[\s\S]*?layer,[\s\S]*?feature,[\s\S]*?mapLayerId:/);
+  assert.match(topHitSource, /const stack = getQueryableThematicLayerStack\(\)\.reverse\(\)/);
+  assert.match(topHitSource, /for \(const layerId of stack\)/);
+  assert.match(topHitSource, /const layer = state\.userLayers\.find\(\(item\) => item\.id === layerId\)/);
+  assert.match(topHitSource, /const vectorHit = getVectorPopupHitForLayer\(layer, event\)/);
+  assert.match(topHitSource, /if \(vectorHit\) return vectorHit/);
+  assert.match(titleSource, /isUsablePopupValue\(layerName\)/);
+  assert.match(titleSource, /"Información de la capa"/);
+  assert.doesNotMatch(titleSource, /\["Name"|Nombre|PtarNombre|__geometryRole|manantial|pozo/);
+  assert.match(popupSource, /getThematicPopupTitle\(layerName\)/);
+  assert.match(popupSource, /escapeHtml\(popupTitle \|\| "Capa seleccionada"\)/);
+  assert.match(attributesSource, /addElementNamePopupAttribute\(attributes, lookup\)/);
+  assert.match(elementSource, /aliases: \["PtarNombre", "Nombre", "Name", "name", "NOMBRE"\]|getPopupLookupValue\(lookup, \["PtarNombre", "Nombre", "Name", "name", "NOMBRE"\]\)/);
+  assert.match(elementSource, /attributes\.Elemento = name/);
+  assert.match(technicalTitleSource, /\^\[.*?\\d/);
+  assert.match(technicalTitleSource, /fid/);
 });
 
 test("el popup tematico sanitiza HTML y descarta campos tecnicos visibles", () => {
@@ -2368,11 +2399,36 @@ test("la leyenda flotante separa cabecera y cuerpo compacto sin cambiar las clas
   assert.match(renderLegendSource, /legend-list--compact/);
   assert.match(renderLegendSource, /legend-item--compact/);
   assert.match(renderLegendSource, /renderLegendSymbolMarkup\(item\)/);
-  assert.match(symbolSource, /aria-hidden="true"/);
+  assert.match(symbolSource, /role="img"/);
+  assert.match(symbolSource, /aria-label="\$\{escapeHtml\(label\)\}"/);
   assert.match(symbolSource, /legend-swatch--image/);
+  assert.match(symbolSource, /legend-swatch__fallback/);
   assert.match(groupingSource, /hasNamedGroups/);
   assert.match(renderLegendSource, /!options\.hideField && shouldRenderLegendField\(legend\)/);
   assert.match(renderLegendSource, /getLegendClassDescriptor\(item, legend\)/);
+});
+
+test("la leyenda puntual usa descriptor canonico y nunca deja Manantial o Pozo vacios", () => {
+  const symbolSource = extractFunctionSource(mapSource, "renderLegendSymbolMarkup");
+  const descriptorSource = extractFunctionSource(mapSource, "getLegendSymbolDescriptor");
+  const shapeSource = extractFunctionSource(mapSource, "getLegendSymbolShape");
+  const pngSource = extractFunctionSource(mapSource, "shouldRenderLegendPngIcon");
+  const swatchSource = extractFunctionSource(mapSource, "getLegendSwatchStyle");
+
+  assert.match(descriptorSource, /item\.displayColor/);
+  assert.match(descriptorSource, /item\.originalColor/);
+  assert.match(descriptorSource, /item\.color/);
+  assert.match(descriptorSource, /accessibleLabel: `\$\{shapeLabel\} de \$\{label\}`/);
+  assert.match(shapeSource, /role\.includes\("pozo"\)[\s\S]*return "triangle"/);
+  assert.match(shapeSource, /role\.includes\("manantial"\)[\s\S]*return "dot"/);
+  assert.match(symbolSource, /legend-swatch--\$\{escapeHtml\(descriptor\.shape\)\}/);
+  assert.match(symbolSource, /legend-swatch__fallback/);
+  assert.match(symbolSource, /role="img"/);
+  assert.match(pngSource, /if \(editablePointShape && displayColor\) return false/);
+  assert.match(pngSource, /displayColor !== sourceColor/);
+  assert.match(swatchSource, /getLegendSymbolDescriptor\(item\)/);
+  assert.match(cssSource, /\.legend-swatch--triangle/);
+  assert.match(cssSource, /\.legend-swatch__fallback/);
 });
 
 test("el cuerpo compacto de simbologia no hereda el ancho de la cabecera", () => {
