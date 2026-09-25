@@ -83,7 +83,7 @@ layersRouter.patch(
 );
 layersRouter.delete(
   "/:id",
-  authorizeRoles(ROLE_CODES.ADMIN),
+  authorizeRoles(ROLE_CODES.ADMIN, ROLE_CODES.DATA_PROVIDER),
   validate(layerIdSchema),
   asyncHandler(deleteLayerController)
 );

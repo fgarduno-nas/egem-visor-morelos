@@ -360,8 +360,36 @@ test("detecta carpetas y leyendas independientes en el KMZ real SE 02", () => {
     ["Bajo", 11],
     ["Muy bajo", 15],
   ]);
-  assert.equal(analysis.diagnostics.vectorLegend.appliesToFolder, "Descargas sin tratamientos");
-  assert.equal(analysis.diagnostics.vectorLegend.appliesToGeometryRole, "descargas-sin-tratamientos");
+  assert.equal(analysis.diagnostics.vectorLegend.field, "Simbología");
+  assert.equal(analysis.diagnostics.vectorLegend.styleField, "Intensidad");
+  assert.equal(analysis.diagnostics.vectorLegend.appliesToFolder, null);
+  assert.equal(analysis.diagnostics.vectorLegend.appliesToGeometryRole, null);
+  assert.deepEqual(analysis.diagnostics.vectorLegend.classes.map((item) => item.label), [
+    "Manantial",
+    "Estanque",
+    "Acuifero",
+    "Vedas",
+    "Pozo",
+    "Muy alto",
+    "Alto",
+    "Medio",
+    "Bajo",
+    "Muy bajo",
+  ]);
+  const manantialLegend = analysis.diagnostics.vectorLegend.classes.find((item) => item.label === "Manantial");
+  const pozoLegend = analysis.diagnostics.vectorLegend.classes.find((item) => item.label === "Pozo");
+  assert.equal(manantialLegend.legendField, "__kmlFolder");
+  assert.equal(manantialLegend.geometryRole, "manantial");
+  assert.equal(manantialLegend.symbolType, "icon");
+  assert.equal(manantialLegend.styleId, "IconStyle10");
+  assert.equal(manantialLegend.styleUrl, "#IconStyle10");
+  assert.equal(manantialLegend.iconHref, "Layer1_Symbol_4014f648_0.png");
+  assert.equal(pozoLegend.legendField, "__kmlFolder");
+  assert.equal(pozoLegend.geometryRole, "pozo");
+  assert.equal(pozoLegend.symbolType, "icon");
+  assert.equal(pozoLegend.styleId, "IconStyle50");
+  assert.equal(pozoLegend.styleUrl, "#IconStyle50");
+  assert.equal(pozoLegend.iconHref, "Layer5_Symbol_4014fab0_0.png");
   assert.equal(JSON.stringify(analysis.diagnostics.vectorSublayers).includes("StatusTipo"), false);
   assert.equal(JSON.stringify(analysis.diagnostics.vectorSublayers).includes("Activa"), false);
   assert.equal(JSON.stringify(analysis.diagnostics.vectorSublayers).includes("Fuera de Operación"), false);
@@ -382,8 +410,21 @@ test("processKmz preserva Folder, roles, estilos e iconos en el KMZ real SE 02",
     assert.equal(result.featureCount, 1263);
     assert.equal(result.groundOverlays.length, 0);
     assert.equal(result.rasterLegend, null);
+    assert.deepEqual(result.vectorLegend.classes.map((item) => item.label), [
+      "Manantial",
+      "Estanque",
+      "Acuifero",
+      "Vedas",
+      "Pozo",
+      "Muy alto",
+      "Alto",
+      "Medio",
+      "Bajo",
+      "Muy bajo",
+    ]);
     assert.equal(result.pointIcons.length, 2);
     assert.deepEqual(result.pointIcons.map((item) => item.styleId).sort(), ["IconStyle10", "IconStyle50"]);
+    assert.deepEqual(result.pointIcons.map((item) => item.label).sort(), ["Manantial", "Pozo"]);
     assert.deepEqual(result.pointIcons.map((item) => [item.width, item.height]).sort((a, b) => a[0] - b[0]), [[6, 6], [12, 12]]);
 
     const geojson = JSON.parse(fs.readFileSync(result.processedGeojsonPath, "utf8"));

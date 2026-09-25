@@ -429,10 +429,16 @@ export function publishLayer(id, status, actor, req) {
 }
 
 export async function deleteLayer(id, actor, req) {
-  const layer = await prisma.layer.findUnique({ where: { id } });
+  const layer = await prisma.layer.findUnique({
+    where: { id },
+    include: {
+      createdBy: { include: { role: true } },
+    },
+  });
   if (!layer || layer.isDeleted) {
     throw new AppError("Capa no encontrada.", 404);
   }
+  assertLayerDeletable(layer, actor);
 
   const deleted = await prisma.layer.update({
     where: { id },
@@ -458,7 +464,7 @@ export async function deleteLayer(id, actor, req) {
     userAgent: requestInfo.userAgent,
   });
 
-  return mapLayer(deleted, { audience: "admin", actor });
+  return mapLayer(deleted, { audience: actor.role === ROLE_CODES.ADMIN ? "admin" : "owner", actor });
 }
 
 export function mapLayer(layer, options = {}) {
@@ -585,6 +591,15 @@ export function assertLayerReadable(layer, actor) {
   if (actor.role === ROLE_CODES.ADMIN) return;
   if (actor.role === ROLE_CODES.DATA_PROVIDER && layer.createdById === actor.sub) return;
   throw new AppError("No tienes permisos para consultar esta capa.", 403);
+}
+
+export function assertLayerDeletable(layer, actor) {
+  if (!actor) {
+    throw new AppError("Token de autenticación requerido.", 401);
+  }
+  if (actor.role === ROLE_CODES.ADMIN) return;
+  if (actor.role === ROLE_CODES.DATA_PROVIDER && layer.createdById === actor.sub) return;
+  throw new AppError("No tienes permisos para eliminar esta capa.", 403);
 }
 
 function mapSafeUser(user, options = {}) {

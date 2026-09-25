@@ -189,7 +189,8 @@ export function extractKmlMetadata(kmlText) {
 export function buildKmlVectorLegend(kmlText, options = {}) {
   const styles = readBasicKmlStyles(kmlText, options);
   const placemarks = readFolderAwareLegendPlacemarks(kmlText);
-  const folderLegends = [...groupLegendPlacemarksByFolder(placemarks).entries()]
+  const grouped = groupLegendPlacemarksByFolder(placemarks);
+  const folderLegends = [...grouped.entries()]
     .map(([folder, folderPlacemarks]) => {
       const legend = buildIntensityPolygonLegend(folderPlacemarks, styles) || buildCategoricalStyleLegend(folderPlacemarks, styles);
       return legend ? {
@@ -199,7 +200,75 @@ export function buildKmlVectorLegend(kmlText, options = {}) {
       } : null;
     })
     .filter(Boolean);
-  return folderLegends.find((legend) => normalizeLegendKey(legend.field).includes("intens")) || folderLegends[0] || null;
+  const selected = folderLegends.find((legend) => normalizeLegendKey(legend.field).includes("intens")) || folderLegends[0] || null;
+  const folderStyleClasses = buildFolderStyleLegendClasses(grouped, styles, selected);
+  if (selected && folderStyleClasses.length) {
+    return buildCompositeKmlVectorLegend(selected, folderStyleClasses);
+  }
+  return selected || (
+    folderStyleClasses.length
+      ? {
+          type: "categorical",
+          field: "Simbología",
+          styleField: "__kmlFolder",
+          classes: folderStyleClasses,
+        }
+      : null
+  );
+}
+
+function buildCompositeKmlVectorLegend(selected, folderStyleClasses) {
+  return {
+    ...selected,
+    field: "Simbología",
+    styleField: selected.styleField || selected.field || null,
+    appliesToFolder: null,
+    appliesToGeometryRole: null,
+    classes: [
+      ...folderStyleClasses,
+      ...selected.classes.map((item) => ({
+        ...item,
+        legendField: item.legendField || selected.styleField || selected.field || null,
+        group: item.group || selected.appliesToFolder || null,
+        folder: item.folder || selected.appliesToFolder || null,
+        geometryRole: item.geometryRole || selected.appliesToGeometryRole || null,
+        symbolType: item.symbolType || "color",
+        originalValue: item.originalValue || item.value || item.label,
+      })),
+    ],
+  };
+}
+
+function buildFolderStyleLegendClasses(grouped, styles, selectedLegend = null) {
+  const selectedFolder = selectedLegend?.appliesToFolder || null;
+  return [...grouped.entries()].flatMap(([folder, placemarks]) => {
+    if (!folder || folder === selectedFolder) return [];
+    const styleUrls = [...new Set(placemarks.map((item) => item.styleUrl).filter(Boolean))];
+    if (styleUrls.length !== 1) return [];
+    const styleUrl = styleUrls[0];
+    const style = styles.get(styleUrl);
+    if (!style) return [];
+    const geometryRole = inferGeometryRole(folder, placemarks[0]?.geometryType);
+    const isPointIcon = String(placemarks[0]?.geometryType || "").toLowerCase().includes("point") && Boolean(style.iconHref);
+    const color = style.icon || style.fill || style.stroke || "#7a203a";
+    return [{
+      label: folder,
+      value: folder,
+      originalValue: folder,
+      color,
+      outlineColor: style.stroke || color,
+      iconHref: style.iconHref || null,
+      styleUrl,
+      styleId: String(styleUrl || "").replace(/^#/u, "") || null,
+      symbolType: isPointIcon ? "icon" : "color",
+      group: folder,
+      folder,
+      geometryRole,
+      legendField: "__kmlFolder",
+      order: 1,
+      count: placemarks.length,
+    }];
+  });
 }
 
 export function analyzeKmlVectorSublayers(kmlText, options = {}) {

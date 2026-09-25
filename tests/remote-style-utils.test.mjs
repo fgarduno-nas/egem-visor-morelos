@@ -454,8 +454,29 @@ test("el listener de click evita registrarse multiples veces", () => {
 });
 
 test("la simbologia remota conserva __styleFill existente", () => {
-  assert.match(mapSource, /Se conserva __styleFill/);
+  assert.doesNotMatch(mapSource, /Se conserva __styleFill/);
   assert.match(mapSource, /if \(properties\.__styleFill\)/);
+});
+
+test("la leyenda vectorial persistida aplica displayColor sin perder identidad tecnica", () => {
+  const normalizeSource = extractFunctionSource(mapSource, "normalizeBackendProcessedGeoJson");
+  const displaySource = extractFunctionSource(mapSource, "applyPersistedVectorLegendDisplayStyle");
+  const addGeoJsonSource = extractFunctionSource(mapSource, "addGeoJsonLayerToMap");
+  const pointIconSource = extractFunctionSource(mapSource, "applyPointIconFeatureIds");
+
+  assert.match(normalizeSource, /applyPersistedVectorLegendDisplayStyle/);
+  assert.match(displaySource, /legendClassMatchesFeatureByIdentity/);
+  assert.doesNotMatch(displaySource, /legendClassMatchesFeature\(candidate/);
+  assert.match(displaySource, /item\?\.displayColor/);
+  assert.match(displaySource, /__styleFillOriginal/);
+  assert.match(displaySource, /__styleLineOriginal/);
+  assert.match(displaySource, /__egemDisplayFill: color/);
+  assert.match(displaySource, /__egemDisplayLine: color/);
+  assert.match(addGeoJsonSource, /\["coalesce", \["get", "__egemDisplayFill"\], \["get", "__styleFill"\], defaultFillColor\]/);
+  assert.match(addGeoJsonSource, /\["coalesce", \["get", "__egemDisplayLine"\], \["get", "__styleLine"\], defaultLineColor\]/);
+  assert.match(pointIconSource, /getFeatureLegendClass\(properties, legend\)/);
+  assert.match(pointIconSource, /getDraftLegendPointIconImageId\(legendItem, properties, displayColor\)/);
+  assert.match(pointIconSource, /__styleIconOriginal/);
 });
 
 test("el selector de fondos usa un boton accesible y no duplica listeners globales", async () => {
@@ -1751,6 +1772,19 @@ test("el administrador conserva slider continuo y botones de gestion", () => {
   assert.match(renderItemSource, /input type="range" min="10" max="100" step="5"/);
 });
 
+test("el boton eliminar usa permisos de propietario y no retira la capa si DELETE falla", () => {
+  const renderItemSource = extractFunctionSource(mapSource, "renderLayerItem");
+  const canDeleteSource = extractFunctionSource(mapSource, "canDeleteLayer");
+  const deleteSource = extractFunctionSource(mapSource, "deleteLayer");
+
+  assert.match(renderItemSource, /canDeleteLayer\(layer\)/);
+  assert.match(canDeleteSource, /state\.session\.role === "admin"/);
+  assert.match(canDeleteSource, /state\.session\.role === "director"/);
+  assert.match(canDeleteSource, /layer\.createdById === state\.session\.userId/);
+  assert.ok(deleteSource.indexOf("await deleteLayerRequest") < deleteSource.indexOf("state.userLayers.splice"));
+  assert.doesNotMatch(deleteSource, /const \[layer\] = state\.userLayers\.splice/);
+});
+
 test("visitante omite bloque de informacion lateral y administrador lo conserva", async () => {
   const html = await fs.readFile(path.resolve("index.html"), "utf8");
   const renderSessionSource = extractFunctionSource(mapSource, "renderSession");
@@ -2055,7 +2089,7 @@ test("los poligonos ordinales se dibujan y consultan por intensidad visible supe
 test("los puntos remotos usan color de icono, relleno KML y fallback en ese orden", () => {
   const addLayerSource = extractFunctionSource(mapSource, "addGeoJsonLayerToMap");
 
-  assert.match(addLayerSource, /layer\.symbology\?\.pointColorExpression \|\| \["coalesce", \["get", "__styleIcon"\], \["get", "__styleFill"\], defaultPointColor\]/);
+  assert.match(addLayerSource, /layer\.symbology\?\.pointColorExpression \|\| \["coalesce", \["get", "__styleIcon"\], \["get", "__egemDisplayFill"\], \["get", "__styleFill"\], defaultPointColor\]/);
   assert.match(addLayerSource, /"circle-color": pointColorExpression/);
 });
 
@@ -2419,6 +2453,11 @@ test("la carga diferida evita descargar GeoJSON de capas apagadas y reutiliza un
   assert.match(ensureSource, /layer\.isLoading = true/);
   assert.match(loadSource, /fetchLayerJson\(layer, layer\.processedGeojsonUrl\)/);
   assert.match(loadSource, /layer\.data = normalizedRemote\.geojson/);
+  assert.match(loadSource, /downloadMs/);
+  assert.match(loadSource, /featurePrepMs/);
+  assert.match(loadSource, /iconMs/);
+  assert.match(loadSource, /layer\.__lastLoadTimings = timings/);
+  assert.match(loadSource, /summarizeLayerLoadTimings\(timings\)/);
   assert.match(toggleSource, /await ensureLayerResourcesLoaded\(userLayer\)/);
   assert.match(toggleSource, /userLayer\.visible = false/);
   assert.match(previewSource, /await ensureLayerResourcesLoaded\(layer\)/);
@@ -2511,15 +2550,28 @@ test("KMZ con iconos PNG registra symbol layer y evita circulos grandes duplicad
   assert.match(addGeoJsonSource, /const pointSymbolDescriptorFilter = getPointSymbolDescriptorFilter\(\)/);
   assert.match(addGeoJsonSource, /\["!", pointSymbolDescriptorFilter\]/);
   assert.match(loadImageSource, /map\.loadImage/);
-  assert.match(ensureIconSource, /map\.addImage\(imageId, image/);
+  assert.match(mapSource, /POINT_ICON_LOAD_TIMEOUT_MS = 6500/);
+  assert.match(ensureIconSource, /Promise\.allSettled/);
+  assert.match(ensureIconSource, /loadPointIconImage\(layer, icon\)/);
+  assert.match(ensureIconSource, /layer\.__pointIconLoadDiagnostics/);
+  assert.match(ensureIconSource, /failedIcons/);
+  assert.match(ensureIconSource, /error: result\.reason\?\.message/);
+  assert.match(ensureIconSource, /applyPointFallbackIconFeatureIds\(layer\)/);
+  assert.match(extractFunctionSource(mapSource, "loadPointIconImage"), /map\.addImage\(imageId, image/);
+  assert.match(loadImageSource, /setTimeout/);
+  assert.match(loadImageSource, /clearTimeout/);
   assert.match(featureIconSource, /styleUrl/);
   assert.match(featureIconSource, /normalizeLegendComparisonValue\(properties\[field\]\)/);
+  assert.match(extractFunctionSource(mapSource, "legendClassMatchesFeatureByIdentity"), /if \(field\) return false/);
   assert.match(featureIconSource, /properties\.__styleIcon/);
+  assert.match(featureIconSource, /getDraftLegendPointIconImageId/);
   assert.match(fallbackIconSource, /properties\.__styleIconImageId && map\.hasImage\(properties\.__styleIconImageId\)/);
   assert.match(fallbackIconSource, /getFallbackPointIconImageId/);
   assert.match(mapSource, /egem-fallback-manantial-dot/);
   assert.match(mapSource, /egem-fallback-pozo-triangle/);
   assert.match(mapSource, /egem-fallback-point-dot/);
+  assert.match(extractFunctionSource(mapSource, "attachPointIconUrlsToLegend"), /editedDisplayColor/);
+  assert.match(extractFunctionSource(mapSource, "attachPointIconUrlsToLegend"), /iconImageUrl && !editedDisplayColor/);
   assert.match(mapSource, /import \{ createFallbackPointIcon \} from "\.\/app\/utils\/point-icon-utils\.js";/);
   assert.match(mapSource, /import \{ normalizeHexColor \} from "\.\/app\/utils\/color-utils\.js";/);
   assert.match(extractFunctionSource(mapSource, "hasPointSymbolDescriptor"), /properties\.__kmlStyleId/);
@@ -2531,6 +2583,7 @@ test("KMZ con iconos PNG registra symbol layer y evita circulos grandes duplicad
   assert.match(opacitySource, /safeSetPaintProperty\(pointIconId, "icon-opacity", opacity\)/);
   assert.match(visibilitySource, /`\$\{layer\.id\}-point-icon`/);
   assert.match(removeBundleSource, /map\.removeImage\(icon\.imageId\)/);
+  assert.match(removeBundleSource, /revokeLayerObjectUrls\(layer\)/);
   assert.match(backendProcessingSource, /function extractKmzPointIconAssets/);
   assert.match(backendProcessingSource, /point-icons/);
   assert.match(backendProcessingSource, /mimeType: "image\/png"/);
@@ -2539,6 +2592,22 @@ test("KMZ con iconos PNG registra symbol layer y evita circulos grandes duplicad
   assert.match(extractFunctionSource(layerServiceSource, "normalizePublicPointIcons"), /imagePath/);
   assert.match(extractFunctionSource(layerServiceSource, "normalizePublicPointIcons"), /sourceEntry/);
   assert.match(assetMiddlewareSource, /properties\.pointIcons/);
+});
+
+test("renderizado diferido conserva metricas compactas sin logs por feature", () => {
+  const loadSource = extractFunctionSource(mapSource, "loadProcessedGeoJsonForLayer");
+  const addLayerSource = extractFunctionSource(mapSource, "addGeoJsonLayerToMap");
+  const timingSource = extractFunctionSource(mapSource, "summarizeLayerLoadTimings");
+
+  assert.match(loadSource, /performance\.now\(\)/);
+  assert.match(loadSource, /timings\.downloadMs/);
+  assert.match(loadSource, /timings\.featurePrepMs/);
+  assert.match(loadSource, /timings\.iconMs/);
+  assert.match(addLayerSource, /const renderStartedAt = performance\.now\(\)/);
+  assert.match(addLayerSource, /addSourceLayerMs/);
+  assert.match(addLayerSource, /summarizeLayerLoadTimings\(layer\.__lastLoadTimings\)/);
+  assert.match(timingSource, /downloadMs: Math\.round/);
+  assert.doesNotMatch(mapSource, /styleFill aplicado|styleFill conservado/);
 });
 
 test("hit testing prioriza puntos tematicos sobre raster y municipios base", () => {

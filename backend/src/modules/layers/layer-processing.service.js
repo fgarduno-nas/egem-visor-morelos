@@ -476,10 +476,6 @@ function readKmlPlacemarks(kmlText, styles) {
     const linkedStyle = styleUrl ? styles.get(styleUrl) || null : null;
     const style = mergeKmlStyles(linkedStyle, inlineStyle);
 
-    if (styleUrl) {
-      console.info("Placemark con styleUrl:", styleUrl);
-    }
-
     return {
       name: placemark.name,
       folder: placemark.folder,
@@ -550,10 +546,6 @@ export function enrichGeoJsonWithKmlStyles(geojson, kmlStyleIndex) {
         ...(style.icon ? { __styleIcon: style.icon } : {}),
         ...(style.opacity !== null && style.opacity !== undefined ? { __styleOpacity: style.opacity } : {}),
       };
-
-      if (style.fill && !isPointGeometry) {
-        console.info("__styleFill aplicado:", style.fill);
-      }
 
       return {
         ...feature,

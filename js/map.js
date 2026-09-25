@@ -86,6 +86,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
   const SATELLITE_MAP_MAX_ZOOM = 20;
   const GOES_IR_OVERLAY_OPACITY = 0.62;
   const TOOLBAR_AUTO_COLLAPSE_MS = 8000;
+  const POINT_ICON_LOAD_TIMEOUT_MS = 6500;
   const GOES_IR_ACCESSIBLE_DESCRIPTION =
     "Imagen infrarroja GOES. Los colores representan diferencias de temperatura radiativa; las zonas más frías suelen corresponder a nubes más altas. No representa lluvia directa.";
 
@@ -3719,8 +3720,20 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
   }
 
   async function loadProcessedGeoJsonForLayer(layer) {
+    const timings = {
+      startedAt: performance.now(),
+      downloadMs: 0,
+      featurePrepMs: 0,
+      iconMs: 0,
+      addSourceLayerMs: 0,
+      totalMs: 0,
+    };
+    const downloadStartedAt = performance.now();
+    const remoteGeojson = await fetchLayerJson(layer, layer.processedGeojsonUrl);
+    timings.downloadMs = performance.now() - downloadStartedAt;
+    const prepStartedAt = performance.now();
     const normalizedRemote = normalizeBackendProcessedGeoJson(
-      ensureFeatureCollection(await fetchLayerJson(layer, layer.processedGeojsonUrl)),
+      ensureFeatureCollection(remoteGeojson),
       getBackendRecordLikeFromLayer(layer)
     );
     layer.data = normalizedRemote.geojson;
@@ -3728,8 +3741,14 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     if (!isImageBackedLayer(layer) || !layer.legend || layer.legend.type !== "raster") {
       layer.legend = normalizedRemote.legend || layer.legend;
     }
+    applyPointFallbackIconFeatureIds(layer);
+    timings.featurePrepMs = performance.now() - prepStartedAt;
+    const iconStartedAt = performance.now();
     await ensurePointIconImagesForLayer(layer);
-    console.info("GeoJSON diferido visualizado correctamente", layer.title);
+    timings.iconMs = performance.now() - iconStartedAt;
+    timings.totalMs = performance.now() - timings.startedAt;
+    layer.__lastLoadTimings = timings;
+    console.info("GeoJSON diferido visualizado correctamente", layer.title, summarizeLayerLoadTimings(timings));
     return layer;
   }
 
@@ -3739,25 +3758,55 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     if (state.pendingPointIconLoads.has(layer.id)) return state.pendingPointIconLoads.get(layer.id);
 
     const loadPromise = (async () => {
-      const loadedIcons = [];
-      for (const icon of pointIcons) {
-        const imageId = buildPointIconImageId(layer, icon);
-        icon.__imageId = imageId;
-        if (!map.hasImage(imageId)) {
-          const imageUrl = await getPointIconImageUrl(layer, icon);
-          const image = await loadMapImage(imageUrl);
-          if (!map.hasImage(imageId)) {
-            map.addImage(imageId, image, { pixelRatio: 1 });
-          }
-        }
-        loadedIcons.push({ ...icon, imageId });
+      const results = await Promise.allSettled(pointIcons.map((icon) => loadPointIconImage(layer, icon)));
+      const loadedIcons = results
+        .filter((result) => result.status === "fulfilled" && result.value)
+        .map((result) => result.value);
+      const failedIcons = results
+        .map((result, index) => ({ result, icon: pointIcons[index] }))
+        .filter(({ result }) => result.status === "rejected")
+        .map(({ result, icon }) => ({
+          id: icon.id || null,
+          label: icon.label || icon.value || null,
+          styleId: icon.styleId || null,
+          styleUrl: icon.styleUrl || null,
+          imageUrl: icon.imageUrl || null,
+          error: result.reason?.message || String(result.reason || "Error desconocido"),
+        }));
+      layer.__pointIconLoadDiagnostics = {
+        attempts: pointIcons.length,
+        loaded: loadedIcons.map((icon) => ({
+          id: icon.id || null,
+          label: icon.label || icon.value || null,
+          styleId: icon.styleId || null,
+          styleUrl: icon.styleUrl || null,
+          imageUrl: icon.imageUrl || null,
+          imageId: icon.imageId,
+        })),
+        failed: failedIcons,
+      };
+      if (failedIcons.length > 0) {
+        console.warn("No se pudieron cargar iconos PNG de puntos; se usará fallback por tipo donde aplique.", failedIcons);
       }
       layer.__pointIconImages = loadedIcons;
       applyPointIconFeatureIds(layer);
+      applyPointFallbackIconFeatureIds(layer);
       return layer;
     })().catch((error) => {
       console.warn("No se pudieron cargar iconos PNG de puntos; se mantiene el fallback pequeño por tipo.", error);
       layer.__pointIconImages = [];
+      layer.__pointIconLoadDiagnostics = {
+        attempts: pointIcons.length,
+        loaded: [],
+        failed: pointIcons.map((icon) => ({
+          id: icon.id || null,
+          label: icon.label || icon.value || null,
+          styleId: icon.styleId || null,
+          styleUrl: icon.styleUrl || null,
+          imageUrl: icon.imageUrl || null,
+          error: error.message || String(error),
+        })),
+      };
       clearPointIconFeatureIds(layer);
       applyPointFallbackIconFeatureIds(layer);
       return layer;
@@ -3767,6 +3816,19 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
 
     state.pendingPointIconLoads.set(layer.id, loadPromise);
     return loadPromise;
+  }
+
+  async function loadPointIconImage(layer, icon) {
+    const imageId = buildPointIconImageId(layer, icon);
+    icon.__imageId = imageId;
+    if (!map.hasImage(imageId)) {
+      const imageUrl = await getPointIconImageUrl(layer, icon);
+      const image = await loadMapImage(imageUrl, { timeoutMs: POINT_ICON_LOAD_TIMEOUT_MS });
+      if (!map.hasImage(imageId)) {
+        map.addImage(imageId, image, { pixelRatio: 1 });
+      }
+    }
+    return { ...icon, imageId };
   }
 
   function getLayerPointIcons(layer) {
@@ -3792,15 +3854,32 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     return icon.__objectUrl;
   }
 
-  function loadMapImage(url) {
+  function loadMapImage(url, options = {}) {
+    const timeoutMs = options.timeoutMs || POINT_ICON_LOAD_TIMEOUT_MS;
     return new Promise((resolve, reject) => {
-      map.loadImage(url, (error, image) => {
-        if (error || !image) {
-          reject(error || new Error("No se pudo cargar la imagen del icono."));
-          return;
-        }
-        resolve(image);
-      });
+      let settled = false;
+      const timeoutId = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        reject(new Error(`No se pudo cargar la imagen del icono en ${Math.round(timeoutMs / 1000)} segundos.`));
+      }, timeoutMs);
+      try {
+        map.loadImage(url, (error, image) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeoutId);
+          if (error || !image) {
+            reject(error || new Error("No se pudo cargar la imagen del icono."));
+            return;
+          }
+          resolve(image);
+        });
+      } catch (error) {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeoutId);
+        reject(error);
+      }
     });
   }
 
@@ -3823,6 +3902,22 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     });
     layer.data.features.forEach((feature) => {
       const properties = feature.properties || {};
+      if (!["Point", "MultiPoint"].includes(feature.geometry?.type)) return;
+      const legendItem = getFeatureLegendClass(properties, legend);
+      const displayColor = normalizeHexColor(
+        legendItem?.displayColor,
+        normalizeHexColor(legendItem?.color || legendItem?.originalColor)
+      );
+      const displayIconId = displayColor ? getDraftLegendPointIconImageId(legendItem, properties, displayColor) : null;
+      if (displayIconId) {
+        feature.properties = {
+          ...properties,
+          __styleIconOriginal: properties.__styleIconOriginal || properties.__styleIcon || legendItem?.originalColor || legendItem?.color || null,
+          __styleIcon: displayColor,
+          __styleIconImageId: displayIconId,
+        };
+        return;
+      }
       const styleUrl = properties.styleUrl || properties.StyleUrl || properties.styleurl;
       const styleId = properties.__kmlStyleId || String(styleUrl || "").replace(/^#/u, "");
       const imageId = (styleUrl && byStyleUrl.get(String(styleUrl))) ||
@@ -3830,7 +3925,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
         (field ? byValue.get(normalizeLegendComparisonValue(properties[field])) : null) ||
         byColor.get(String(properties.__styleIcon || "").toLowerCase()) ||
         getFallbackPointIconImageId(properties);
-      if (imageId && ["Point", "MultiPoint"].includes(feature.geometry?.type)) {
+      if (imageId) {
         feature.properties = { ...properties, __styleIconImageId: imageId };
       }
     });
@@ -4019,6 +4114,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
   }
 
   function addGeoJsonLayerToMap(layer) {
+    const renderStartedAt = performance.now();
     const sourceId = `source-${layer.id}`;
     const lineId = `${layer.id}-line`;
     const fillId = `${layer.id}-fill`;
@@ -4028,13 +4124,13 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     const defaultFillColor = layer.fillColor || layer.color;
     const defaultPointColor = layer.iconColor || layer.color;
     const fillColorExpression = buildNoAplicaDisplayColorExpression(
-      layer.symbology?.fillColorExpression || ["coalesce", ["get", "__styleFill"], defaultFillColor]
+      layer.symbology?.fillColorExpression || ["coalesce", ["get", "__egemDisplayFill"], ["get", "__styleFill"], defaultFillColor]
     );
     const lineColorExpression = buildNoAplicaDisplayColorExpression(
-      layer.symbology?.lineColorExpression || ["coalesce", ["get", "__styleLine"], defaultLineColor]
+      layer.symbology?.lineColorExpression || ["coalesce", ["get", "__egemDisplayLine"], ["get", "__styleLine"], defaultLineColor]
     );
     const pointColorExpression = buildNoAplicaDisplayColorExpression(
-      layer.symbology?.pointColorExpression || ["coalesce", ["get", "__styleIcon"], ["get", "__styleFill"], defaultPointColor]
+      layer.symbology?.pointColorExpression || ["coalesce", ["get", "__styleIcon"], ["get", "__egemDisplayFill"], ["get", "__styleFill"], defaultPointColor]
     );
     const styleOpacityPaintValue = getLayerStyleOpacityPaintValue(layer);
     const geometryTypes = getLayerGeometryTypes(layer);
@@ -4145,8 +4241,26 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     interactiveLayerIds.forEach((layerId) => bindVectorPopup(layerId, layer));
     applyUserLayerOpacityToMap(layer);
     if (layer.backendLayerId && layer.processedGeojsonUrl) {
-      console.info("GeoJSON visualizado correctamente", layer.title);
+      const addSourceLayerMs = performance.now() - renderStartedAt;
+      layer.__lastLoadTimings = {
+        ...(layer.__lastLoadTimings || {}),
+        addSourceLayerMs,
+        totalMs: typeof layer.__lastLoadTimings?.startedAt === "number"
+          ? performance.now() - layer.__lastLoadTimings.startedAt
+          : addSourceLayerMs,
+      };
+      console.info("GeoJSON visualizado correctamente", layer.title, summarizeLayerLoadTimings(layer.__lastLoadTimings));
     }
+  }
+
+  function summarizeLayerLoadTimings(timings = {}) {
+    return {
+      downloadMs: Math.round(timings.downloadMs || 0),
+      featurePrepMs: Math.round(timings.featurePrepMs || 0),
+      iconMs: Math.round(timings.iconMs || 0),
+      addSourceLayerMs: Math.round(timings.addSourceLayerMs || 0),
+      totalMs: Math.round(timings.totalMs || 0),
+    };
   }
 
   function addImageLayerToMap(layer) {
@@ -4488,13 +4602,14 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     const index = state.userLayers.findIndex((item) => item.id === layerId);
     if (index === -1) return;
 
-    const [layer] = state.userLayers.splice(index, 1);
+    const layer = state.userLayers[index];
 
     try {
       if (layer.backendLayerId && state.session.token) {
         await deleteLayerRequest(state.session.token, layer.backendLayerId);
       }
 
+      state.userLayers.splice(index, 1);
       removeLayerBundle(layer.id);
       state.renderedLayers.delete(layer.id);
       deactivateLayerInStack(layer.id);
@@ -5029,6 +5144,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     if (field && classValue && normalizeLegendComparisonValue(properties[field]) === normalizeLegendComparisonValue(classValue)) {
       return true;
     }
+    if (field) return false;
     if (item.geometryRole && properties.__geometryRole === item.geometryRole) return true;
     if (item.folder && properties.__kmlFolder === item.folder) return true;
     if (item.group && properties.__kmlFolder === item.group) return true;
@@ -5120,7 +5236,8 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       classes: legend.classes.map((item) => {
         const styleId = item.styleId || (item.styleUrl ? String(item.styleUrl).replace(/^#/u, "") : null);
         const iconImageUrl = item.iconImageUrl || (item.styleUrl ? byStyleUrl.get(String(item.styleUrl)) : null) || (styleId ? byStyleId.get(String(styleId)) : null);
-        return iconImageUrl ? { ...item, iconImageUrl, symbolType: "icon" } : item;
+        const editedDisplayColor = normalizeHexColor(item.displayColor) && normalizeHexColor(item.displayColor) !== normalizeHexColor(item.color);
+        return iconImageUrl && !editedDisplayColor ? { ...item, iconImageUrl, symbolType: "icon" } : { ...item, iconImageUrl: null };
       }),
     };
   }
@@ -9412,7 +9529,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
   function applyPersistedVectorLegendDisplayStyle(feature, legend = null) {
     if (!feature || !Array.isArray(legend?.classes)) return feature;
     const properties = feature.properties || {};
-    const item = legend.classes.find((candidate) => legendClassMatchesFeature(candidate, properties, legend));
+    const item = legend.classes.find((candidate) => legendClassMatchesFeatureByIdentity(candidate, properties, legend));
     const color = normalizeHexColor(item?.displayColor, normalizeHexColor(item?.color || item?.originalColor));
     if (!item || !color) return feature;
     if (["Point", "MultiPoint"].includes(feature.geometry?.type)) {
@@ -9428,8 +9545,10 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       ...feature,
       properties: {
         ...properties,
-        __styleFill: color,
-        __styleLine: properties.__styleLine || color,
+        __styleFillOriginal: properties.__styleFillOriginal || properties.__styleFill || item.originalColor || item.color || null,
+        __styleLineOriginal: properties.__styleLineOriginal || properties.__styleLine || item.originalColor || item.color || null,
+        __egemDisplayFill: color,
+        __egemDisplayLine: color,
       },
     };
   }
@@ -9480,8 +9599,6 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     const descriptionAttributes = parseKmlDescriptionHtmlAttributes(description);
 
     if (Object.keys(descriptionAttributes).length) {
-      console.info("Descripción HTML KML detectada");
-      console.info("Atributos KML extraídos:", descriptionAttributes);
       Object.entries(descriptionAttributes).forEach(([key, value]) => {
         if (normalized[key] === undefined || normalized[key] === null || String(normalized[key]).trim() === "") {
           normalized[key] = value;
@@ -9490,9 +9607,6 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     }
 
     applyBackendAttributeAliases(normalized);
-    if (isUsablePopupValue(normalized.Intensidad) && Object.keys(descriptionAttributes).length) {
-      console.info("Intensidad extraída del HTML:", normalized.Intensidad);
-    }
 
     return normalized;
   }
@@ -9571,14 +9685,12 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
 
   function applyExistingRemoteStyle(properties, record = null) {
     if (properties.__styleFill) {
-      console.info("Se conserva __styleFill:", properties.__styleFill);
       return properties;
     }
 
     const styleColor = getRemoteStyleColor(properties, record);
     if (!styleColor) return properties;
 
-    console.info("Estilo remoto existente detectado:", styleColor);
     return {
       ...properties,
       __styleFill: styleColor,
@@ -9711,16 +9823,12 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     }
 
     if (options.preserveExistingStyle && properties.__styleFill) {
-      console.info("Se conserva __styleFill:", properties.__styleFill);
       return properties;
     }
 
     const intensity = getPropertyValueByAlias(properties, ["Intensidad"]);
     const intensityColor = getTextCategoryColor(intensity);
     if (intensityColor) {
-      console.info("Campo de simbología final:", "Intensidad");
-      console.info("Valor de estilo detectado:", intensity);
-      console.info("Color por intensidad aplicado:", intensityColor);
       return {
         ...properties,
         __styleFill: intensityColor,
@@ -9728,15 +9836,12 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     }
 
     if (properties.__styleFill) {
-      console.info("Se conserva __styleFill:", properties.__styleFill);
       return properties;
     }
     const fieldName = typeof styleField === "string" ? styleField : styleField?.field;
     const styleValue = fieldName ? getPropertyValueByAlias(properties, [fieldName]) : null;
     const color = getStyleColorForValue(styleValue, styleField);
     if (color) {
-      console.info("Valor de estilo detectado:", styleValue);
-      console.info("Color final aplicado:", color);
       return {
         ...properties,
         __styleFill: color,

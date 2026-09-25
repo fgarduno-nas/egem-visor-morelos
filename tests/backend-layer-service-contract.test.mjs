@@ -54,7 +54,9 @@ function buildBackendHelpers() {
     extractFunctionSource("getVectorLegendPreviewOrder"),
     extractFunctionSource("getDominantVectorLegendConcept"),
     extractFunctionSource("getVectorLegendPreviewField"),
-    "return { parseRasterLegend, parseVectorLegend, getVectorLegendPreviewLabel, getVectorLegendPreviewField, AppError };",
+    "const ROLE_CODES = { ADMIN: 'ADMIN', DATA_PROVIDER: 'DATA_PROVIDER' };",
+    extractFunctionSource("assertLayerDeletable"),
+    "return { parseRasterLegend, parseVectorLegend, getVectorLegendPreviewLabel, getVectorLegendPreviewField, assertLayerDeletable, AppError };",
   ].join("\n");
 
   return Function("AppError", helperSource)(AppError);
@@ -249,6 +251,32 @@ test("backend protege recursos privados y conserva acceso publico solo para publ
   assert.match(assetMiddlewareSource, /hasTraversalSegment/);
   assert.match(assetMiddlewareSource, /isAllowedAssetFile/);
   assert.match(assetMiddlewareSource, /startsWith\(`\$\{uploadRoot\}\$\{path\.sep\}`\)/);
+});
+
+test("DELETE permite director autenticado y el servicio limita al propietario", () => {
+  const deleteSource = extractFunctionSource("deleteLayer");
+  const assertDeleteSource = extractFunctionSource("assertLayerDeletable");
+  const layer = { createdById: "director-propietario" };
+
+  assert.match(routesSource, /layersRouter\.delete\(\s*"\/:id",\s*authorizeRoles\(ROLE_CODES\.ADMIN, ROLE_CODES\.DATA_PROVIDER\)/);
+  assert.match(deleteSource, /assertLayerDeletable\(layer, actor\)/);
+  assert.match(deleteSource, /actor\.role === ROLE_CODES\.ADMIN \? "admin" : "owner"/);
+  assert.match(assertDeleteSource, /throw new AppError\("Token de autenticación requerido\.", 401\)/);
+  assert.match(assertDeleteSource, /actor\.role === ROLE_CODES\.ADMIN/);
+  assert.match(assertDeleteSource, /actor\.role === ROLE_CODES\.DATA_PROVIDER && layer\.createdById === actor\.sub/);
+  assert.match(assertDeleteSource, /throw new AppError\("No tienes permisos para eliminar esta capa\.", 403\)/);
+
+  assert.doesNotThrow(() => helpers.assertLayerDeletable(layer, { role: "DATA_PROVIDER", sub: "director-propietario" }));
+  assert.doesNotThrow(() => helpers.assertLayerDeletable(layer, { role: "ADMIN", sub: "admin" }));
+  assert.throws(
+    () => helpers.assertLayerDeletable(layer, { role: "DATA_PROVIDER", sub: "otro-director" }),
+    (error) => error.status === 403 && /No tienes permisos/.test(error.message),
+  );
+  assert.throws(
+    () => helpers.assertLayerDeletable(layer, null),
+    (error) => error.status === 401 && /Token de autenticación requerido/.test(error.message),
+  );
+  assert.match(deleteSource, /throw new AppError\("Capa no encontrada\.", 404\)/);
 });
 
 test("detalle y GeoJSON de capas pendientes aplican autorizacion por actor", () => {
