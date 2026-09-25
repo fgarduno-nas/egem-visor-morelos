@@ -30,7 +30,6 @@ export async function uploadLayer({ body, files, actor, req }) {
   const status =
     actor.role === ROLE_CODES.ADMIN ? LAYER_STATUS.APPROVED : LAYER_STATUS.PENDING_REVIEW;
   const institutionalMetadata = buildInstitutionalMetadata(body, files, sourceType);
-  const rasterLegend = parseRasterLegend(body.rasterLegend);
   const vectorLegend = parseVectorLegend(body.vectorLegend);
 
   const created = await prisma.layer.create({
@@ -72,6 +71,7 @@ export async function uploadLayer({ body, files, actor, req }) {
     },
   });
   const processing = await processUploadedLayer(created, files);
+  const rasterLegend = parseUploadRasterLegendForProcessing(body.rasterLegend, processing);
   const persistedRasterLegend = rasterLegend || processing.rasterLegend || null;
   const persistedVectorLegend = vectorLegend || processing.vectorLegend || null;
   const extractedMetadata = processing.extractedMetadata || null;
@@ -678,6 +678,22 @@ function parseRasterLegend(value) {
     if (_error instanceof AppError) throw _error;
     return null;
   }
+}
+
+export function isRasterLegendApplicableToProcessing(processing = {}) {
+  const resourceType = String(processing.resourceType || "").toLowerCase();
+  return Boolean(
+    resourceType === "ground-overlay" ||
+    resourceType === "raster" ||
+    resourceType === "mixed" ||
+    (Array.isArray(processing.groundOverlays) && processing.groundOverlays.length > 0)
+  );
+}
+
+export function parseUploadRasterLegendForProcessing(value, processing = {}) {
+  if (!value) return null;
+  if (!isRasterLegendApplicableToProcessing(processing)) return null;
+  return parseRasterLegend(value);
 }
 
 function parseVectorLegend(value) {

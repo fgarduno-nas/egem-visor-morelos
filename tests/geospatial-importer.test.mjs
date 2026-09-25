@@ -381,6 +381,7 @@ test("processKmz preserva Folder, roles, estilos e iconos en el KMZ real SE 02",
     assert.equal(result.resourceType, "vector");
     assert.equal(result.featureCount, 1263);
     assert.equal(result.groundOverlays.length, 0);
+    assert.equal(result.rasterLegend, null);
     assert.equal(result.pointIcons.length, 2);
     assert.deepEqual(result.pointIcons.map((item) => item.styleId).sort(), ["IconStyle10", "IconStyle50"]);
     assert.deepEqual(result.pointIcons.map((item) => [item.width, item.height]).sort((a, b) => a[0] - b[0]), [[6, 6], [12, 12]]);

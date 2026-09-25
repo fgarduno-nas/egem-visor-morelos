@@ -49,7 +49,30 @@ export async function listMyLayersRequest(token) {
   return payload?.data ?? [];
 }
 
-export async function uploadLayerRequest(token, metadata, files) {
+export function getUploadResourceType(metadata = {}) {
+  return String(metadata.resourceType || metadata.previewResourceType || metadata.sourceKind || "")
+    .trim()
+    .toLowerCase();
+}
+
+export function uploadHasGroundOverlays(metadata = {}) {
+  return Array.isArray(metadata.groundOverlays) && metadata.groundOverlays.length > 0;
+}
+
+export function shouldSendRasterLegend(metadata = {}) {
+  const resourceType = getUploadResourceType(metadata);
+  return Boolean(
+    metadata.rasterLegend &&
+    (resourceType === "ground-overlay" || resourceType === "raster" || resourceType === "mixed" || uploadHasGroundOverlays(metadata))
+  );
+}
+
+export function shouldSendVectorLegend(metadata = {}) {
+  const resourceType = getUploadResourceType(metadata);
+  return Boolean(metadata.vectorLegend && resourceType !== "ground-overlay" && resourceType !== "raster");
+}
+
+export function buildLayerUploadFormData(metadata, files) {
   const formData = new FormData();
   formData.append("title", metadata.title);
   formData.append("description", metadata.description || "");
@@ -59,11 +82,21 @@ export async function uploadLayerRequest(token, metadata, files) {
   formData.append("updatedAt", metadata.updatedAt || "");
   formData.append("scaleOrResolution", metadata.scaleOrResolution || "");
   formData.append("crs", metadata.crs || "");
-  formData.append("rasterLegend", metadata.rasterLegend ? JSON.stringify(metadata.rasterLegend) : "");
-  formData.append("vectorLegend", metadata.vectorLegend ? JSON.stringify(metadata.vectorLegend) : "");
+  if (shouldSendRasterLegend(metadata)) {
+    formData.append("rasterLegend", JSON.stringify(metadata.rasterLegend));
+  }
+  if (shouldSendVectorLegend(metadata)) {
+    formData.append("vectorLegend", JSON.stringify(metadata.vectorLegend));
+  }
 
   (metadata.tags || []).forEach((tag) => formData.append("tags", tag));
   files.forEach((file) => formData.append("files", file));
+
+  return formData;
+}
+
+export async function uploadLayerRequest(token, metadata, files) {
+  const formData = buildLayerUploadFormData(metadata, files);
 
   const payload = await request("/layers", {
     method: "POST",

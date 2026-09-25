@@ -13,6 +13,10 @@ const moduleSource = await fs.readFile(modulePath, "utf8");
 const moduleUrl = `data:text/javascript;base64,${Buffer.from(moduleSource).toString("base64")}`;
 const mapSource = await fs.readFile(path.resolve("js/map.js"), "utf8");
 const layersApiSource = await fs.readFile(path.resolve("js/app/services/layers-api.js"), "utf8");
+const layersApiModuleSource = layersApiSource
+  .replace(/import \{ runtimeConfig \} from "\.\.\/config\/runtime-config\.js";\r?\n/, "const runtimeConfig = { publicLayerCacheTtlMs: 0, requestTimeoutMs: 1000, retryAttempts: 0, retryDelayMs: 0 };\n")
+  .replace(/import \{ invalidateCache, request \} from "\.\/http-client\.js";\r?\n/, "function invalidateCache() {}\nasync function request() { return { data: null }; }\n");
+const layersApiModule = await import(`data:text/javascript;base64,${Buffer.from(layersApiModuleSource).toString("base64")}`);
 const cssSource = await fs.readFile(path.resolve("css/style.css"), "utf8");
 const htmlSource = await fs.readFile(path.resolve("index.html"), "utf8");
 const municipiosGeojson = JSON.parse(await fs.readFile(path.resolve("data/base/municipios.geojson"), "utf8"));
@@ -1416,7 +1420,9 @@ test("el frontend reconstruye GroundOverlay raster y capas mixtas sin tratarlas 
   assert.match(mapSource, /"raster-opacity"/);
   assert.match(mapSource, /function revokeLayerObjectUrls/);
   assert.match(mapSource, /buildRasterLegendFallback/);
-  assert.match(layersApiSource, /formData\.append\("rasterLegend", metadata\.rasterLegend \? JSON\.stringify\(metadata\.rasterLegend\) : ""\)/);
+  assert.match(layersApiSource, /shouldSendRasterLegend\(metadata\)/);
+  assert.match(layersApiSource, /resourceType === "ground-overlay" \|\|/);
+  assert.match(layersApiSource, /resourceType === "mixed"/);
   assert.match(mapSource, /detectRasterLegendColors/);
   assert.match(mapSource, /preloadRasterLegendColorsFromPreview/);
   assert.match(mapSource, /extractRasterLegendColors/);
@@ -1443,12 +1449,24 @@ test("la carga de capas usa timeout extendido y revisa duplicados tras cancelaci
   assert.match(mapSource, /Revisa el catálogo administrativo antes de reintentar/);
 });
 
+test("login 401 limpia sesión aparente y no cae al modo demo", () => {
+  const loginSource = extractFunctionSource(mapSource, "login");
+  assert.match(loginSource, /backendError\?\.status === 401/);
+  assert.match(loginSource, /state\.session = createVisitorSession\(\)/);
+  assert.match(loginSource, /renderSession\(\)/);
+  assert.match(loginSource, /Credenciales incorrectas\. Verifica tu correo y contraseña\./);
+});
+
 test("el formulario de carga separa simbología vectorial de leyenda raster", () => {
   const metadataSource = extractFunctionSource(mapSource, "buildLayerMetadata");
+  const collectSource = extractFunctionSource(mapSource, "collectUploadMetadata");
   assert.match(mapSource, /buildUploadLegendFromDraft\(\)/);
   assert.match(mapSource, /buildVectorLegendFromDraft\(\)/);
-  assert.match(mapSource, /vectorLegend:\s*buildVectorLegendFromDraft\(\)/);
-  assert.match(layersApiSource, /formData\.append\("vectorLegend", metadata\.vectorLegend \? JSON\.stringify\(metadata\.vectorLegend\) : ""\)/);
+  assert.match(collectSource, /resourceType,\s*\r?\n/);
+  assert.match(collectSource, /rasterLegend:\s*hasRaster \? buildRasterLegendFromDraft\(\) : null/);
+  assert.match(collectSource, /vectorLegend:\s*hasVector \? buildVectorLegendFromDraft\(\) : null/);
+  assert.match(layersApiSource, /shouldSendVectorLegend\(metadata\)/);
+  assert.match(layersApiSource, /formData\.append\("vectorLegend", JSON\.stringify\(metadata\.vectorLegend\)\)/);
   assert.match(mapSource, /Simbología de la capa/);
   assert.match(mapSource, /Clases vectoriales precargadas desde los estilos del archivo/);
   assert.match(mapSource, /applyExtractedMetadataToUploadForm\(state\.uploadDraft\.previewLayers\[0\]\)/);
@@ -1458,6 +1476,75 @@ test("el formulario de carga separa simbología vectorial de leyenda raster", ()
   assert.doesNotMatch(extractFunctionSource(mapSource, "setUploadFieldIfEmpty"), /startsWith\("No especificada"\)/);
   assert.match(htmlSource, /id="upload-layer-updated-at" type="text"/);
   assert.doesNotMatch(htmlSource, /id="upload-layer-updated-at" type="date"/);
+});
+
+test("payload vectorial omite rasterLegend residual y conserva vectorLegend", () => {
+  const residualRasterLegend = {
+    type: "raster",
+    field: "Residuo",
+    classes: [
+      { label: "Manantial", color: "#005ce6", order: 1 },
+      { label: "Pozo", color: "#005ce6", order: 2 },
+    ],
+  };
+  const vectorLegend = {
+    type: "categorical",
+    field: "Intensidad",
+    classes: [
+      { label: "Manantial", color: "#005ce6", displayColor: "#ff66aa", folder: "Manantial", geometryRole: "manantial", order: 1 },
+      { label: "Pozo", color: "#005ce6", displayColor: "#7c4a24", folder: "Pozo", geometryRole: "pozo", symbolType: "icon", order: 2 },
+    ],
+  };
+
+  const formData = layersApiModule.buildLayerUploadFormData({
+    title: "SE 02",
+    resourceType: "vector",
+    rasterLegend: residualRasterLegend,
+    vectorLegend,
+  }, []);
+
+  assert.equal(formData.has("rasterLegend"), false);
+  assert.equal(formData.has("vectorLegend"), true);
+  assert.deepEqual(JSON.parse(formData.get("vectorLegend")).classes.map((item) => item.displayColor), ["#ff66aa", "#7c4a24"]);
+});
+
+test("payload raster conserva rasterLegend y omite vectorLegend no aplicable", () => {
+  const rasterLegend = {
+    type: "raster",
+    classes: [
+      { label: "Baja", color: "#38a800", order: 1 },
+      { label: "Alta", color: "#ff0000", order: 2 },
+    ],
+  };
+  const vectorLegend = {
+    type: "categorical",
+    classes: [{ label: "Pozo", color: "#7c4a24", order: 1 }],
+  };
+
+  const formData = layersApiModule.buildLayerUploadFormData({
+    title: "GroundOverlay",
+    resourceType: "ground-overlay",
+    groundOverlays: [{ imageUrl: "blob:raster" }],
+    rasterLegend,
+    vectorLegend,
+  }, []);
+
+  assert.equal(formData.has("rasterLegend"), true);
+  assert.equal(formData.has("vectorLegend"), false);
+  assert.deepEqual(JSON.parse(formData.get("rasterLegend")).classes.map((item) => item.color), ["#38a800", "#ff0000"]);
+});
+
+test("payload mixto conserva leyendas raster y vectorial cuando ambas aplican", () => {
+  const formData = layersApiModule.buildLayerUploadFormData({
+    title: "Mixto",
+    resourceType: "mixed",
+    groundOverlays: [{ imageUrl: "blob:raster" }],
+    rasterLegend: { type: "raster", classes: [{ label: "Clase", color: "#38a800", order: 1 }] },
+    vectorLegend: { type: "categorical", classes: [{ label: "Punto", color: "#005ce6", order: 1 }] },
+  }, []);
+
+  assert.equal(formData.has("rasterLegend"), true);
+  assert.equal(formData.has("vectorLegend"), true);
 });
 
 test("el formulario de carga usa layout adaptable y limpia el borrador derivado", () => {

@@ -136,6 +136,8 @@ test("backend expone actualizacion acotada de rasterLegend para capas existentes
 });
 
 test("uploadLayer persiste leyenda raster automatica sin sobrescribir una explicita", () => {
+  assert.match(source, /const processing = await processUploadedLayer\(created, files\)/);
+  assert.match(source, /const rasterLegend = parseUploadRasterLegendForProcessing\(body\.rasterLegend, processing\)/);
   assert.match(source, /const persistedRasterLegend = rasterLegend \|\| processing\.rasterLegend \|\| null/);
   assert.match(source, /const persistedVectorLegend = vectorLegend \|\| processing\.vectorLegend \|\| null/);
   assert.match(source, /rasterLegend:\s*persistedRasterLegend/);
@@ -144,6 +146,21 @@ test("uploadLayer persiste leyenda raster automatica sin sobrescribir una explic
   assert.match(source, /rasterLegend:\s*metadataProperties\.rasterLegend \?\? null/);
   assert.match(source, /vectorLegend = metadataProperties\.vectorLegend \?\? buildVectorLegendPreview/);
   assert.match(schemasSource, /vectorLegend:\s*z\.string\(\)\.max\(30000\)/);
+});
+
+test("backend solo valida rasterLegend manual cuando el procesamiento es raster o mixto", () => {
+  const uploadSource = extractFunctionSource("uploadLayer");
+  const applicabilitySource = extractFunctionSource("isRasterLegendApplicableToProcessing");
+  const parseUploadSource = extractFunctionSource("parseUploadRasterLegendForProcessing");
+
+  assert.doesNotMatch(uploadSource, /const rasterLegend = parseRasterLegend\(body\.rasterLegend\)/);
+  assert.match(uploadSource, /parseUploadRasterLegendForProcessing\(body\.rasterLegend, processing\)/);
+  assert.match(applicabilitySource, /resourceType === "ground-overlay"/);
+  assert.match(applicabilitySource, /resourceType === "raster"/);
+  assert.match(applicabilitySource, /resourceType === "mixed"/);
+  assert.match(applicabilitySource, /processing\.groundOverlays/);
+  assert.match(parseUploadSource, /if \(!isRasterLegendApplicableToProcessing\(processing\)\) return null/);
+  assert.match(parseUploadSource, /return parseRasterLegend\(value\)/);
 });
 
 test("parseVectorLegend identifica clases por identidad tecnica y permite colores compartidos", () => {

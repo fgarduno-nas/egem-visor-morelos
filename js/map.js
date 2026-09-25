@@ -5891,6 +5891,12 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
         resetThematicRuntimeState();
         state.session = mapBackendSession(response);
       } catch (backendError) {
+        if (backendError?.status === 401) {
+          state.session = createVisitorSession();
+          saveSession();
+          renderSession();
+          throw new Error("Credenciales incorrectas. Verifica tu correo y contraseña.");
+        }
         const demoUser = findDemoUser(email, password);
         if (!demoUser) {
           throw backendError;
@@ -6377,6 +6383,9 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
   }
 
   function collectUploadMetadata() {
+    const resourceType = getUploadDraftResourceType();
+    const hasRaster = uploadDraftHasRasterResource();
+    const hasVector = uploadDraftHasVectorResource();
     return {
       title: elements.uploadLayerTitle?.value.trim() || "",
       description: elements.uploadLayerDescription?.value.trim() || "",
@@ -6386,9 +6395,35 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       updatedAt: elements.uploadLayerUpdatedAt?.value || "",
       scaleOrResolution: elements.uploadLayerScale?.value.trim() || "",
       crs: elements.uploadLayerCrs?.value.trim() || "",
-      rasterLegend: buildRasterLegendFromDraft(),
-      vectorLegend: buildVectorLegendFromDraft(),
+      resourceType,
+      groundOverlays: getUploadDraftGroundOverlays(),
+      rasterLegend: hasRaster ? buildRasterLegendFromDraft() : null,
+      vectorLegend: hasVector ? buildVectorLegendFromDraft() : null,
     };
+  }
+
+  function getUploadDraftResourceType() {
+    const hasRaster = uploadDraftHasRasterResource();
+    const hasVector = uploadDraftHasVectorResource();
+    if (hasRaster && hasVector) return "mixed";
+    if (hasRaster) return "ground-overlay";
+    if (hasVector) return "vector";
+    return state.uploadDraft.legendKind === "raster" ? "ground-overlay" : "vector";
+  }
+
+  function uploadDraftHasRasterResource() {
+    return state.uploadDraft.previewLayers.some((layer) => isImageBackedLayer(layer));
+  }
+
+  function uploadDraftHasVectorResource() {
+    return state.uploadDraft.previewLayers.some((layer) => Array.isArray(layer.data?.features) && layer.data.features.length > 0);
+  }
+
+  function getUploadDraftGroundOverlays() {
+    return state.uploadDraft.previewLayers.flatMap((layer) => {
+      if (Array.isArray(layer.groundOverlays) && layer.groundOverlays.length) return layer.groundOverlays;
+      return layer.imageUrl ? [{ imageUrl: layer.imageUrl, coordinates: layer.coordinates || null }] : [];
+    });
   }
 
   function clearUploadMetadataForm() {
@@ -7100,8 +7135,10 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       geometryType: geometrySummary.geometryType || layer.fileType || "",
       featureCount: geometrySummary.featureCount,
       coverage,
-      rasterLegend: metadata.rasterLegend || layer.legend || null,
+      rasterLegend: metadata.rasterLegend || (layer.legend?.type === "raster" ? layer.legend : null),
       vectorLegend: metadata.vectorLegend || (layer.legend?.type !== "raster" ? layer.legend : null),
+      resourceType: layer.resourceType || metadata.resourceType || (isImageBackedLayer(layer) ? "ground-overlay" : "vector"),
+      groundOverlays: Array.isArray(layer.groundOverlays) ? layer.groundOverlays : [],
       extractedMetadata: existingMetadata.extractedMetadata || existingMetadata.geospatialDiagnostics?.extractedMetadata || null,
       geospatialDiagnostics: existingMetadata.geospatialDiagnostics || null,
     };
@@ -8969,6 +9006,8 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
           updatedAt: institutionalMetadata.updatedAt,
           scaleOrResolution: institutionalMetadata.scaleOrResolution,
           crs: institutionalMetadata.crs,
+          resourceType: institutionalMetadata.resourceType,
+          groundOverlays: institutionalMetadata.groundOverlays,
           rasterLegend: institutionalMetadata.rasterLegend,
           vectorLegend: institutionalMetadata.vectorLegend,
         },
