@@ -20,6 +20,7 @@ const layersApiModule = await import(`data:text/javascript;base64,${Buffer.from(
 const cssSource = await fs.readFile(path.resolve("css/style.css"), "utf8");
 const htmlSource = await fs.readFile(path.resolve("index.html"), "utf8");
 const phenomenonUtilsSource = await fs.readFile(path.resolve("shared/phenomenon-utils.js"), "utf8");
+const deployPagesWorkflowSource = await fs.readFile(path.resolve(".github/workflows/deploy-pages.yml"), "utf8");
 const municipiosGeojson = JSON.parse(await fs.readFile(path.resolve("data/base/municipios.geojson"), "utf8"));
 const municipiosLabelPoints = JSON.parse(await fs.readFile(path.resolve("data/base/municipios_label_points.geojson"), "utf8"));
 const localidadesMorelos = JSON.parse(await fs.readFile(path.resolve("data/base/localidades_morelos.geojson"), "utf8"));
@@ -2985,6 +2986,7 @@ test("tabla administrativa pagina, filtra, escapa datos y muestra fechas de More
 
 test("panel administrativo normaliza fenomenos tecnicos de produccion para tabla detalle y filtros", () => {
   assert.match(mapSource, /import \{ normalizePhenomenonForDisplay \} from "\.\.\/shared\/phenomenon-utils\.js";/);
+  assert.match(deployPagesWorkflowSource, /cp -r shared _site\/shared/);
   assert.match(phenomenonUtilsSource, /category:geologicos/);
   assert.match(phenomenonUtilsSource, /Geológicos/);
   assert.match(phenomenonUtilsSource, /category:hidrometeorologicos/);
