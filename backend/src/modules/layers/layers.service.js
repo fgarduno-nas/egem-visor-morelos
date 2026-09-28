@@ -16,6 +16,11 @@ import {
 import { getRequestMetadata } from "../../shared/utils/request-metadata.js";
 import { processUploadedLayer } from "./layer-processing.service.js";
 import { isLayerPubliclyAccessible } from "./layer-public-policy.js";
+import {
+  getPhenomenonSearchTokens,
+  normalizePhenomenonForDisplay,
+  normalizePhenomenonLookupValue,
+} from "../../../../shared/phenomenon-utils.js";
 
 const vectorLegendPreviewCache = new Map();
 
@@ -207,8 +212,9 @@ export async function listAdminLayerTable(query = {}) {
   const status = normalizeAdminFilter(query.status);
   const processingStatus = normalizeAdminFilter(query.processingStatus);
   const phenomenon = normalizeAdminFilter(query.phenomenon);
+  const searchCanTargetPhenomenon = search && normalizePhenomenonForDisplay(search).recognized;
 
-  const where = buildAdminLayerTableWhere({ search, status });
+  const where = buildAdminLayerTableWhere({ search: searchCanTargetPhenomenon ? "" : search, status });
   const layers = await prisma.layer.findMany({
     where,
     include: getAdminLayerTableInclude(),
@@ -216,7 +222,7 @@ export async function listAdminLayerTable(query = {}) {
   });
 
   const filteredLayers = layers.filter((layer) =>
-    matchesAdminLayerTableFilters(layer, { processingStatus, phenomenon })
+    matchesAdminLayerTableFilters(layer, { search, processingStatus, phenomenon })
   );
   const totalItems = filteredLayers.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
@@ -728,6 +734,9 @@ function buildAdminLayerTableWhere({ search, status }) {
 
 function matchesAdminLayerTableFilters(layer, filters) {
   const metadataProperties = layer.metadata?.properties ?? {};
+  if (filters.search && !matchesAdminLayerSearch(layer, filters.search)) {
+    return false;
+  }
   if (
     filters.processingStatus &&
     String(metadataProperties.processingStatus ?? "pending") !== filters.processingStatus
@@ -735,19 +744,38 @@ function matchesAdminLayerTableFilters(layer, filters) {
     return false;
   }
   if (filters.phenomenon) {
-    const phenomenon = filters.phenomenon.toLowerCase();
+    const phenomenon = normalizePhenomenonLookupValue(filters.phenomenon);
     const candidates = [
-      metadataProperties.phenomenon,
-      metadataProperties.category,
+      ...getAdminLayerPhenomenonCandidates(metadataProperties),
       ...(Array.isArray(metadataProperties.tags) ? metadataProperties.tags : []),
     ]
       .filter(Boolean)
-      .map((value) => String(value).trim().toLowerCase());
+      .flatMap((value) => getPhenomenonSearchTokens(value));
     if (!candidates.includes(phenomenon)) {
       return false;
     }
   }
   return true;
+}
+
+function matchesAdminLayerSearch(layer, search) {
+  const metadataProperties = layer.metadata?.properties ?? {};
+  const normalizedSearch = normalizePhenomenonLookupValue(search);
+  const candidates = [
+    layer.title,
+    layer.description,
+    layer.municipality,
+    layer.createdBy?.name,
+    layer.createdBy?.email,
+    ...getAdminLayerPhenomenonCandidates(metadataProperties),
+  ]
+    .filter(Boolean)
+    .flatMap((value) => [
+      normalizePhenomenonLookupValue(value),
+      ...getPhenomenonSearchTokens(value),
+    ]);
+
+  return candidates.some((candidate) => candidate.includes(normalizedSearch));
 }
 
 function mapAdminLayerTableItem(layer) {
@@ -759,14 +787,15 @@ function mapAdminLayerTableItem(layer) {
       ? vectorLegendSource
       : [];
   const rasterLegend = Array.isArray(metadataProperties.rasterLegend) ? metadataProperties.rasterLegend : [];
-  const phenomenon = getAdminLayerPhenomenon(metadataProperties);
+  const phenomenonInfo = getAdminLayerPhenomenon(metadataProperties);
   const processingStatus = metadataProperties.processingStatus || "pending";
   return {
     id: layer.id,
     title: layer.title,
     description: layer.description,
     municipality: layer.municipality,
-    phenomenon,
+    phenomenon: phenomenonInfo.displayLabel,
+    phenomenonKey: phenomenonInfo.technicalKey,
     sourceType: layer.sourceType,
     resourceType: metadataProperties.resourceType ?? inferResourceTypeFromProperties(metadataProperties),
     status: layer.isDeleted ? "deleted" : layer.status,
@@ -813,12 +842,33 @@ function mapAdminLayerTableItem(layer) {
 }
 
 function getAdminLayerPhenomenon(properties = {}) {
-  if (properties.phenomenon) return String(properties.phenomenon);
-  if (properties.category) return String(properties.category);
-  if (Array.isArray(properties.tags) && properties.tags.length) {
-    return String(properties.tags[0]);
+  const candidate = getAdminLayerPhenomenonCandidates(properties)[0];
+  return normalizePhenomenonForDisplay(candidate);
+}
+
+function getAdminLayerPhenomenonCandidates(properties = {}) {
+  const candidates = [
+    properties.phenomenon,
+    properties.category,
+    properties.theme,
+    properties.topic,
+    properties?.metadata?.phenomenon,
+    properties?.metadata?.category,
+    properties?.properties?.phenomenon,
+    properties?.properties?.category,
+  ];
+
+  if (Array.isArray(properties.tags)) {
+    candidates.push(...properties.tags);
   }
-  return "Sin clasificar";
+  if (Array.isArray(properties.metadata?.tags)) {
+    candidates.push(...properties.metadata.tags);
+  }
+  if (Array.isArray(properties.properties?.tags)) {
+    candidates.push(...properties.properties.tags);
+  }
+
+  return candidates.filter((value) => value !== null && value !== undefined && String(value).trim());
 }
 
 function sanitizeAdminMessage(value) {

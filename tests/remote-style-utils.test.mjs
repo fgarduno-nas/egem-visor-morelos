@@ -19,6 +19,7 @@ const layersApiModuleSource = layersApiSource
 const layersApiModule = await import(`data:text/javascript;base64,${Buffer.from(layersApiModuleSource).toString("base64")}`);
 const cssSource = await fs.readFile(path.resolve("css/style.css"), "utf8");
 const htmlSource = await fs.readFile(path.resolve("index.html"), "utf8");
+const phenomenonUtilsSource = await fs.readFile(path.resolve("shared/phenomenon-utils.js"), "utf8");
 const municipiosGeojson = JSON.parse(await fs.readFile(path.resolve("data/base/municipios.geojson"), "utf8"));
 const municipiosLabelPoints = JSON.parse(await fs.readFile(path.resolve("data/base/municipios_label_points.geojson"), "utf8"));
 const localidadesMorelos = JSON.parse(await fs.readFile(path.resolve("data/base/localidades_morelos.geojson"), "utf8"));
@@ -2929,6 +2930,7 @@ test("panel administrativo evita cortes a media palabra salvo valores tecnicos",
 test("tabla administrativa pagina, filtra, escapa datos y muestra fechas de Morelos", () => {
   const renderRowSource = extractFunctionSource(mapSource, "renderAdminLayerTableRow");
   const detailSource = extractFunctionSource(mapSource, "showAdminLayerTableDetails");
+  const phenomenonDisplaySource = extractFunctionSource(mapSource, "getAdminLayerPhenomenonDisplay");
   const focusDetailSource = extractFunctionSource(mapSource, "focusAdminLayerDetails");
   const returnDetailSource = extractFunctionSource(mapSource, "returnToAdminLayerTableRow");
   const modalDetailSource = extractFunctionSource(mapSource, "renderAdminLayerDetails");
@@ -2947,10 +2949,13 @@ test("tabla administrativa pagina, filtra, escapa datos y muestra fechas de More
   assert.match(renderRowSource, /is-selected/);
   assert.match(renderRowSource, /ownerEmail = owner\.email \|\| "Sin correo"/);
   assert.match(renderRowSource, /escapeHtml\(ownerEmail\)/);
+  assert.match(renderRowSource, /getAdminLayerPhenomenonDisplay\(layer\)/);
   assert.match(renderRowSource, /data-admin-layer-details/);
   assert.match(renderRowSource, /aria-label="Ver detalles de/);
+  assert.match(phenomenonDisplaySource, /normalizePhenomenonForDisplay\(layer\.phenomenon \|\| layer\.phenomenonKey\)\.displayLabel/);
   assert.match(detailSource, /updateInfoPanel/);
   assert.match(detailSource, /state\.adminLayerTable\.selectedId = layerId/);
+  assert.match(detailSource, /Fenómeno: \$\{phenomenon\}/);
   assert.match(detailSource, /focusAdminLayerDetails\(trigger\)/);
   assert.match(focusDetailSource, /scrollIntoView\(\{ behavior: "smooth", block: "start"/);
   assert.match(focusDetailSource, /focus\(\{ preventScroll: true \}\)/);
@@ -2960,6 +2965,7 @@ test("tabla administrativa pagina, filtra, escapa datos y muestra fechas de More
   assert.match(modalDetailSource, /admin-layer-detail-grid/);
   assert.match(modalDetailSource, /Volver a la tabla/);
   assert.match(modalDetailSource, /Correo/);
+  assert.match(modalDetailSource, /\["Fenómeno", phenomenon, "normal"\]/);
   assert.match(modalDetailSource, /Archivos/);
   assert.match(detailSource, /Archivos:/);
   assert.match(dateSource, /America\/Mexico_City/);
@@ -2975,6 +2981,27 @@ test("tabla administrativa pagina, filtra, escapa datos y muestra fechas de More
   assert.match(cssSource, /\.admin-layer-detail-grid[\s\S]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/);
   assert.match(cssSource, /@media \(max-width: 1400px\)[\s\S]*\.admin-layer-detail-grid[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
   assert.match(cssSource, /@media \(max-width: 760px\)[\s\S]*\.admin-layer-detail-grid[\s\S]*grid-template-columns: 1fr/);
+});
+
+test("panel administrativo normaliza fenomenos tecnicos de produccion para tabla detalle y filtros", () => {
+  assert.match(mapSource, /import \{ normalizePhenomenonForDisplay \} from "\.\.\/shared\/phenomenon-utils\.js";/);
+  assert.match(phenomenonUtilsSource, /category:geologicos/);
+  assert.match(phenomenonUtilsSource, /Geológicos/);
+  assert.match(phenomenonUtilsSource, /category:hidrometeorologicos/);
+  assert.match(phenomenonUtilsSource, /Hidrometeorológicos/);
+  assert.match(phenomenonUtilsSource, /category:quimico-tecnologicos/);
+  assert.match(phenomenonUtilsSource, /Químico-tecnológicos/);
+  assert.match(phenomenonUtilsSource, /category:sanitario-ecologico/);
+  assert.match(phenomenonUtilsSource, /Sanitario-ecológico/);
+  assert.match(phenomenonUtilsSource, /category:socio-organizativos/);
+  assert.match(phenomenonUtilsSource, /Socio-organizativos/);
+  assert.match(phenomenonUtilsSource, /category:astronomicos/);
+  assert.match(phenomenonUtilsSource, /Astronómicos/);
+  assert.match(phenomenonUtilsSource, /category:limites/);
+  assert.match(phenomenonUtilsSource, /Límites/);
+  assert.match(phenomenonUtilsSource, /buildSafeUnknownPhenomenonLabel/);
+  assert.doesNotMatch(extractFunctionSource(mapSource, "renderAdminLayerTableRow"), /category:geologicos/);
+  assert.doesNotMatch(extractFunctionSource(mapSource, "renderAdminLayerDetails"), /category:geologicos/);
 });
 
 test("panel administrativo usa colores contrastantes y controles legibles", () => {

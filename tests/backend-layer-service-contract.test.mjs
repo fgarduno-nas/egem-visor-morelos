@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { normalizePhenomenonForDisplay } from "../shared/phenomenon-utils.js";
 
 const source = await fs.readFile(path.resolve("backend/src/modules/layers/layers.service.js"), "utf8");
 const routesSource = await fs.readFile(path.resolve("backend/src/modules/layers/layers.routes.js"), "utf8");
@@ -334,6 +335,10 @@ test("DTO administrativo expone remitente seguro y el publico no filtra rutas in
 test("tabla administrativa de capas usa endpoint paginado protegido y DTO seguro", () => {
   const tableSource = source.match(/export async function listAdminLayerTable[\s\S]*?^}/m)?.[0] ?? "";
   const mapperSource = extractFunctionSource("mapAdminLayerTableItem");
+  const filterSource = extractFunctionSource("matchesAdminLayerTableFilters");
+  const searchSource = extractFunctionSource("matchesAdminLayerSearch");
+  const phenomenonSource = extractFunctionSource("getAdminLayerPhenomenon");
+  const phenomenonCandidatesSource = extractFunctionSource("getAdminLayerPhenomenonCandidates");
   const includeSource = extractFunctionSource("getAdminLayerTableInclude");
   const whereSource = extractFunctionSource("buildAdminLayerTableWhere");
 
@@ -345,8 +350,24 @@ test("tabla administrativa de capas usa endpoint paginado protegido y DTO seguro
   assert.match(tableSource, /pagination:/);
   assert.match(tableSource, /items,/);
   assert.match(tableSource, /orderBy: \{ createdAt: "desc" \}/);
+  assert.match(tableSource, /searchCanTargetPhenomenon/);
+  assert.match(tableSource, /buildAdminLayerTableWhere\(\{ search: searchCanTargetPhenomenon \? "" : search, status \}\)/);
   assert.match(whereSource, /createdBy: \{ email: \{ contains: search, mode: "insensitive" \} \}/);
   assert.match(whereSource, /status === "deleted"/);
+  assert.match(filterSource, /matchesAdminLayerSearch\(layer, filters\.search\)/);
+  assert.match(searchSource, /layer\.createdBy\?\.email/);
+  assert.match(searchSource, /getAdminLayerPhenomenonCandidates\(metadataProperties\)/);
+  assert.match(searchSource, /getPhenomenonSearchTokens\(value\)/);
+  assert.match(searchSource, /candidate\.includes\(normalizedSearch\)/);
+  assert.match(filterSource, /normalizePhenomenonLookupValue\(filters\.phenomenon\)/);
+  assert.match(filterSource, /getAdminLayerPhenomenonCandidates\(metadataProperties\)/);
+  assert.match(filterSource, /getPhenomenonSearchTokens\(value\)/);
+  assert.match(phenomenonSource, /normalizePhenomenonForDisplay\(candidate\)/);
+  assert.match(phenomenonCandidatesSource, /properties\.phenomenon/);
+  assert.match(phenomenonCandidatesSource, /properties\.category/);
+  assert.match(phenomenonCandidatesSource, /properties\.tags/);
+  assert.match(mapperSource, /phenomenon:\s*phenomenonInfo\.displayLabel/);
+  assert.match(mapperSource, /phenomenonKey:\s*phenomenonInfo\.technicalKey/);
   assert.match(includeSource, /createdBy: \{\s*select:/);
   assert.match(includeSource, /email: true/);
   assert.match(includeSource, /role: \{\s*select:/);
@@ -354,4 +375,23 @@ test("tabla administrativa de capas usa endpoint paginado protegido y DTO seguro
   assert.match(mapperSource, /symbology:/);
   assert.match(mapperSource, /files: \(layer\.files \?\? \[\]\)\.map/);
   assert.doesNotMatch(mapperSource, /passwordHash|storedName|storagePath|processedGeojsonPath|geospatialDiagnostics|rasterLegendDetection/);
+});
+
+test("contrato administrativo presenta phenomenon legible sin perder clave tecnica", () => {
+  assert.deepEqual(normalizePhenomenonForDisplay("category:geologicos"), {
+    technicalKey: "category:geologicos",
+    displayLabel: "Geológicos",
+    recognized: true,
+  });
+  assert.deepEqual(normalizePhenomenonForDisplay("category:SANITARIO_ECOLOGICO"), {
+    technicalKey: "category:sanitario-ecologico",
+    displayLabel: "Sanitario-ecológico",
+    recognized: true,
+  });
+  assert.deepEqual(normalizePhenomenonForDisplay("category:desconocido_local"), {
+    technicalKey: "category:desconocido_local",
+    displayLabel: "Desconocido local",
+    recognized: false,
+  });
+  assert.equal(normalizePhenomenonForDisplay(undefined).displayLabel, "Sin clasificar");
 });

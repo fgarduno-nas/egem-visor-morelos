@@ -53,6 +53,7 @@ import {
   buildGroundOverlayInfoLines,
   pickTopGroundOverlayHit,
 } from "./app/utils/ground-overlay-popup-utils.js";
+import { normalizePhenomenonForDisplay } from "../shared/phenomenon-utils.js";
 import {
   CLOUD_TOP_SPEEDS,
   CLOUD_TOP_TIME_ZONE,
@@ -7462,6 +7463,10 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     return thematicLayerGroups.find((group) => group.id === category)?.title || "Otras capas";
   }
 
+  function getAdminLayerPhenomenonDisplay(layer = {}) {
+    return normalizePhenomenonForDisplay(layer.phenomenon || layer.phenomenonKey).displayLabel;
+  }
+
   async function renderUserAdminPanel() {
     elements.userAdminFeedback.textContent = "";
 
@@ -7735,6 +7740,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     const dateLabel = formatAdminLayerDate(layer.submittedAt || layer.createdAt);
     const status = layer.isDeleted ? "deleted" : layer.status;
     const isSelected = layer.id === state.adminLayerTable.selectedId;
+    const phenomenon = getAdminLayerPhenomenonDisplay(layer);
     return `
       <tr class="${isSelected ? "is-selected" : ""}">
         <td class="admin-layer-table__title">
@@ -7745,7 +7751,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
           <strong title="${escapeHtml(ownerName)}">${escapeHtml(ownerName)}</strong>
           <span class="technical-value" title="${escapeHtml(ownerEmail)}">${escapeHtml(ownerEmail)}</span>
         </td>
-        <td>${escapeHtml(layer.phenomenon || "Sin clasificar")}</td>
+        <td>${escapeHtml(phenomenon)}</td>
         <td>
           <span>${escapeHtml(getAdminLayerTypeLabel(layer.resourceType || layer.sourceType))}</span>
           <span>${escapeHtml(layer.geometryType || "Sin geometría")}</span>
@@ -7765,12 +7771,13 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     state.adminLayerTable.lastDetailsTriggerId = layerId;
     renderAdminLayerTable();
     const owner = layer.submittedBy || {};
+    const phenomenon = getAdminLayerPhenomenonDisplay(layer);
     updateInfoPanel({
       title: layer.title || "Capa cargada",
       description: layer.description || "Capa registrada en el inventario administrativo.",
       extra: [
         `Responsable: ${owner.name || "Usuario no disponible"}${owner.email ? ` (${owner.email})` : ""}`,
-        `Fenómeno: ${layer.phenomenon || "Sin clasificar"}`,
+        `Fenómeno: ${phenomenon}`,
         `Estado: ${getAdminLayerStatusLabel(layer.isDeleted ? "deleted" : layer.status)}`,
         `Procesamiento: ${getProcessingStatusLabel(layer.processingStatus)}`,
         `Tipo: ${getAdminLayerTypeLabel(layer.resourceType || layer.sourceType)}`,
@@ -7836,12 +7843,13 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     const owner = layer.submittedBy || {};
     const status = layer.isDeleted ? "deleted" : layer.status;
     const fileNames = (layer.files || []).map((file) => file.originalName).filter(Boolean).join(", ") || "Sin archivos";
+    const phenomenon = getAdminLayerPhenomenonDisplay(layer);
     const detailItems = [
       ["Título", layer.title || "Capa sin título", "normal"],
       ["Responsable", owner.name || "Usuario no disponible", "normal"],
       ["Correo", owner.email || "Sin correo", "technical"],
       ["Municipio", layer.municipality || "Sin municipio", "normal"],
-      ["Fenómeno", layer.phenomenon || "Sin clasificar", "normal"],
+      ["Fenómeno", phenomenon, "normal"],
       ["Tipo", getAdminLayerTypeLabel(layer.resourceType || layer.sourceType), "normal"],
       ["Geometría", layer.geometryType || "Sin geometría", "technical"],
       ["Objetos", formatAdminLayerNumber(layer.featureCount), "normal"],
