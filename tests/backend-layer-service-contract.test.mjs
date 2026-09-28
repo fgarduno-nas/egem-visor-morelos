@@ -279,6 +279,19 @@ test("DELETE permite director autenticado y el servicio limita al propietario", 
   assert.match(deleteSource, /throw new AppError\("Capa no encontrada\.", 404\)/);
 });
 
+test("inventario administrativo sigue restringido a ADMIN y Director conserva DATA_PROVIDER tecnico", () => {
+  assert.match(
+    routesSource,
+    /layersRouter\.get\(\s*"\/admin",\s*authorizeRoles\(ROLE_CODES\.ADMIN\)/,
+  );
+  assert.doesNotMatch(
+    routesSource,
+    /layersRouter\.get\(\s*"\/admin",\s*authorizeRoles\(ROLE_CODES\.ADMIN,\s*ROLE_CODES\.DATA_PROVIDER\)/,
+  );
+  assert.match(routesSource, /authorizeRoles\(ROLE_CODES\.ADMIN, ROLE_CODES\.DATA_PROVIDER\)[\s\S]*upload\.array\("files", 10\)/);
+  assert.match(routesSource, /layersRouter\.get\(\s*"\/mine",\s*authorizeRoles\(ROLE_CODES\.ADMIN, ROLE_CODES\.DATA_PROVIDER\)/);
+});
+
 test("detalle y GeoJSON de capas pendientes aplican autorizacion por actor", () => {
   const getDetailSource = source.match(/export async function getLayerDetail[\s\S]*?return mapLayer[\s\S]*?\n\}/)?.[0] ?? "";
   const getGeoJsonSource = source.match(/export async function getLayerGeoJson[\s\S]*?catch \(_error\)[\s\S]*?\n\}/)?.[0] ?? "";

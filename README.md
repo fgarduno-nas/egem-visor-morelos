@@ -77,12 +77,12 @@ http://localhost:4000/health
 ## Roles
 
 - `PUBLIC_USER`: visitante, consulta solo capas publicadas.
-- `DATA_PROVIDER`: alimentador, carga capas para revision.
+- `DATA_PROVIDER`: Director, carga capas para revision.
 - `ADMIN`: administra usuarios y aprueba, rechaza, publica o despublica capas.
 
 ## Flujo de capas
 
-1. El alimentador sube archivo y metadatos.
+1. El Director sube archivo y metadatos.
 2. La capa queda `pending_review`.
 3. El administrador aprueba o rechaza.
 4. Solo una capa aprobada puede publicarse.

@@ -2445,7 +2445,7 @@ select {
 .admin-layer-table-section {
   grid-column: 1 / -1;
   display: grid;
-  grid-template-rows: auto auto auto minmax(260px, 1fr) auto auto;
+  grid-template-rows: auto auto auto auto auto auto;
   gap: 12px;
   min-height: min(64vh, 700px);
 }
@@ -2485,9 +2485,9 @@ select {
 
 .admin-layer-table-wrap {
   max-width: 100%;
-  height: clamp(280px, 40vh, 520px);
   min-height: 0;
-  overflow: auto;
+  overflow-x: auto;
+  overflow-y: hidden;
   border: 1px solid rgba(95, 24, 48, 0.18);
   border-radius: 18px;
   background: #fffdf9;
@@ -2643,11 +2643,21 @@ select {
 }
 
 .admin-layer-details {
+  scroll-margin-top: 18px;
   padding: 16px;
   border: 1px solid rgba(95, 24, 48, 0.16);
   border-radius: 20px;
   background: #fff8f0;
   color: var(--ink-strong);
+}
+
+.admin-layer-details:focus-visible {
+  outline: 3px solid rgba(122, 32, 58, 0.28);
+  outline-offset: 4px;
+}
+
+.admin-layer-details.is-highlighted {
+  box-shadow: 0 0 0 4px rgba(122, 32, 58, 0.14);
 }
 
 .admin-layer-details h4 {
@@ -2717,6 +2727,12 @@ select {
 .admin-layer-details__empty {
   display: grid;
   gap: 4px;
+}
+
+.admin-layer-details__actions {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 14px;
 }
 
 @media (max-width: 1400px) {
@@ -3285,7 +3301,8 @@ select {
 
 .user-management-panel {
   grid-column: 1 / -1;
-  min-height: 360px;
+  min-height: auto;
+  overflow: visible;
 }
 
 .user-management-panel__header {
@@ -3413,6 +3430,7 @@ select {
 
 .user-detail-panel {
   min-width: 0;
+  align-self: start;
   padding: 16px;
   border: 1px solid rgba(95, 24, 48, 0.16);
   border-radius: 20px;
@@ -4295,8 +4313,8 @@ select {
   }
 
   .admin-layer-table-section {
-    min-height: 640px;
-    grid-template-rows: auto auto auto minmax(260px, 1fr) auto auto;
+    min-height: 0;
+    grid-template-rows: auto auto auto auto auto auto;
   }
 
   .admin-layer-filters {
@@ -4308,10 +4326,6 @@ select {
   .admin-layer-table {
     min-width: 980px;
     font-size: 0.88rem;
-  }
-
-  .admin-layer-table-wrap {
-    height: 300px;
   }
 
   .admin-layer-table th,

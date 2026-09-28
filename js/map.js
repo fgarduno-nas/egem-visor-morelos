@@ -93,7 +93,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
 
   const roleLabels = {
     admin: "Administrador",
-    director: "Alimentador",
+    director: "Director",
     visitante: "Visitante",
   };
 
@@ -411,6 +411,8 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       },
       selectedId: null,
       searchTimer: null,
+      lastDetailsTriggerId: null,
+      highlightTimer: null,
     },
     userLayers: loadUserLayers(),
     renderedLayers: new Map(),
@@ -986,7 +988,12 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     elements.adminLayerTableBody?.addEventListener("click", (event) => {
       const button = event.target.closest("[data-admin-layer-details]");
       if (!button) return;
-      showAdminLayerTableDetails(button.dataset.adminLayerDetails);
+      showAdminLayerTableDetails(button.dataset.adminLayerDetails, button);
+    });
+    elements.adminLayerDetails?.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-admin-layer-return]");
+      if (!button) return;
+      returnToAdminLayerTableRow();
     });
 
     elements.layerSearch.addEventListener("input", () => {
@@ -7562,7 +7569,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     const statusLabel = user.isActive === false ? "Inactivo" : "Activo";
     const busy = state.adminUsers.actionPending;
     const nextStatusAction = user.isActive === false ? "Activar" : "Desactivar";
-    const nextRoleLabel = role === "director" ? "Visitante" : "Alimentador";
+    const nextRoleLabel = role === "director" ? "Visitante" : "Director";
     const detailItems = [
       ["Nombre", user.name || "Sin nombre", "normal"],
       ["Correo", user.email || "Sin correo", "technical"],
@@ -7751,10 +7758,11 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     `;
   }
 
-  function showAdminLayerTableDetails(layerId) {
+  function showAdminLayerTableDetails(layerId, trigger = null) {
     const layer = state.adminLayerTable.items.find((item) => item.id === layerId);
     if (!layer) return;
     state.adminLayerTable.selectedId = layerId;
+    state.adminLayerTable.lastDetailsTriggerId = layerId;
     renderAdminLayerTable();
     const owner = layer.submittedBy || {};
     updateInfoPanel({
@@ -7775,6 +7783,32 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
         `Cargada: ${formatAdminLayerDate(layer.submittedAt || layer.createdAt)}`,
       ],
     });
+    requestAnimationFrame(() => focusAdminLayerDetails(trigger));
+  }
+
+  function focusAdminLayerDetails(trigger = null) {
+    if (!elements.adminLayerDetails) return;
+    window.clearTimeout(state.adminLayerTable.highlightTimer);
+    elements.adminLayerDetails.classList.add("is-highlighted");
+    elements.adminLayerDetails.scrollIntoView({ behavior: "smooth", block: "start", inline: "nearest" });
+    elements.adminLayerDetails.focus({ preventScroll: true });
+    if (trigger instanceof HTMLElement) {
+      state.adminLayerTable.lastDetailsTriggerId = trigger.dataset.adminLayerDetails || state.adminLayerTable.selectedId;
+    }
+    state.adminLayerTable.highlightTimer = window.setTimeout(() => {
+      elements.adminLayerDetails?.classList.remove("is-highlighted");
+    }, 1600);
+  }
+
+  function returnToAdminLayerTableRow() {
+    const layerId = state.adminLayerTable.lastDetailsTriggerId || state.adminLayerTable.selectedId;
+    const selector = layerId
+      ? `[data-admin-layer-details="${cssEscape(layerId)}"]`
+      : "[data-admin-layer-details]";
+    const trigger = elements.adminLayerTableBody?.querySelector(selector);
+    const target = trigger || elements.adminLayerTableBody;
+    target?.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+    target?.focus?.({ preventScroll: true });
   }
 
   function renderAdminLayerDetails() {
@@ -7818,6 +7852,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       ["Cargada", formatAdminLayerDate(layer.submittedAt || layer.createdAt), "normal"],
     ];
 
+    elements.adminLayerDetails.setAttribute("tabindex", "-1");
     elements.adminLayerDetails.innerHTML = `
       <div class="admin-layer-details__header">
         <div>
@@ -7837,6 +7872,9 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
           </div>
         `).join("")}
       </dl>
+      <div class="admin-layer-details__actions">
+        <button class="ghost-button" type="button" data-admin-layer-return>Volver a la tabla</button>
+      </div>
     `;
   }
 
@@ -9147,6 +9185,11 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       .replaceAll(">", "&gt;")
       .replaceAll('"', "&quot;")
       .replaceAll("'", "&#39;");
+  }
+
+  function cssEscape(value) {
+    if (window.CSS?.escape) return window.CSS.escape(String(value));
+    return String(value).replace(/["\\]/g, "\\$&");
   }
 
   function pickLayerColor(index) {

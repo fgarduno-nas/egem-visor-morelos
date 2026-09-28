@@ -2851,6 +2851,23 @@ test("panel administrativo incluye tabla de capas solo para administradores", ()
   assert.match(cssSource, /\.modal-card--admin-panel\s*\{[\s\S]*height: min\(90vh, 980px\)/);
 });
 
+test("panel administrativo presenta DATA_PROVIDER como Director sin cambiar el rol tecnico", () => {
+  const roleLabelsSource = mapSource.match(/const roleLabels = \{[\s\S]*?\};/)?.[0] ?? "";
+  const mapBackendRoleSource = extractFunctionSource(mapSource, "mapBackendRole");
+  const createUserSource = extractFunctionSource(mapSource, "createManagedUser");
+  const toggleRoleSource = extractFunctionSource(mapSource, "toggleManagedUserRole");
+
+  assert.match(htmlSource, /Solo la cuenta administradora puede crear usuarios con rol de Director o Visitante y consultar el inventario de capas cargadas\./);
+  assert.match(htmlSource, /<option value="director">Director<\/option>/);
+  assert.doesNotMatch(htmlSource, /Alimentador|alimentador/);
+  assert.match(roleLabelsSource, /director: "Director"/);
+  assert.doesNotMatch(roleLabelsSource, /Alimentador/);
+  assert.match(mapBackendRoleSource, /roleCode === "DATA_PROVIDER"[\s\S]*return "director"/);
+  assert.match(createUserSource, /roleCode: role === "director" \? "DATA_PROVIDER" : "PUBLIC_USER"/);
+  assert.match(toggleRoleSource, /nextRoleCode = currentRole === "director" \? "PUBLIC_USER" : "DATA_PROVIDER"/);
+  assert.doesNotMatch(mapSource, /Alimentador|alimentador/);
+});
+
 test("panel administrativo de usuarios usa seleccion maestro-detalle compacta", () => {
   const listSource = extractFunctionSource(mapSource, "renderManagedUserList");
   const rowSource = extractFunctionSource(mapSource, "renderManagedUserRow");
@@ -2878,6 +2895,7 @@ test("panel administrativo de usuarios usa seleccion maestro-detalle compacta", 
   assert.match(busySource, /\.user-detail-actions button/);
 
   assert.match(cssSource, /\.user-management-layout \{[\s\S]*?grid-template-columns: minmax\(0, 1\.6fr\) minmax\(320px, 0\.9fr\);/);
+  assert.match(cssSource, /\.user-management-panel \{[\s\S]*?min-height: auto;[\s\S]*?overflow: visible;/);
   assert.match(cssSource, /\.user-admin-table \{[\s\S]*?min-width: 680px;/);
   assert.match(cssSource, /\.user-admin-table th \{[\s\S]*?position: sticky;/);
   assert.match(cssSource, /\.user-row-select strong,[\s\S]*?\.user-row-select span \{[\s\S]*?overflow: hidden;[\s\S]*?text-overflow: ellipsis;[\s\S]*?word-break: normal;[\s\S]*?hyphens: none;/);
@@ -2911,8 +2929,11 @@ test("panel administrativo evita cortes a media palabra salvo valores tecnicos",
 test("tabla administrativa pagina, filtra, escapa datos y muestra fechas de Morelos", () => {
   const renderRowSource = extractFunctionSource(mapSource, "renderAdminLayerTableRow");
   const detailSource = extractFunctionSource(mapSource, "showAdminLayerTableDetails");
+  const focusDetailSource = extractFunctionSource(mapSource, "focusAdminLayerDetails");
+  const returnDetailSource = extractFunctionSource(mapSource, "returnToAdminLayerTableRow");
   const modalDetailSource = extractFunctionSource(mapSource, "renderAdminLayerDetails");
   const dateSource = extractFunctionSource(mapSource, "formatAdminLayerDate");
+  const tableWrapRule = cssSource.match(/\.admin-layer-table-wrap \{[^}]*\}/)?.[0] ?? "";
 
   assert.match(mapSource, /adminLayerSearch\?\.addEventListener\("input"/);
   assert.match(mapSource, /adminLayerStatus\?\.addEventListener\("change"/);
@@ -2920,6 +2941,7 @@ test("tabla administrativa pagina, filtra, escapa datos y muestra fechas de More
   assert.match(mapSource, /adminLayerPhenomenon\?\.addEventListener\("input"/);
   assert.match(mapSource, /adminLayerPrev\?\.addEventListener\("click"/);
   assert.match(mapSource, /adminLayerNext\?\.addEventListener\("click"/);
+  assert.match(mapSource, /data-admin-layer-return/);
   assert.match(renderRowSource, /escapeHtml\(title\)/);
   assert.match(renderRowSource, /title="\$\{escapeHtml\(title\)\}"/);
   assert.match(renderRowSource, /is-selected/);
@@ -2929,14 +2951,27 @@ test("tabla administrativa pagina, filtra, escapa datos y muestra fechas de More
   assert.match(renderRowSource, /aria-label="Ver detalles de/);
   assert.match(detailSource, /updateInfoPanel/);
   assert.match(detailSource, /state\.adminLayerTable\.selectedId = layerId/);
+  assert.match(detailSource, /focusAdminLayerDetails\(trigger\)/);
+  assert.match(focusDetailSource, /scrollIntoView\(\{ behavior: "smooth", block: "start"/);
+  assert.match(focusDetailSource, /focus\(\{ preventScroll: true \}\)/);
+  assert.match(focusDetailSource, /classList\.add\("is-highlighted"\)/);
+  assert.match(returnDetailSource, /lastDetailsTriggerId/);
+  assert.match(returnDetailSource, /scrollIntoView\(\{ behavior: "smooth", block: "center"/);
   assert.match(modalDetailSource, /admin-layer-detail-grid/);
+  assert.match(modalDetailSource, /Volver a la tabla/);
   assert.match(modalDetailSource, /Correo/);
   assert.match(modalDetailSource, /Archivos/);
   assert.match(detailSource, /Archivos:/);
   assert.match(dateSource, /America\/Mexico_City/);
-  assert.match(cssSource, /\.admin-layer-table-wrap[\s\S]*overflow-x: auto/);
+  assert.match(tableWrapRule, /overflow-x: auto;/);
+  assert.match(tableWrapRule, /overflow-y: hidden;/);
+  assert.doesNotMatch(tableWrapRule, /height: clamp/);
+  assert.doesNotMatch(cssSource, /@media \(max-width: 760px\)[\s\S]*?\.admin-layer-table-wrap \{[\s\S]*?height: 300px/);
   assert.match(cssSource, /\.admin-layer-table[\s\S]*min-width: 1120px/);
   assert.match(cssSource, /\.admin-layer-table th[\s\S]*position: sticky/);
+  assert.match(cssSource, /\.admin-layer-details:focus-visible[\s\S]*outline: 3px solid/);
+  assert.match(cssSource, /\.admin-layer-details\.is-highlighted[\s\S]*box-shadow:/);
+  assert.match(cssSource, /\.admin-layer-details__actions[\s\S]*display: flex/);
   assert.match(cssSource, /\.admin-layer-detail-grid[\s\S]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/);
   assert.match(cssSource, /@media \(max-width: 1400px\)[\s\S]*\.admin-layer-detail-grid[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
   assert.match(cssSource, /@media \(max-width: 760px\)[\s\S]*\.admin-layer-detail-grid[\s\S]*grid-template-columns: 1fr/);

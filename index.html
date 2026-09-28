@@ -605,7 +605,7 @@
         <article>
           <strong>Roles institucionales</strong>
           <p>
-            Visitante consulta, alimentador propone capas y administrador aprueba o rechaza.
+            Visitante consulta, Director propone capas y administrador aprueba o rechaza.
           </p>
         </article>
         <article>
@@ -658,7 +658,7 @@
       </div>
 
       <p class="modal-copy admin-panel-intro">
-        Solo la cuenta administradora puede crear usuarios de tipo alimentador o visitante y revisar el inventario cargado.
+        Solo la cuenta administradora puede crear usuarios con rol de Director o Visitante y consultar el inventario de capas cargadas.
       </p>
 
       <nav class="admin-panel-nav" aria-label="Secciones administrativas">
@@ -704,7 +704,7 @@
             <label class="form-field">
               <span>Rol</span>
               <select id="new-user-role" required>
-                <option value="director">Alimentador</option>
+                <option value="director">Director</option>
                 <option value="visitante">Visitante</option>
               </select>
             </label>
@@ -857,7 +857,7 @@
             </div>
           </div>
 
-          <aside class="admin-layer-details" id="admin-layer-details" aria-live="polite">
+          <aside class="admin-layer-details" id="admin-layer-details" aria-live="polite" tabindex="-1">
             <div class="admin-layer-details__empty">
               <h4>Detalle de capa</h4>
               <p>Selecciona una fila para revisar información completa sin perder la tabla.</p>
