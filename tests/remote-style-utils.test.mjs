@@ -1916,6 +1916,7 @@ test("la barra de herramientas aumenta iconos y reduce separacion sin perder are
   const ids = [...toolbarHtml.matchAll(/id="([^"]+)"/g)].map((match) => match[1]);
 
   assert.deepEqual(ids.filter((id) => id.startsWith("toolbar-") || id === "trigger-upload" || id === "focus-morelos-menu"), [
+    "toolbar-save-image",
     "toolbar-basemap",
     "toolbar-toggle-panel",
     "toolbar-zoom-in",

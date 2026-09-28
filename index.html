@@ -202,6 +202,9 @@
             <span>Herramientas</span>
           </button>
           <div class="map-toolbar" id="map-toolbar" aria-label="Herramientas del visor" hidden>
+            <button class="toolbar-button" id="toolbar-save-image" type="button" aria-label="Guardar imagen del mapa" title="Guardar imagen del mapa">
+              <span class="toolbar-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3h16v18H4V3zm2 2v10l4-4 3 3 2-2 3 3V5H6zm0 12v2h12v-2H6zm9-10a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></svg></span>
+            </button>
             <div class="basemap-control">
               <button
                 class="toolbar-button toolbar-button--basemap"
@@ -273,6 +276,7 @@
           <p class="toolbar-note" id="upload-permission-note">
             Inicia sesión como administrador o director para cargar capas.
           </p>
+          <p class="map-export-hint" id="map-export-hint"></p>
         </div>
 
         <div class="map-overlay map-overlay--orientation" id="orientation-overlay">
@@ -321,6 +325,7 @@
         </div>
 
         <div class="map-overlay map-overlay--goes" id="goes-overlay"></div>
+        <p id="map-export-status" class="map-export-status" role="status" aria-live="polite"></p>
 
         <div class="map-overlay map-overlay--coordinates">
           <strong class="coordinate-readout" id="statusbar" aria-live="polite" aria-label="Longitud: -99.10000, Latitud: 18.75000, WGS 84">

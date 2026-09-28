@@ -73,6 +73,7 @@ import {
   createGoesIrFrameRenderer,
 } from "./app/weather/cloud-top-enhancement.js";
 import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
+import { installMapExport } from "./app/utils/map-export.js";
 
   const MORELOS_CENTER = [-99.07, 18.84];
   const STORAGE_KEYS = {
@@ -653,6 +654,85 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
   };
 
   mountOrientationControl();
+
+  installMapExport({
+    map,
+    button: document.getElementById("toolbar-save-image"),
+    status: document.getElementById("map-export-status"),
+    check: () => {
+      // These anonymous CARTO endpoints currently return HTTP 200 error images
+      // (API KEY REQUIRED), so MapLibre's error event cannot detect the failure.
+      const cartoTiles = map.getStyle()?.sources?.[`basemap-${state.activeBaseMap}`]?.tiles || [];
+      if (cartoTiles.some((url) => url.includes("basemaps.cartocdn.com/") && !/[?&]api_key=/.test(url))) {
+        throw new Error("El fondo CARTO (basemaps.cartocdn.com) requiere una clave API y está mostrando «API KEY REQUIRED». Elige Satélite o Topográfico para exportar. La configuración del proveedor debe corregirse por separado.");
+      }
+      if (!state.staticData.estado || !state.staticData.municipios) {
+        throw new Error("Los límites territoriales todavía no están disponibles. Espera a que carguen o revisa la conexión y recarga el visor.");
+      }
+      if (state.referenceRoads.exportPending || state.referenceRoads.pendingFrame ||
+          (map.getZoom() >= LOCALITY_LABEL_PRELOAD_ZOOM && !state.localityLabels.sourceData && !state.localityLabels.loadError)) {
+        throw new Error("Las referencias cartográficas están cargándose. Espera un momento antes de guardar.");
+      }
+      if (state.referenceRoads.exportError) throw new Error(`No se pueden exportar las vialidades: ${state.referenceRoads.exportError}. Revisa el recurso y recarga el visor.`);
+      if (map.getZoom() >= LOCALITY_LABEL_PRELOAD_ZOOM && state.localityLabels.loadError) {
+        throw new Error(`No se pueden exportar las localidades: ${LOCALITY_LABEL_DATA_URL}. Revisa el recurso y recarga el visor.`);
+      }
+      if (state.pendingLayerLoads.size || state.pendingPointIconLoads.size) {
+        throw new Error("Hay capas o iconos cargándose. Espera a que terminen antes de guardar.");
+      }
+      for (const layer of state.userLayers.filter((item) => item.visible)) {
+        if (layer.loadError) throw new Error(`No se puede exportar ${layer.title}: ${layer.loadError}`);
+        const failed = layer.__pointIconLoadDiagnostics?.failed?.[0];
+        if (failed) throw new Error(`No se puede exportar el icono de ${layer.title}: ${failed.imageUrl || failed.error}. Verifica disponibilidad y permisos CORS, o desactiva la capa.`);
+      }
+      if (state.cloudTop.userEnabled && !state.cloudTop.mapLayer?.currentFrameId) {
+        throw new Error("GOES no tiene un cuadro disponible. Espera a que cargue o desactiva GOES para guardar el mapa.");
+      }
+    },
+    freeze: () => {
+      const cloud = state.cloudTop;
+      const playing = cloud.playback?.playing;
+      cloud.exporting = true;
+      cloud.renderToken += 1;
+      cloud.playback?.pause();
+      const restoreFrame = cloud.mapLayer?.freezeForExport();
+      return () => {
+        restoreFrame?.();
+        cloud.exporting = false;
+        if (playing && cloud.userEnabled && document.visibilityState !== "hidden") cloud.playback?.play();
+      };
+    },
+    attribution: () => state.cloudTop.userEnabled
+      ? state.cloudTop.activeProvider?.attribution || "NOAA/NOS nowCOAST · NOAA/NESDIS GOES" : "",
+    prepareSources: async (style, bounds, signal) => {
+      const source = style.sources[ROAD_REFERENCE_LEVELS[3].sourceId];
+      if (!source) return;
+      const read = async (url) => {
+        try {
+          const response = await fetch(url, { signal });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          return await response.json();
+        } catch (error) {
+          if (signal.aborted) throw signal.reason;
+          throw new Error(`No se pudo ampliar la referencia cartográfica ${url}: ${error.message}`);
+        }
+      };
+      const manifest = await read(ROAD_REFERENCE_LEVELS[3].manifestUrl);
+      const chunks = getVisibleRoadChunks(manifest, bounds);
+      const features = [], seen = new Set();
+      // These chunks belong to the export only: do not change the on-screen source.
+      for (let offset = 0; offset < chunks.length; offset += 4) {
+        const collections = await Promise.all(chunks.slice(offset, offset + 4).map(async chunk =>
+          applyReferenceRoadDisplayNames(3, await read(chunk.url))));
+        signal.throwIfAborted();
+        for (const collection of collections) for (const feature of collection.features || []) {
+          const key = feature.properties?.id ?? JSON.stringify(feature.geometry);
+          if (!seen.has(key)) { seen.add(key); features.push(feature); }
+        }
+      }
+      source.data = { type: "FeatureCollection", features };
+    },
+  });
 
   map.on("mousemove", (event) => {
     const lon = event.lngLat.lng.toFixed(5);
@@ -2208,6 +2288,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     if (map.getZoom() < LOCALITY_LABEL_PRELOAD_ZOOM) return;
     try {
       const data = await loadLocalityLabels();
+      state.localityLabels.loadError = null;
       setLocalityLabelSourceData(data);
     } catch (error) {
       state.localityLabels.loadError = error;
@@ -2563,9 +2644,11 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
 
   async function updateReferenceRoadsForViewport() {
     if (!state.referenceRoads.initialized) return;
+    state.referenceRoads.exportPending = (state.referenceRoads.exportPending || 0) + 1;
     const requiredLevel = getReferenceRoadLevelForZoom(map.getZoom());
     state.referenceRoads.activeLevel = requiredLevel;
     try {
+      state.referenceRoads.exportError = null;
       if (requiredLevel === 3) {
         const data = await loadVisibleRoadChunks();
         if (state.referenceRoads.activeLevel === 3) {
@@ -2580,8 +2663,10 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
         setReferenceRoadVisibility(requiredLevel);
       }
     } catch (error) {
+      state.referenceRoads.exportError = error.message;
       console.warn("No se pudieron actualizar las vialidades de referencia:", error);
     } finally {
+      state.referenceRoads.exportPending -= 1;
       ensureReferenceLayerOrder();
     }
   }
@@ -2717,8 +2802,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     return data;
   }
 
-  function getVisibleRoadChunks(manifest) {
-    const bounds = map.getBounds();
+  function getVisibleRoadChunks(manifest, bounds = map.getBounds()) {
     const zoom = map.getZoom();
     const paddingFactor = zoom >= 17 ? 0.18 : 0.28;
     const west = bounds.getWest();
@@ -3048,6 +3132,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
   }
 
   async function renderCloudTopFrame(frame) {
+    if (state.cloudTop.exporting) return;
     if (!frame || !state.cloudTop.mapLayer) {
       renderCloudTopPanel();
       return;

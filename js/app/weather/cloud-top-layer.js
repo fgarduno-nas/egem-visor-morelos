@@ -25,8 +25,9 @@ export class CloudTopMapLayer {
   }
 
   async showFrame(frame) {
-    if (!frame || this.destroyed) return;
+    if (!frame || this.destroyed || this.exportFrozen) return;
     await this.preloadFrame(frame);
+    if (this.destroyed || this.exportFrozen) return;
     const beforeId = this.resolveBeforeLayerId();
     const nextBuffer = this.activeBuffer === 0 ? 1 : 0;
 
@@ -54,6 +55,23 @@ export class CloudTopMapLayer {
         this.map.setLayoutProperty(layerId, "visibility", this.visible ? "visible" : "none");
       }
     });
+  }
+
+  freezeForExport() {
+    this.exportFrozen = true;
+    const transitions = [];
+    this.getLayerIds().forEach((id, index) => {
+      if (!this.map.getLayer(id)) return;
+      transitions.push([id, this.map.getPaintProperty(id, "raster-opacity-transition")]);
+      this.map.setPaintProperty(id, "raster-opacity-transition", { duration: 0, delay: 0 });
+      this.map.setPaintProperty(id, "raster-opacity", index === this.activeBuffer && this.visible ? this.opacity : 0);
+    });
+    return () => {
+      this.exportFrozen = false;
+      transitions.forEach(([id, transition]) => {
+        if (this.map.getLayer(id)) this.map.setPaintProperty(id, "raster-opacity-transition", transition || null);
+      });
+    };
   }
 
   setOpacity(opacity) {

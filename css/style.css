@@ -4606,3 +4606,34 @@ select {
     font-size: 0.68rem;
   }
 }
+/* Export feedback stays readable after the tools collapse, and never enters the PNG. */
+.map-export-status {
+  position: absolute;
+  bottom: 84px;
+  right: 12px;
+  z-index: 8;
+  max-width: min(340px, calc(100% - 24px));
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .96);
+  box-shadow: 0 2px 12px #0002;
+  color: #17312d;
+  font-size: 12px;
+  line-height: 1.4;
+  pointer-events: none;
+}
+.map-export-status:empty { display: none; }
+.map-export-hint {
+  max-width: 340px;
+  margin: 4px 0 0;
+  padding: 5px 9px;
+  border-radius: 6px;
+  color: #17312d;
+  background: rgba(255, 255, 255, .94);
+  font-size: 11px;
+  line-height: 1.35;
+  text-align: center;
+}
+.is-toolbar-collapsed .map-export-hint { display: none; }
+.toolbar-button[aria-busy="true"] { opacity: .55; cursor: progress; }
