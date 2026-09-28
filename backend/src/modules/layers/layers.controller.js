@@ -4,6 +4,7 @@ import {
   deleteLayer,
   getLayerGeoJson,
   getLayerDetail,
+  listAdminLayerTable,
   listLayersForUser,
   listAdminLayers,
   listOwnLayers,
@@ -63,6 +64,15 @@ export async function listAdminLayersController(_req, res) {
     statusCode: 200,
     message: "Capas administrables listadas correctamente.",
     data: layers,
+  });
+}
+
+export async function listAdminLayerTableController(req, res) {
+  const result = await listAdminLayerTable(req.validated.query);
+  return sendSuccess(res, {
+    statusCode: 200,
+    message: "Tabla administrativa de capas listada correctamente.",
+    data: result,
   });
 }
 

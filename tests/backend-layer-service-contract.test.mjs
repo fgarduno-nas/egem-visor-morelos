@@ -317,3 +317,28 @@ test("DTO administrativo expone remitente seguro y el publico no filtra rutas in
   assert.match(source, /processingStatus = Object\.prototype\.hasOwnProperty\.call\(layer, "processingStatus"\)/);
   assert.match(source, /isVisualizable = Object\.prototype\.hasOwnProperty\.call\(layer, "isVisualizable"\)/);
 });
+
+test("tabla administrativa de capas usa endpoint paginado protegido y DTO seguro", () => {
+  const tableSource = source.match(/export async function listAdminLayerTable[\s\S]*?^}/m)?.[0] ?? "";
+  const mapperSource = extractFunctionSource("mapAdminLayerTableItem");
+  const includeSource = extractFunctionSource("getAdminLayerTableInclude");
+  const whereSource = extractFunctionSource("buildAdminLayerTableWhere");
+
+  assert.match(routesSource, /layersRouter\.get\(\s*"\/admin",\s*authorizeRoles\(ROLE_CODES\.ADMIN\),\s*validate\(adminLayerListSchema\)/);
+  assert.match(controllerSource, /listAdminLayerTable\(req\.validated\.query\)/);
+  assert.match(schemasSource, /adminLayerListSchema/);
+  assert.match(schemasSource, /pageSize: cappedNumberSchema\(20, 1, 100\)/);
+  assert.match(tableSource, /pageSize = Math\.min\(100/);
+  assert.match(tableSource, /pagination:/);
+  assert.match(tableSource, /items,/);
+  assert.match(tableSource, /orderBy: \{ createdAt: "desc" \}/);
+  assert.match(whereSource, /createdBy: \{ email: \{ contains: search, mode: "insensitive" \} \}/);
+  assert.match(whereSource, /status === "deleted"/);
+  assert.match(includeSource, /createdBy: \{\s*select:/);
+  assert.match(includeSource, /email: true/);
+  assert.match(includeSource, /role: \{\s*select:/);
+  assert.match(mapperSource, /submittedBy: mapSafeUser\(layer\.createdBy, \{ includeEmail: true \}\)/);
+  assert.match(mapperSource, /symbology:/);
+  assert.match(mapperSource, /files: \(layer\.files \?\? \[\]\)\.map/);
+  assert.doesNotMatch(mapperSource, /passwordHash|storedName|storagePath|processedGeojsonPath|geospatialDiagnostics|rasterLegendDetection/);
+});

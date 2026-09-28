@@ -200,6 +200,51 @@ export async function listAdminLayers() {
   return layers.map((layer) => mapLayer(layer, { audience: "admin" }));
 }
 
+export async function listAdminLayerTable(query = {}) {
+  const page = Math.max(1, Number(query.page) || 1);
+  const pageSize = Math.min(100, Math.max(1, Number(query.pageSize) || 20));
+  const search = normalizeAdminFilter(query.search);
+  const status = normalizeAdminFilter(query.status);
+  const processingStatus = normalizeAdminFilter(query.processingStatus);
+  const phenomenon = normalizeAdminFilter(query.phenomenon);
+
+  const where = buildAdminLayerTableWhere({ search, status });
+  const layers = await prisma.layer.findMany({
+    where,
+    include: getAdminLayerTableInclude(),
+    orderBy: { createdAt: "desc" },
+  });
+
+  const filteredLayers = layers.filter((layer) =>
+    matchesAdminLayerTableFilters(layer, { processingStatus, phenomenon })
+  );
+  const totalItems = filteredLayers.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const offset = (safePage - 1) * pageSize;
+  const items = filteredLayers
+    .slice(offset, offset + pageSize)
+    .map((layer) => mapAdminLayerTableItem(layer));
+
+  return {
+    items,
+    pagination: {
+      page: safePage,
+      pageSize,
+      totalItems,
+      totalPages,
+      hasPreviousPage: safePage > 1,
+      hasNextPage: safePage < totalPages,
+    },
+    filters: {
+      search,
+      status,
+      processingStatus,
+      phenomenon,
+    },
+  };
+}
+
 export function listLayersForUser(actor) {
   if (actor.role === ROLE_CODES.ADMIN) {
     return listAdminLayers();
@@ -600,6 +645,188 @@ export function assertLayerDeletable(layer, actor) {
   if (actor.role === ROLE_CODES.ADMIN) return;
   if (actor.role === ROLE_CODES.DATA_PROVIDER && layer.createdById === actor.sub) return;
   throw new AppError("No tienes permisos para eliminar esta capa.", 403);
+}
+
+function normalizeAdminFilter(value) {
+  return String(value ?? "").trim();
+}
+
+function getAdminLayerTableInclude() {
+  return {
+    files: {
+      select: {
+        id: true,
+        originalName: true,
+        extension: true,
+        mimeType: true,
+        sizeBytes: true,
+      },
+      orderBy: { createdAt: "asc" },
+    },
+    metadata: true,
+    createdBy: {
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        municipality: true,
+        role: {
+          select: {
+            code: true,
+            name: true,
+          },
+        },
+      },
+    },
+    approvals: {
+      select: {
+        id: true,
+        fromStatus: true,
+        toStatus: true,
+        note: true,
+        createdAt: true,
+        actor: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: {
+              select: {
+                code: true,
+                name: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    },
+  };
+}
+
+function buildAdminLayerTableWhere({ search, status }) {
+  const where = {};
+  if (status) {
+    if (status === "deleted") {
+      where.isDeleted = true;
+    } else {
+      where.status = status;
+      where.isDeleted = false;
+    }
+  }
+  if (search) {
+    where.OR = [
+      { title: { contains: search, mode: "insensitive" } },
+      { description: { contains: search, mode: "insensitive" } },
+      { municipality: { contains: search, mode: "insensitive" } },
+      { createdBy: { name: { contains: search, mode: "insensitive" } } },
+      { createdBy: { email: { contains: search, mode: "insensitive" } } },
+    ];
+  }
+  return where;
+}
+
+function matchesAdminLayerTableFilters(layer, filters) {
+  const metadataProperties = layer.metadata?.properties ?? {};
+  if (
+    filters.processingStatus &&
+    String(metadataProperties.processingStatus ?? "pending") !== filters.processingStatus
+  ) {
+    return false;
+  }
+  if (filters.phenomenon) {
+    const phenomenon = filters.phenomenon.toLowerCase();
+    const candidates = [
+      metadataProperties.phenomenon,
+      metadataProperties.category,
+      ...(Array.isArray(metadataProperties.tags) ? metadataProperties.tags : []),
+    ]
+      .filter(Boolean)
+      .map((value) => String(value).trim().toLowerCase());
+    if (!candidates.includes(phenomenon)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function mapAdminLayerTableItem(layer) {
+  const metadataProperties = layer.metadata?.properties ?? {};
+  const vectorLegendSource = metadataProperties.vectorLegend ?? buildVectorLegendPreview(metadataProperties);
+  const vectorLegend = Array.isArray(vectorLegendSource?.items)
+    ? vectorLegendSource.items
+    : Array.isArray(vectorLegendSource)
+      ? vectorLegendSource
+      : [];
+  const rasterLegend = Array.isArray(metadataProperties.rasterLegend) ? metadataProperties.rasterLegend : [];
+  const phenomenon = getAdminLayerPhenomenon(metadataProperties);
+  const processingStatus = metadataProperties.processingStatus || "pending";
+  return {
+    id: layer.id,
+    title: layer.title,
+    description: layer.description,
+    municipality: layer.municipality,
+    phenomenon,
+    sourceType: layer.sourceType,
+    resourceType: metadataProperties.resourceType ?? inferResourceTypeFromProperties(metadataProperties),
+    status: layer.isDeleted ? "deleted" : layer.status,
+    reviewStatus: layer.status,
+    isDeleted: layer.isDeleted,
+    deletedAt: layer.deletedAt,
+    createdAt: layer.createdAt,
+    updatedAt: layer.updatedAt,
+    approvedAt: layer.approvedAt,
+    publishedAt: layer.publishedAt,
+    processingStatus,
+    processingMessage: sanitizeAdminMessage(metadataProperties.processingMessage || metadataProperties.processingError),
+    geometryType: layer.metadata?.geometryType || metadataProperties.geometryType || null,
+    featureCount: layer.metadata?.featureCount ?? metadataProperties.featureCount ?? null,
+    crs: layer.metadata?.crs || metadataProperties.crs || null,
+    source: metadataProperties.source || null,
+    responsibleAgency: metadataProperties.responsibleAgency || null,
+    sourceUpdatedAt: metadataProperties.updatedAt || null,
+    scaleOrResolution: metadataProperties.scaleOrResolution || null,
+    submittedBy: mapSafeUser(layer.createdBy, { includeEmail: true }),
+    submittedAt: layer.createdAt,
+    symbology: {
+      vectorClassCount: vectorLegend.length,
+      rasterClassCount: rasterLegend.length,
+      hasRasterLegend: rasterLegend.length > 0,
+      hasVectorLegend: vectorLegend.length > 0,
+    },
+    files: (layer.files ?? []).map((file) => ({
+      id: file.id,
+      originalName: file.originalName,
+      extension: file.extension,
+      mimeType: file.mimeType,
+      sizeBytes: file.sizeBytes,
+    })),
+    approvals: (layer.approvals ?? []).map((approval) => ({
+      id: approval.id,
+      fromStatus: approval.fromStatus,
+      toStatus: approval.toStatus,
+      note: approval.note,
+      createdAt: approval.createdAt,
+      actor: mapSafeUser(approval.actor, { includeEmail: true }),
+    })),
+  };
+}
+
+function getAdminLayerPhenomenon(properties = {}) {
+  if (properties.phenomenon) return String(properties.phenomenon);
+  if (properties.category) return String(properties.category);
+  if (Array.isArray(properties.tags) && properties.tags.length) {
+    return String(properties.tags[0]);
+  }
+  return "Sin clasificar";
+}
+
+function sanitizeAdminMessage(value) {
+  if (!value) return null;
+  return String(value)
+    .replace(/[A-Z]:\\[^\s]+/gi, "[ruta local]")
+    .replace(/\/[^\s]+/g, "[ruta]")
+    .slice(0, 260);
 }
 
 function mapSafeUser(user, options = {}) {

@@ -50,6 +50,38 @@ export const uploadLayerSchema = z.object({
   query: z.object({}).default({}),
 });
 
+const paginatedNumberSchema = (fallback, min, max) =>
+  z.preprocess((value) => {
+    const parsed = Number.parseInt(String(value ?? fallback), 10);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }, z.number().int().min(min).max(max).default(fallback));
+
+const cappedNumberSchema = (fallback, min, max) =>
+  z.preprocess((value) => {
+    const parsed = Number.parseInt(String(value ?? fallback), 10);
+    if (!Number.isFinite(parsed)) return fallback;
+    return Math.min(max, Math.max(min, parsed));
+  }, z.number().int().min(min).max(max).default(fallback));
+
+const optionalFilterSchema = (max = 120) =>
+  z.preprocess((value) => {
+    if (value === undefined || value === null) return "";
+    return String(value).trim();
+  }, z.string().max(max).default(""));
+
+export const adminLayerListSchema = z.object({
+  body: z.object({}).default({}),
+  params: z.object({}).default({}),
+  query: z.object({
+    page: paginatedNumberSchema(1, 1, 100000),
+    pageSize: cappedNumberSchema(20, 1, 100),
+    search: optionalFilterSchema(160),
+    status: optionalFilterSchema(40),
+    processingStatus: optionalFilterSchema(40),
+    phenomenon: optionalFilterSchema(80),
+  }).default({}),
+});
+
 export const layerIdSchema = z.object({
   body: z.object({}).default({}),
   params: z.object({

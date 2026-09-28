@@ -68,6 +68,28 @@ const officialMunicipalPopulation2020 = new Map([
 ]);
 const priorityMunicipalityNames = new Set(["Cuernavaca", "Cuautla", "Jojutla", "Xochitepec", "Jiutepec", "Emiliano Zapata"]);
 
+function hexToRgb(hex) {
+  const normalized = hex.replace("#", "");
+  return [
+    Number.parseInt(normalized.slice(0, 2), 16),
+    Number.parseInt(normalized.slice(2, 4), 16),
+    Number.parseInt(normalized.slice(4, 6), 16),
+  ];
+}
+
+function contrastRatio(foreground, background) {
+  const luminance = (rgb) => {
+    const channels = rgb.map((value) => {
+      const normalized = value / 255;
+      return normalized <= 0.03928 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+  };
+  const light = Math.max(luminance(foreground), luminance(background));
+  const dark = Math.min(luminance(foreground), luminance(background));
+  return (light + 0.05) / (dark + 0.05);
+}
+
 const {
   analyzeStyleField,
   buildInstitutionalHazardLegend,
@@ -1596,7 +1618,7 @@ test("el formulario de carga usa layout adaptable y limpia el borrador derivado"
   assert.match(cssSource, /\.modal-card--upload-panel \.modal-actions \{[\s\S]*?position: sticky;[\s\S]*?bottom: 0;/);
   assert.match(cssSource, /#cancel-upload-layer \{[\s\S]*?border: 1\.5px solid var\(--accent\);[\s\S]*?background: #fff8f6;[\s\S]*?color: var\(--accent\);/);
   assert.match(cssSource, /#cancel-upload-layer:focus-visible/);
-  assert.match(cssSource, /\.upload-action-button \{[\s\S]*?white-space: normal;[\s\S]*?overflow-wrap: anywhere;/);
+  assert.match(cssSource, /\.upload-action-button \{[\s\S]*?white-space: normal;[\s\S]*?overflow-wrap: normal;[\s\S]*?word-break: normal;[\s\S]*?hyphens: none;/);
   assert.match(cssSource, /\.raster-legend-preview \{/);
   assert.match(cssSource, /\.raster-legend-item \{[\s\S]*?grid-template-columns: 42px minmax\(0, 1fr\);/);
   assert.match(cssSource, /\.raster-legend-symbol/);
@@ -2342,7 +2364,7 @@ test("el popup tematico mantiene etiquetas completas y valores ajustables", () =
   assert.match(cssSource, /\.feature-popup__row \{[\s\S]*?grid-template-columns: minmax\(82px, max-content\) minmax\(0, 1fr\);[\s\S]*?gap: 7px;/);
   assert.match(cssSource, /\.feature-popup__row dt \{[\s\S]*?white-space: nowrap;[\s\S]*?overflow-wrap: normal;[\s\S]*?word-break: normal;/);
   assert.match(cssSource, /\.feature-popup__row dd \{[\s\S]*?color: var\(--ink\);[\s\S]*?font-weight: 600;/);
-  assert.match(cssSource, /\.feature-popup__row dt,\s*\n\.feature-popup__row dd \{[\s\S]*?align-self: start;[\s\S]*?min-width: 0;[\s\S]*?white-space: normal;[\s\S]*?overflow-wrap: break-word;[\s\S]*?word-break: break-word;/);
+  assert.match(cssSource, /\.feature-popup__row dt,\s*\n\.feature-popup__row dd \{[\s\S]*?align-self: start;[\s\S]*?min-width: 0;[\s\S]*?white-space: normal;[\s\S]*?overflow-wrap: break-word;[\s\S]*?word-break: normal;[\s\S]*?hyphens: none;/);
   assert.match(cssSource, /@media \(max-width: 760px\) \{[\s\S]*?\.feature-popup__row \{[\s\S]*?grid-template-columns: minmax\(82px, max-content\) minmax\(0, 1fr\);[\s\S]*?gap: 6px;[\s\S]*?padding: 5px 9px;/);
   assert.match(cssSource, /\.maplibregl-popup-content \{[\s\S]*?width: 250px;[\s\S]*?max-width: 250px;/);
   assert.match(cssSource, /\.feature-popup \{[\s\S]*?max-width: 250px;[\s\S]*?overflow: hidden;/);
@@ -2799,4 +2821,143 @@ test("SE 02 usa subcapas KML, iconos puntuales pequenos y popups por Folder", as
   assert.doesNotMatch(extractFunctionSource(mapSource, "buildFolderKmlPopupAttributes"), /StatusTipo|Activa|Fuera de Operación/);
   assert.match(extractFunctionSource(mapSource, "getVectorPopupHitForLayer"), /queryableLayers\.symbols/);
   assert.match(extractFunctionSource(mapSource, "getVectorPopupHitForLayer"), /queryableLayers\.fills/);
+});
+
+test("panel administrativo incluye tabla de capas solo para administradores", () => {
+  assert.match(htmlSource, /id="open-user-admin"[^>]*>Administración</);
+  assert.match(htmlSource, />Panel administrativo</);
+  assert.match(htmlSource, /class="modal-card modal-card--wide modal-card--admin-panel"/);
+  assert.match(htmlSource, /class="admin-panel-nav"/);
+  assert.match(htmlSource, /id="admin-users-heading">Usuarios</);
+  assert.match(htmlSource, /id="admin-layer-table-section" hidden/);
+  assert.match(htmlSource, />Capas cargadas</);
+  assert.match(htmlSource, /id="admin-layer-details"/);
+  assert.match(htmlSource, /id="admin-layer-search"/);
+  assert.match(htmlSource, /id="admin-layer-status"/);
+  assert.match(htmlSource, /id="admin-layer-processing"/);
+  assert.match(htmlSource, /id="admin-layer-phenomenon"/);
+  assert.match(htmlSource, /id="admin-layer-page-size"/);
+  assert.match(layersApiSource, /function listAdminLayerTableRequest/);
+  assert.match(layersApiSource, /\/layers\/admin/);
+  assert.match(layersApiSource, /URLSearchParams/);
+  assert.match(mapSource, /listAdminLayerTableRequest/);
+  assert.match(mapSource, /state\.session\.role !== "admin"/);
+  assert.match(mapSource, /adminLayerTableSection\.hidden = !isAdmin/);
+  assert.match(mapSource, /loadAdminLayerTable/);
+  assert.match(mapSource, /renderAdminLayerTable/);
+  assert.match(mapSource, /renderAdminLayerDetails/);
+  assert.match(cssSource, /\.user-admin-section-heading[\s\S]*grid-column: 1 \/ -1/);
+  assert.match(cssSource, /#user-admin-modal\s*\{[\s\S]*width: min\(94vw, 1520px\)/);
+  assert.match(cssSource, /\.modal-card--admin-panel\s*\{[\s\S]*height: min\(90vh, 980px\)/);
+});
+
+test("panel administrativo de usuarios usa seleccion maestro-detalle compacta", () => {
+  const listSource = extractFunctionSource(mapSource, "renderManagedUserList");
+  const rowSource = extractFunctionSource(mapSource, "renderManagedUserRow");
+  const detailSource = extractFunctionSource(mapSource, "renderManagedUserDetails");
+  const busySource = extractFunctionSource(mapSource, "setManagedUserActionsBusy");
+
+  assert.match(htmlSource, /class="[^"]*\buser-create-panel\b[^"]*"/);
+  assert.match(htmlSource, /class="user-create-grid"/);
+  assert.match(htmlSource, /class="user-management-layout"/);
+  assert.match(htmlSource, /id="user-detail-panel"/);
+  assert.match(htmlSource, /Selecciona un usuario para consultar sus datos y acciones\./);
+  assert.doesNotMatch(htmlSource, /class="user-card"/);
+
+  assert.match(listSource, /managedUsers\.map\(renderManagedUserRow\)\.join\(""\)/);
+  assert.match(listSource, /state\.adminUsers\.selectedId = button\.dataset\.selectUser/);
+  assert.match(rowSource, /aria-selected="\$\{isSelected \? "true" : "false"\}"/);
+  assert.match(rowSource, /data-select-user="\$\{escapeHtml\(user\.id\)\}"/);
+  assert.match(rowSource, /aria-controls="user-detail-panel"/);
+  assert.match(rowSource, /class="technical-value"/);
+  assert.match(detailSource, /user-detail-actions/);
+  assert.match(detailSource, /data-toggle-user-status/);
+  assert.match(detailSource, /data-toggle-user-role/);
+  assert.match(detailSource, /data-reset-user-password/);
+  assert.match(busySource, /state\.adminUsers\.actionPending = isBusy/);
+  assert.match(busySource, /\.user-detail-actions button/);
+
+  assert.match(cssSource, /\.user-management-layout \{[\s\S]*?grid-template-columns: minmax\(0, 1\.6fr\) minmax\(320px, 0\.9fr\);/);
+  assert.match(cssSource, /\.user-admin-table \{[\s\S]*?min-width: 680px;/);
+  assert.match(cssSource, /\.user-admin-table th \{[\s\S]*?position: sticky;/);
+  assert.match(cssSource, /\.user-row-select strong,[\s\S]*?\.user-row-select span \{[\s\S]*?overflow: hidden;[\s\S]*?text-overflow: ellipsis;[\s\S]*?word-break: normal;[\s\S]*?hyphens: none;/);
+  assert.match(cssSource, /\.user-detail-grid \{[\s\S]*?grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
+  assert.match(cssSource, /\.user-detail-actions \{[\s\S]*?display: grid;/);
+  assert.match(cssSource, /@media \(max-width: 760px\)[\s\S]*\.user-create-grid,[\s\S]*?\.user-management-layout,[\s\S]*?\.user-detail-grid \{[\s\S]*?grid-template-columns: 1fr;/);
+  assert.doesNotMatch(cssSource, /\.user-card/);
+});
+
+test("panel administrativo evita cortes a media palabra salvo valores tecnicos", () => {
+  const layerRowSource = extractFunctionSource(mapSource, "renderAdminLayerTableRow");
+  const layerDetailSource = extractFunctionSource(mapSource, "renderAdminLayerDetails");
+  const userDetailSource = extractFunctionSource(mapSource, "renderManagedUserDetails");
+
+  assert.match(cssSource, /body \{[\s\S]*?overflow-wrap: normal;[\s\S]*?word-break: normal;[\s\S]*?hyphens: none;/);
+  assert.match(cssSource, /\.technical-value \{[\s\S]*?overflow-wrap: anywhere;[\s\S]*?word-break: normal;[\s\S]*?hyphens: none;/);
+  assert.match(cssSource, /\.admin-layer-table td > strong,[\s\S]*?\.admin-layer-table td > span \{[\s\S]*?overflow-wrap: break-word;[\s\S]*?word-break: normal;[\s\S]*?hyphens: none;/);
+  assert.match(cssSource, /\.admin-layer-detail-grid dd \{[\s\S]*?overflow-wrap: break-word;[\s\S]*?word-break: normal;[\s\S]*?hyphens: none;/);
+  assert.match(cssSource, /\.admin-layer-table \.technical-value,[\s\S]*?\.admin-layer-detail-grid \.technical-value \{[\s\S]*?overflow-wrap: anywhere;/);
+  assert.doesNotMatch(cssSource, /word-break:\s*break-all/);
+  assert.doesNotMatch(cssSource, /word-break:\s*break-word/);
+
+  assert.match(layerRowSource, /class="technical-value"/);
+  assert.match(layerDetailSource, /\["Correo", owner\.email \|\| "Sin correo", "technical"\]/);
+  assert.match(layerDetailSource, /\["Geometría", layer\.geometryType \|\| "Sin geometría", "technical"\]/);
+  assert.match(layerDetailSource, /\["CRS", layer\.crs \|\| "No especificado", "technical"\]/);
+  assert.match(layerDetailSource, /\["Archivos", fileNames, "technical"\]/);
+  assert.match(userDetailSource, /\["Correo", user\.email \|\| "Sin correo", "technical"\]/);
+});
+
+test("tabla administrativa pagina, filtra, escapa datos y muestra fechas de Morelos", () => {
+  const renderRowSource = extractFunctionSource(mapSource, "renderAdminLayerTableRow");
+  const detailSource = extractFunctionSource(mapSource, "showAdminLayerTableDetails");
+  const modalDetailSource = extractFunctionSource(mapSource, "renderAdminLayerDetails");
+  const dateSource = extractFunctionSource(mapSource, "formatAdminLayerDate");
+
+  assert.match(mapSource, /adminLayerSearch\?\.addEventListener\("input"/);
+  assert.match(mapSource, /adminLayerStatus\?\.addEventListener\("change"/);
+  assert.match(mapSource, /adminLayerProcessing\?\.addEventListener\("change"/);
+  assert.match(mapSource, /adminLayerPhenomenon\?\.addEventListener\("input"/);
+  assert.match(mapSource, /adminLayerPrev\?\.addEventListener\("click"/);
+  assert.match(mapSource, /adminLayerNext\?\.addEventListener\("click"/);
+  assert.match(renderRowSource, /escapeHtml\(title\)/);
+  assert.match(renderRowSource, /title="\$\{escapeHtml\(title\)\}"/);
+  assert.match(renderRowSource, /is-selected/);
+  assert.match(renderRowSource, /ownerEmail = owner\.email \|\| "Sin correo"/);
+  assert.match(renderRowSource, /escapeHtml\(ownerEmail\)/);
+  assert.match(renderRowSource, /data-admin-layer-details/);
+  assert.match(renderRowSource, /aria-label="Ver detalles de/);
+  assert.match(detailSource, /updateInfoPanel/);
+  assert.match(detailSource, /state\.adminLayerTable\.selectedId = layerId/);
+  assert.match(modalDetailSource, /admin-layer-detail-grid/);
+  assert.match(modalDetailSource, /Correo/);
+  assert.match(modalDetailSource, /Archivos/);
+  assert.match(detailSource, /Archivos:/);
+  assert.match(dateSource, /America\/Mexico_City/);
+  assert.match(cssSource, /\.admin-layer-table-wrap[\s\S]*overflow-x: auto/);
+  assert.match(cssSource, /\.admin-layer-table[\s\S]*min-width: 1120px/);
+  assert.match(cssSource, /\.admin-layer-table th[\s\S]*position: sticky/);
+  assert.match(cssSource, /\.admin-layer-detail-grid[\s\S]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/);
+  assert.match(cssSource, /@media \(max-width: 1400px\)[\s\S]*\.admin-layer-detail-grid[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.match(cssSource, /@media \(max-width: 760px\)[\s\S]*\.admin-layer-detail-grid[\s\S]*grid-template-columns: 1fr/);
+});
+
+test("panel administrativo usa colores contrastantes y controles legibles", () => {
+  assert.match(cssSource, /--ink-strong: #24161a/);
+  assert.match(cssSource, /--muted-strong: #4f4246/);
+  assert.match(cssSource, /\.modal-card--admin-panel \.form-field span[\s\S]*font-size: 0\.84rem/);
+  assert.match(cssSource, /\.modal-card--admin-panel \.form-field input,[\s\S]*font-size: 0\.94rem/);
+  assert.match(cssSource, /\.admin-layer-table th[\s\S]*font-size: 0\.82rem/);
+  assert.match(cssSource, /\.admin-layer-table \.badge--published[\s\S]*color: #15552d[\s\S]*background: #dff1e5/);
+  assert.match(cssSource, /\.admin-layer-table \.badge--pending[\s\S]*color: #684410[\s\S]*background: #fff1c2/);
+  assert.match(cssSource, /\.admin-layer-table \.badge--danger[\s\S]*color: #7a1028[\s\S]*background: #f9d8dd/);
+  assert.match(cssSource, /\.admin-layer-table \.badge--deleted[\s\S]*color: #2f3437[\s\S]*background: #e2e6e8/);
+  assert.match(mapSource, /status === "deleted" \|\| status === "unpublished"/);
+
+  assert.ok(contrastRatio(hexToRgb("#24161a"), hexToRgb("#fffdf9")) >= 4.5);
+  assert.ok(contrastRatio(hexToRgb("#4f4246"), hexToRgb("#fffdf9")) >= 4.5);
+  assert.ok(contrastRatio(hexToRgb("#15552d"), hexToRgb("#dff1e5")) >= 4.5);
+  assert.ok(contrastRatio(hexToRgb("#684410"), hexToRgb("#fff1c2")) >= 4.5);
+  assert.ok(contrastRatio(hexToRgb("#7a1028"), hexToRgb("#f9d8dd")) >= 4.5);
+  assert.ok(contrastRatio(hexToRgb("#2f3437"), hexToRgb("#e2e6e8")) >= 4.5);
 });

@@ -10,6 +10,7 @@ import {
 import {
   approveLayerRequest,
   deleteLayerRequest,
+  listAdminLayerTableRequest,
   listAdminLayersRequest,
   listMyLayersRequest,
   listPendingLayersRequest,
@@ -386,6 +387,31 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       municipiosLabels: null,
     },
     users: [],
+    adminUsers: {
+      selectedId: null,
+      actionPending: false,
+    },
+    adminLayerTable: {
+      items: [],
+      loading: false,
+      error: null,
+      pagination: {
+        page: 1,
+        pageSize: 20,
+        totalItems: 0,
+        totalPages: 1,
+        hasPreviousPage: false,
+        hasNextPage: false,
+      },
+      filters: {
+        search: "",
+        status: "",
+        processingStatus: "",
+        phenomenon: "",
+      },
+      selectedId: null,
+      searchTimer: null,
+    },
     userLayers: loadUserLayers(),
     renderedLayers: new Map(),
     pendingOpacityFrames: new Map(),
@@ -583,7 +609,21 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     newUserMunicipality: document.getElementById("new-user-municipality"),
     userAdminFeedback: document.getElementById("user-admin-feedback"),
     userAdminList: document.getElementById("user-admin-list"),
-    reopenSidebar: document.getElementById("reopen-sidebar"),
+    userDetailPanel: document.getElementById("user-detail-panel"),
+    adminLayerTableSection: document.getElementById("admin-layer-table-section"),
+    adminLayerRefresh: document.getElementById("admin-layer-refresh"),
+    adminLayerSearch: document.getElementById("admin-layer-search"),
+    adminLayerStatus: document.getElementById("admin-layer-status"),
+    adminLayerProcessing: document.getElementById("admin-layer-processing"),
+    adminLayerPhenomenon: document.getElementById("admin-layer-phenomenon"),
+    adminLayerPageSize: document.getElementById("admin-layer-page-size"),
+      adminLayerFeedback: document.getElementById("admin-layer-feedback"),
+      adminLayerTableBody: document.getElementById("admin-layer-table-body"),
+      adminLayerPageSummary: document.getElementById("admin-layer-page-summary"),
+      adminLayerPrev: document.getElementById("admin-layer-prev"),
+      adminLayerNext: document.getElementById("admin-layer-next"),
+      adminLayerDetails: document.getElementById("admin-layer-details"),
+      reopenSidebar: document.getElementById("reopen-sidebar"),
     collapseMobilePanel: document.getElementById("collapse-mobile-panel"),
     panelQuicknav: document.getElementById("panel-quicknav"),
     toggleTopbar: document.getElementById("toggle-topbar"),
@@ -901,6 +941,53 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     });
 
     elements.newUserRole.addEventListener("change", syncUserRoleForm);
+    elements.adminLayerRefresh?.addEventListener("click", () => loadAdminLayerTable());
+    elements.adminLayerSearch?.addEventListener("input", () => {
+      window.clearTimeout(state.adminLayerTable.searchTimer);
+      state.adminLayerTable.searchTimer = window.setTimeout(() => {
+        state.adminLayerTable.filters.search = elements.adminLayerSearch.value.trim();
+        state.adminLayerTable.pagination.page = 1;
+        loadAdminLayerTable();
+      }, 250);
+    });
+    elements.adminLayerStatus?.addEventListener("change", () => {
+      state.adminLayerTable.filters.status = elements.adminLayerStatus.value;
+      state.adminLayerTable.pagination.page = 1;
+      loadAdminLayerTable();
+    });
+    elements.adminLayerProcessing?.addEventListener("change", () => {
+      state.adminLayerTable.filters.processingStatus = elements.adminLayerProcessing.value;
+      state.adminLayerTable.pagination.page = 1;
+      loadAdminLayerTable();
+    });
+    elements.adminLayerPhenomenon?.addEventListener("input", () => {
+      window.clearTimeout(state.adminLayerTable.searchTimer);
+      state.adminLayerTable.searchTimer = window.setTimeout(() => {
+        state.adminLayerTable.filters.phenomenon = elements.adminLayerPhenomenon.value.trim();
+        state.adminLayerTable.pagination.page = 1;
+        loadAdminLayerTable();
+      }, 250);
+    });
+    elements.adminLayerPageSize?.addEventListener("change", () => {
+      state.adminLayerTable.pagination.pageSize = Number(elements.adminLayerPageSize.value) || 20;
+      state.adminLayerTable.pagination.page = 1;
+      loadAdminLayerTable();
+    });
+    elements.adminLayerPrev?.addEventListener("click", () => {
+      if (!state.adminLayerTable.pagination.hasPreviousPage) return;
+      state.adminLayerTable.pagination.page -= 1;
+      loadAdminLayerTable();
+    });
+    elements.adminLayerNext?.addEventListener("click", () => {
+      if (!state.adminLayerTable.pagination.hasNextPage) return;
+      state.adminLayerTable.pagination.page += 1;
+      loadAdminLayerTable();
+    });
+    elements.adminLayerTableBody?.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-admin-layer-details]");
+      if (!button) return;
+      showAdminLayerTableDetails(button.dataset.adminLayerDetails);
+    });
 
     elements.layerSearch.addEventListener("input", () => {
       renderLayerCatalog(elements.layerSearch.value.trim().toLowerCase());
@@ -7387,44 +7474,412 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       state.backendStatus.lastError = null;
     }
 
-    const managedUsers = state.users.filter((user) => {
+    renderManagedUserList();
+
+    syncAdminLayerTableControls();
+    await loadAdminLayerTable({ silent: true });
+    syncUserRoleForm();
+  }
+
+  function getManagedAdminUsers() {
+    return state.users.filter((user) => {
       const mappedRole = mapBackendRole(user.role || user.backendRole);
       return mappedRole === "director" || mappedRole === "visitante";
     });
+  }
+
+  function renderManagedUserList() {
+    if (!elements.userAdminList) return;
+    const managedUsers = getManagedAdminUsers();
+    if (!managedUsers.some((user) => user.id === state.adminUsers.selectedId)) {
+      state.adminUsers.selectedId = null;
+    }
+
     elements.userAdminList.innerHTML = managedUsers.length
-      ? managedUsers
-          .map((user) => `
-            <article class="user-card">
-              <strong>${escapeHtml(user.name)}</strong>
-              <span>${escapeHtml(user.email)}</span>
-              <span>Rol: ${escapeHtml(roleLabels[mapBackendRole(user.role || user.backendRole)] || user.role || user.backendRole)}</span>
-              <span>Municipio: ${escapeHtml(user.municipality || "General")}</span>
-              <span>Estado: ${user.isActive === false ? "Inactivo" : "Activo"}</span>
-              <div class="user-card__actions">
-                <button class="ghost-button" type="button" data-toggle-user-status="${user.id}">
-                  ${user.isActive === false ? "Activar" : "Desactivar"}
-                </button>
-                <button class="ghost-button" type="button" data-toggle-user-role="${user.id}">
-                  Cambiar a ${mapBackendRole(user.role || user.backendRole) === "director" ? "Visitante" : "Alimentador"}
-                </button>
-                <button class="ghost-button" type="button" data-reset-user-password="${user.id}">Restablecer contraseña</button>
-              </div>
-            </article>
-          `)
-          .join("")
+      ? `
+        <div class="user-table-wrap">
+          <table class="user-admin-table">
+            <thead>
+              <tr>
+                <th scope="col">Nombre</th>
+                <th scope="col">Correo</th>
+                <th scope="col">Rol</th>
+                <th scope="col">Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${managedUsers.map(renderManagedUserRow).join("")}
+            </tbody>
+          </table>
+        </div>
+      `
       : '<div class="empty-state">Aún no hay usuarios creados desde el panel de administración.</div>';
 
-    elements.userAdminList.querySelectorAll("[data-reset-user-password]").forEach((button) => {
-      button.addEventListener("click", () => resetManagedUserPassword(button.dataset.resetUserPassword));
-    });
-    elements.userAdminList.querySelectorAll("[data-toggle-user-status]").forEach((button) => {
-      button.addEventListener("click", () => toggleManagedUserStatus(button.dataset.toggleUserStatus));
-    });
-    elements.userAdminList.querySelectorAll("[data-toggle-user-role]").forEach((button) => {
-      button.addEventListener("click", () => toggleManagedUserRole(button.dataset.toggleUserRole));
+    elements.userAdminList.querySelectorAll("[data-select-user]").forEach((button) => {
+      button.addEventListener("click", () => {
+        state.adminUsers.selectedId = button.dataset.selectUser;
+        renderManagedUserList();
+      });
     });
 
-    syncUserRoleForm();
+    renderManagedUserDetails(managedUsers.find((user) => user.id === state.adminUsers.selectedId) || null);
+  }
+
+  function renderManagedUserRow(user) {
+    const role = mapBackendRole(user.role || user.backendRole);
+    const roleLabel = roleLabels[role] || user.role || user.backendRole || "Sin rol";
+    const statusLabel = user.isActive === false ? "Inactivo" : "Activo";
+    const isSelected = user.id === state.adminUsers.selectedId;
+    return `
+      <tr class="${isSelected ? "is-selected" : ""}" aria-selected="${isSelected ? "true" : "false"}">
+        <td>
+          <button class="user-row-select" type="button" data-select-user="${escapeHtml(user.id)}" aria-controls="user-detail-panel" aria-label="Ver detalle de ${escapeHtml(user.name || user.email || "usuario")}" ${isSelected ? 'aria-current="true"' : ""}>
+            <strong title="${escapeHtml(user.name || "Sin nombre")}">${escapeHtml(user.name || "Sin nombre")}</strong>
+            <span>${escapeHtml(user.municipality || "General")}</span>
+          </button>
+        </td>
+        <td><span class="technical-value" title="${escapeHtml(user.email || "Sin correo")}">${escapeHtml(user.email || "Sin correo")}</span></td>
+        <td><span class="badge ${role === "director" ? "badge--pending" : "badge--published"}">${escapeHtml(roleLabel)}</span></td>
+        <td><span class="badge ${user.isActive === false ? "badge--deleted" : "badge--published"}">${escapeHtml(statusLabel)}</span></td>
+      </tr>
+    `;
+  }
+
+  function renderManagedUserDetails(user) {
+    if (!elements.userDetailPanel) return;
+    if (!user) {
+      elements.userDetailPanel.innerHTML = `
+        <div class="user-detail-panel__empty">
+          <h4>Detalle de usuario</h4>
+          <p>Selecciona un usuario para consultar sus datos y acciones.</p>
+        </div>
+      `;
+      return;
+    }
+
+    const role = mapBackendRole(user.role || user.backendRole);
+    const roleLabel = roleLabels[role] || user.role || user.backendRole || "Sin rol";
+    const statusLabel = user.isActive === false ? "Inactivo" : "Activo";
+    const busy = state.adminUsers.actionPending;
+    const nextStatusAction = user.isActive === false ? "Activar" : "Desactivar";
+    const nextRoleLabel = role === "director" ? "Visitante" : "Alimentador";
+    const detailItems = [
+      ["Nombre", user.name || "Sin nombre", "normal"],
+      ["Correo", user.email || "Sin correo", "technical"],
+      ["Rol", roleLabel, "normal"],
+      ["Estado", statusLabel, "normal"],
+      ["Municipio", user.municipality || "General", "normal"],
+    ];
+
+    elements.userDetailPanel.innerHTML = `
+      <div class="user-detail-panel__header">
+        <div>
+          <h4 title="${escapeHtml(user.name || "Usuario")}">${escapeHtml(user.name || "Usuario")}</h4>
+          <p class="technical-value" title="${escapeHtml(user.email || "Sin correo")}">${escapeHtml(user.email || "Sin correo")}</p>
+        </div>
+        <div class="user-detail-panel__status">
+          <span class="badge ${role === "director" ? "badge--pending" : "badge--published"}">${escapeHtml(roleLabel)}</span>
+          <span class="badge ${user.isActive === false ? "badge--deleted" : "badge--published"}">${escapeHtml(statusLabel)}</span>
+        </div>
+      </div>
+      <dl class="user-detail-grid">
+        ${detailItems.map(([label, value, kind]) => `
+          <div>
+            <dt>${escapeHtml(label)}</dt>
+            <dd class="${kind === "technical" ? "technical-value" : ""}" title="${escapeHtml(value)}">${escapeHtml(value)}</dd>
+          </div>
+        `).join("")}
+      </dl>
+      <div class="user-detail-actions" aria-label="Acciones del usuario seleccionado">
+        <button class="ghost-button" type="button" data-toggle-user-status="${escapeHtml(user.id)}" ${busy ? "disabled" : ""}>${escapeHtml(nextStatusAction)}</button>
+        <button class="ghost-button" type="button" data-toggle-user-role="${escapeHtml(user.id)}" ${busy ? "disabled" : ""}>Cambiar a ${escapeHtml(nextRoleLabel)}</button>
+        <button class="ghost-button" type="button" data-reset-user-password="${escapeHtml(user.id)}" ${busy ? "disabled" : ""}>Restablecer contraseña</button>
+      </div>
+    `;
+
+    elements.userDetailPanel.querySelectorAll("[data-reset-user-password]").forEach((button) => {
+      button.addEventListener("click", () => resetManagedUserPassword(button.dataset.resetUserPassword));
+    });
+    elements.userDetailPanel.querySelectorAll("[data-toggle-user-status]").forEach((button) => {
+      button.addEventListener("click", () => toggleManagedUserStatus(button.dataset.toggleUserStatus));
+    });
+    elements.userDetailPanel.querySelectorAll("[data-toggle-user-role]").forEach((button) => {
+      button.addEventListener("click", () => toggleManagedUserRole(button.dataset.toggleUserRole));
+    });
+  }
+
+  function setManagedUserActionsBusy(isBusy) {
+    state.adminUsers.actionPending = isBusy;
+    elements.userDetailPanel?.querySelectorAll(".user-detail-actions button").forEach((button) => {
+      button.disabled = isBusy;
+    });
+  }
+
+  function syncAdminLayerTableControls() {
+    const isAdmin = state.session.role === "admin";
+    if (elements.adminLayerTableSection) {
+      elements.adminLayerTableSection.hidden = !isAdmin;
+    }
+    if (!isAdmin) return;
+    if (elements.adminLayerSearch) {
+      elements.adminLayerSearch.value = state.adminLayerTable.filters.search;
+    }
+    if (elements.adminLayerStatus) {
+      elements.adminLayerStatus.value = state.adminLayerTable.filters.status;
+    }
+    if (elements.adminLayerProcessing) {
+      elements.adminLayerProcessing.value = state.adminLayerTable.filters.processingStatus;
+    }
+    if (elements.adminLayerPhenomenon) {
+      elements.adminLayerPhenomenon.value = state.adminLayerTable.filters.phenomenon;
+    }
+    if (elements.adminLayerPageSize) {
+      elements.adminLayerPageSize.value = String(state.adminLayerTable.pagination.pageSize);
+    }
+  }
+
+  async function loadAdminLayerTable(options = {}) {
+    if (state.session.role !== "admin" || !state.session.token) {
+      state.adminLayerTable.items = [];
+      state.adminLayerTable.error = null;
+      renderAdminLayerTable();
+      return;
+    }
+    state.adminLayerTable.loading = true;
+    state.adminLayerTable.error = null;
+    renderAdminLayerTable();
+    try {
+      const result = await listAdminLayerTableRequest(state.session.token, {
+        page: state.adminLayerTable.pagination.page,
+        pageSize: state.adminLayerTable.pagination.pageSize,
+        ...state.adminLayerTable.filters,
+      });
+      state.adminLayerTable.items = Array.isArray(result.items) ? result.items : [];
+      if (!state.adminLayerTable.items.some((item) => item.id === state.adminLayerTable.selectedId)) {
+        state.adminLayerTable.selectedId = state.adminLayerTable.items[0]?.id || null;
+      }
+      state.adminLayerTable.pagination = {
+        ...state.adminLayerTable.pagination,
+        ...(result.pagination || {}),
+      };
+      state.adminLayerTable.error = null;
+    } catch (error) {
+      console.error(error);
+      state.adminLayerTable.error =
+        error?.payload?.message || error.message || "No se pudo consultar el inventario de capas.";
+      if (!options.silent && elements.adminLayerFeedback) {
+        elements.adminLayerFeedback.textContent = state.adminLayerTable.error;
+      }
+    } finally {
+      state.adminLayerTable.loading = false;
+      renderAdminLayerTable();
+    }
+  }
+
+  function renderAdminLayerTable() {
+    if (!elements.adminLayerTableBody) return;
+    const tableState = state.adminLayerTable;
+    if (elements.adminLayerFeedback) {
+      elements.adminLayerFeedback.textContent = tableState.error || "";
+    }
+    if (tableState.loading) {
+      elements.adminLayerTableBody.innerHTML = `
+        <tr>
+          <td colspan="8">Consultando capas cargadas...</td>
+        </tr>
+      `;
+    } else if (tableState.error) {
+      elements.adminLayerTableBody.innerHTML = `
+        <tr>
+          <td colspan="8">No se pudo cargar la tabla administrativa.</td>
+        </tr>
+      `;
+    } else if (!tableState.items.length) {
+      elements.adminLayerTableBody.innerHTML = `
+        <tr>
+          <td colspan="8">No hay capas que coincidan con los filtros.</td>
+        </tr>
+      `;
+    } else {
+      elements.adminLayerTableBody.innerHTML = tableState.items.map(renderAdminLayerTableRow).join("");
+    }
+
+    const { page, pageSize, totalItems, totalPages, hasPreviousPage, hasNextPage } = tableState.pagination;
+    if (elements.adminLayerPageSummary) {
+      const start = totalItems ? (page - 1) * pageSize + 1 : 0;
+      const end = Math.min(totalItems, page * pageSize);
+      elements.adminLayerPageSummary.textContent =
+        `${start}-${end} de ${totalItems} capas · página ${page} de ${totalPages || 1}`;
+    }
+    if (elements.adminLayerPrev) {
+      elements.adminLayerPrev.disabled = tableState.loading || !hasPreviousPage;
+    }
+    if (elements.adminLayerNext) {
+      elements.adminLayerNext.disabled = tableState.loading || !hasNextPage;
+    }
+    renderAdminLayerDetails();
+  }
+
+  function renderAdminLayerTableRow(layer) {
+    const owner = layer.submittedBy || {};
+    const title = layer.title || "Capa sin título";
+    const ownerName = owner.name || "Usuario no disponible";
+    const ownerEmail = owner.email || "Sin correo";
+    const dateLabel = formatAdminLayerDate(layer.submittedAt || layer.createdAt);
+    const status = layer.isDeleted ? "deleted" : layer.status;
+    const isSelected = layer.id === state.adminLayerTable.selectedId;
+    return `
+      <tr class="${isSelected ? "is-selected" : ""}">
+        <td class="admin-layer-table__title">
+          <strong title="${escapeHtml(title)}">${escapeHtml(title)}</strong>
+          <span>${escapeHtml(layer.municipality || "Sin municipio")}</span>
+        </td>
+        <td>
+          <strong title="${escapeHtml(ownerName)}">${escapeHtml(ownerName)}</strong>
+          <span class="technical-value" title="${escapeHtml(ownerEmail)}">${escapeHtml(ownerEmail)}</span>
+        </td>
+        <td>${escapeHtml(layer.phenomenon || "Sin clasificar")}</td>
+        <td>
+          <span>${escapeHtml(getAdminLayerTypeLabel(layer.resourceType || layer.sourceType))}</span>
+          <span>${escapeHtml(layer.geometryType || "Sin geometría")}</span>
+        </td>
+        <td><span class="badge ${getStatusBadgeClass(status)}">${escapeHtml(getAdminLayerStatusLabel(status))}</span></td>
+        <td><span class="badge ${getProcessingStatusClass(layer.processingStatus)}">${escapeHtml(getProcessingStatusLabel(layer.processingStatus))}</span></td>
+        <td class="admin-layer-table__date">${escapeHtml(dateLabel)}</td>
+        <td><button class="ghost-button" type="button" data-admin-layer-details="${escapeHtml(layer.id)}" aria-label="Ver detalles de ${escapeHtml(title)}" ${isSelected ? 'aria-current="true"' : ""}>Ver detalles</button></td>
+      </tr>
+    `;
+  }
+
+  function showAdminLayerTableDetails(layerId) {
+    const layer = state.adminLayerTable.items.find((item) => item.id === layerId);
+    if (!layer) return;
+    state.adminLayerTable.selectedId = layerId;
+    renderAdminLayerTable();
+    const owner = layer.submittedBy || {};
+    updateInfoPanel({
+      title: layer.title || "Capa cargada",
+      description: layer.description || "Capa registrada en el inventario administrativo.",
+      extra: [
+        `Responsable: ${owner.name || "Usuario no disponible"}${owner.email ? ` (${owner.email})` : ""}`,
+        `Fenómeno: ${layer.phenomenon || "Sin clasificar"}`,
+        `Estado: ${getAdminLayerStatusLabel(layer.isDeleted ? "deleted" : layer.status)}`,
+        `Procesamiento: ${getProcessingStatusLabel(layer.processingStatus)}`,
+        `Tipo: ${getAdminLayerTypeLabel(layer.resourceType || layer.sourceType)}`,
+        `Geometría: ${layer.geometryType || "Sin geometría"}`,
+        `Objetos: ${formatAdminLayerNumber(layer.featureCount)}`,
+        `CRS: ${layer.crs || "No especificado"}`,
+        `Archivos: ${(layer.files || []).map((file) => file.originalName).join(", ") || "Sin archivos"}`,
+        `Leyenda vectorial: ${formatAdminLayerNumber(layer.symbology?.vectorClassCount)} clase(s)`,
+        `Leyenda raster: ${formatAdminLayerNumber(layer.symbology?.rasterClassCount)} clase(s)`,
+        `Cargada: ${formatAdminLayerDate(layer.submittedAt || layer.createdAt)}`,
+      ],
+    });
+  }
+
+  function renderAdminLayerDetails() {
+    if (!elements.adminLayerDetails) return;
+    const layer = state.adminLayerTable.items.find((item) => item.id === state.adminLayerTable.selectedId);
+    if (state.adminLayerTable.loading) {
+      elements.adminLayerDetails.innerHTML = `
+        <div class="admin-layer-details__empty">
+          <h4>Detalle de capa</h4>
+          <p>Consultando información administrativa...</p>
+        </div>
+      `;
+      return;
+    }
+    if (!layer) {
+      elements.adminLayerDetails.innerHTML = `
+        <div class="admin-layer-details__empty">
+          <h4>Detalle de capa</h4>
+          <p>Selecciona una fila para revisar información completa sin perder la tabla.</p>
+        </div>
+      `;
+      return;
+    }
+
+    const owner = layer.submittedBy || {};
+    const status = layer.isDeleted ? "deleted" : layer.status;
+    const fileNames = (layer.files || []).map((file) => file.originalName).filter(Boolean).join(", ") || "Sin archivos";
+    const detailItems = [
+      ["Título", layer.title || "Capa sin título", "normal"],
+      ["Responsable", owner.name || "Usuario no disponible", "normal"],
+      ["Correo", owner.email || "Sin correo", "technical"],
+      ["Municipio", layer.municipality || "Sin municipio", "normal"],
+      ["Fenómeno", layer.phenomenon || "Sin clasificar", "normal"],
+      ["Tipo", getAdminLayerTypeLabel(layer.resourceType || layer.sourceType), "normal"],
+      ["Geometría", layer.geometryType || "Sin geometría", "technical"],
+      ["Objetos", formatAdminLayerNumber(layer.featureCount), "normal"],
+      ["CRS", layer.crs || "No especificado", "technical"],
+      ["Archivos", fileNames, "technical"],
+      ["Leyenda vectorial", `${formatAdminLayerNumber(layer.symbology?.vectorClassCount)} clase(s)`, "normal"],
+      ["Leyenda raster", `${formatAdminLayerNumber(layer.symbology?.rasterClassCount)} clase(s)`, "normal"],
+      ["Cargada", formatAdminLayerDate(layer.submittedAt || layer.createdAt), "normal"],
+    ];
+
+    elements.adminLayerDetails.innerHTML = `
+      <div class="admin-layer-details__header">
+        <div>
+          <h4 title="${escapeHtml(layer.title || "Capa cargada")}">${escapeHtml(layer.title || "Capa cargada")}</h4>
+          <p>${escapeHtml(layer.description || "Capa registrada en el inventario administrativo.")}</p>
+        </div>
+        <div class="admin-layer-details__status">
+          <span class="badge ${getStatusBadgeClass(status)}">${escapeHtml(getAdminLayerStatusLabel(status))}</span>
+          <span class="badge ${getProcessingStatusClass(layer.processingStatus)}">${escapeHtml(getProcessingStatusLabel(layer.processingStatus))}</span>
+        </div>
+      </div>
+      <dl class="admin-layer-detail-grid">
+        ${detailItems.map(([label, value, kind]) => `
+          <div>
+            <dt>${escapeHtml(label)}</dt>
+            <dd class="${kind === "technical" ? "technical-value" : ""}" title="${escapeHtml(value)}">${escapeHtml(value)}</dd>
+          </div>
+        `).join("")}
+      </dl>
+    `;
+  }
+
+  function getAdminLayerStatusLabel(status) {
+    if (status === "deleted") return "Eliminada";
+    return getStatusLabel(status);
+  }
+
+  function getAdminLayerTypeLabel(value) {
+    const normalized = String(value || "").toLowerCase();
+    const labels = {
+      "ground-overlay": "GroundOverlay raster",
+      raster: "Raster",
+      mixed: "Mixta",
+      vector: "Vectorial",
+      geojson: "GeoJSON",
+      kml: "KML",
+      kmz: "KMZ",
+      shp: "Shapefile",
+    };
+    return labels[normalized] || value || "No especificado";
+  }
+
+  function formatAdminLayerDate(value) {
+    if (!value) return "Sin fecha";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "Sin fecha";
+    return new Intl.DateTimeFormat("es-MX", {
+      timeZone: "America/Mexico_City",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(date);
+  }
+
+  function formatAdminLayerNumber(value) {
+    if (value === null || value === undefined || value === "") return "0";
+    const number = Number(value);
+    if (!Number.isFinite(number)) return String(value);
+    return new Intl.NumberFormat("es-MX").format(number);
   }
 
   function syncUserRoleForm() {
@@ -7543,6 +7998,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     }
 
     try {
+      setManagedUserActionsBusy(true);
       if (state.session.token) {
         await resetPasswordRequest(state.session.token, userId, nextPassword.trim());
       } else {
@@ -7562,6 +8018,9 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       console.error(error);
       elements.userAdminFeedback.textContent =
         error?.payload?.message || error.message || "No se pudo restablecer la contraseña del usuario.";
+    } finally {
+      setManagedUserActionsBusy(false);
+      renderManagedUserList();
     }
   }
 
@@ -7576,6 +8035,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     const nextStatus = user.isActive === false;
 
     try {
+      setManagedUserActionsBusy(true);
       if (state.session.token) {
         await setUserStatusRequest(state.session.token, userId, nextStatus);
       } else {
@@ -7593,6 +8053,9 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       console.error(error);
       elements.userAdminFeedback.textContent =
         error?.payload?.message || error.message || "No se pudo actualizar el estado del usuario.";
+    } finally {
+      setManagedUserActionsBusy(false);
+      renderManagedUserList();
     }
   }
 
@@ -7608,6 +8071,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     const nextRoleCode = currentRole === "director" ? "PUBLIC_USER" : "DATA_PROVIDER";
 
     try {
+      setManagedUserActionsBusy(true);
       if (state.session.token) {
         await setUserRoleRequest(state.session.token, userId, nextRoleCode);
       } else {
@@ -7629,6 +8093,9 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       console.error(error);
       elements.userAdminFeedback.textContent =
         error?.payload?.message || error.message || "No se pudo cambiar el rol del usuario.";
+    } finally {
+      setManagedUserActionsBusy(false);
+      renderManagedUserList();
     }
   }
 
@@ -8840,6 +9307,7 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
     if (status === "pending_review" || status === "pending") return "badge--pending";
     if (status === "approved") return "badge--published";
     if (status === "rejected") return "badge--danger";
+    if (status === "deleted" || status === "unpublished") return "badge--deleted";
     return "";
   }
 
@@ -8869,6 +9337,13 @@ import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
       failed: "Con error",
     };
     return labels[status] || "Con error";
+  }
+
+  function getProcessingStatusClass(status) {
+    if (status === "processed") return "badge--published";
+    if (status === "pending") return "badge--pending";
+    if (status === "failed") return "badge--danger";
+    return "badge--danger";
   }
 
   function canTogglePublish(layer) {

@@ -39,6 +39,29 @@ export async function listAdminLayersRequest(token) {
   return payload?.data ?? [];
 }
 
+export async function listAdminLayerTableRequest(token, params = {}) {
+  const query = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    const normalized = String(value ?? "").trim();
+    if (normalized) {
+      query.set(key, normalized);
+    }
+  });
+  const suffix = query.toString();
+  const url = `/layers/admin${suffix ? `?${suffix}` : ""}`;
+  const payload = await request(url, {
+    token,
+    cacheTtlMs: 5000,
+    cacheKey: `GET:${url}`,
+  });
+
+  return payload?.data ?? {
+    items: [],
+    pagination: { page: 1, pageSize: 20, totalItems: 0, totalPages: 1 },
+    filters: {},
+  };
+}
+
 export async function listMyLayersRequest(token) {
   const payload = await request("/layers/mine", {
     token,

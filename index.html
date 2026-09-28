@@ -93,7 +93,7 @@
         <p class="topbar-menu-group-label">Ayuda e información</p>
         <button class="menu-action" id="open-help" type="button" role="menuitem">Guía rápida</button>
         <p class="topbar-menu-group-label">Administración y sesión</p>
-        <button class="menu-action hidden" id="open-user-admin" type="button" role="menuitem">Usuarios</button>
+        <button class="menu-action hidden" id="open-user-admin" type="button" role="menuitem">Administración</button>
         <button class="menu-action hidden" id="logout-session" type="button" role="menuitem">Cerrar sesión</button>
         <button class="menu-action" id="open-login" type="button" role="menuitem">Acceso</button>
       </div>
@@ -648,98 +648,110 @@
   </dialog>
 
   <dialog class="modal" id="user-admin-modal">
-    <form class="modal-card modal-card--wide" id="user-admin-form" method="dialog">
+    <form class="modal-card modal-card--wide modal-card--admin-panel" id="user-admin-form" method="dialog">
       <div class="modal-header">
         <div>
           <p class="section-kicker">Administración</p>
-          <h2>Gestión de usuarios</h2>
+          <h2>Panel administrativo</h2>
         </div>
         <button class="icon-button" id="close-user-admin" type="button" aria-label="Cerrar">x</button>
       </div>
 
-      <p class="modal-copy">
-        Solo la cuenta administradora puede crear usuarios de tipo alimentador o visitante.
+      <p class="modal-copy admin-panel-intro">
+        Solo la cuenta administradora puede crear usuarios de tipo alimentador o visitante y revisar el inventario cargado.
       </p>
 
+      <nav class="admin-panel-nav" aria-label="Secciones administrativas">
+        <a href="#admin-users-heading">Usuarios</a>
+        <a href="#admin-layer-table-section">Capas cargadas</a>
+      </nav>
+
       <div class="user-admin-grid">
-        <section class="user-admin-block">
+        <section class="user-admin-block user-admin-section-heading" aria-labelledby="admin-users-heading">
+          <h3 id="admin-users-heading">Usuarios</h3>
+          <p>Gestión de cuentas y permisos de acceso al visualizador.</p>
+        </section>
+
+        <section class="user-admin-block user-create-panel">
           <h3>Crear cuenta</h3>
 
-          <label class="form-field">
-            <span>Nombre</span>
-            <input id="new-user-name" type="text" placeholder="Nombre del responsable" required />
-          </label>
+          <div class="user-create-grid">
+            <label class="form-field">
+              <span>Nombre</span>
+              <input id="new-user-name" type="text" placeholder="Nombre del responsable" required />
+            </label>
 
-          <label class="form-field">
-            <span>Correo</span>
-            <input id="new-user-email" type="email" placeholder="usuario@egem.morelos" required />
-          </label>
+            <label class="form-field">
+              <span>Correo</span>
+              <input id="new-user-email" type="email" placeholder="usuario@egem.morelos" required />
+            </label>
 
-          <label class="form-field">
-            <span>Contraseña temporal</span>
-            <div class="password-input-wrap">
-              <input id="new-user-password" type="password" placeholder="Temporal123!" required />
-              <button class="password-toggle" id="toggle-new-user-password" type="button" aria-label="Mostrar contraseña" aria-pressed="false">
-                <span class="password-toggle__icon password-toggle__icon--hidden" aria-hidden="true">
-                  <svg viewBox="0 0 24 24"><path d="M12 5c-5.05 0-9.27 3.11-11 7 1.73 3.89 5.95 7 11 7s9.27-3.11 11-7c-1.73-3.89-5.95-7-11-7zm0 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm0-6.4A2.4 2.4 0 1 0 14.4 12 2.4 2.4 0 0 0 12 9.6z"/></svg>
-                </span>
-                <span class="password-toggle__icon password-toggle__icon--visible" aria-hidden="true">
-                  <svg viewBox="0 0 24 24"><path d="M2.39 1.73 1.11 3l3.05 3.05A12.86 12.86 0 0 0 1 12c1.73 3.89 5.95 7 11 7 1.93 0 3.75-.45 5.36-1.24L21 21.39 22.27 20 2.39 1.73zM12 17c-3.64 0-6.74-2.12-8.23-5 1.02-1.98 2.64-3.56 4.6-4.41l1.68 1.68A4 4 0 0 0 14.73 14l1.86 1.86A8.8 8.8 0 0 1 12 17zm-.61-9.84L15.84 11.6c.1-.33.16-.68.16-1.04a4 4 0 0 0-4-4c-.36 0-.71.06-1.04.16zM12 7c3.64 0 6.74 2.12 8.23 5a9.98 9.98 0 0 1-2.84 3.47l-1.46-1.46A5.94 5.94 0 0 0 16 12a4 4 0 0 0-4-4c-.7 0-1.35.18-1.92.5L8.71 7.13A8.83 8.83 0 0 1 12 7z"/></svg>
-                </span>
-              </button>
-            </div>
-          </label>
+            <label class="form-field">
+              <span>Contraseña temporal</span>
+              <div class="password-input-wrap">
+                <input id="new-user-password" type="password" placeholder="Temporal123!" required />
+                <button class="password-toggle" id="toggle-new-user-password" type="button" aria-label="Mostrar contraseña" aria-pressed="false">
+                  <span class="password-toggle__icon password-toggle__icon--hidden" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><path d="M12 5c-5.05 0-9.27 3.11-11 7 1.73 3.89 5.95 7 11 7s9.27-3.11 11-7c-1.73-3.89-5.95-7-11-7zm0 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm0-6.4A2.4 2.4 0 1 0 14.4 12 2.4 2.4 0 0 0 12 9.6z"/></svg>
+                  </span>
+                  <span class="password-toggle__icon password-toggle__icon--visible" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><path d="M2.39 1.73 1.11 3l3.05 3.05A12.86 12.86 0 0 0 1 12c1.73 3.89 5.95 7 11 7 1.93 0 3.75-.45 5.36-1.24L21 21.39 22.27 20 2.39 1.73zM12 17c-3.64 0-6.74-2.12-8.23-5 1.02-1.98 2.64-3.56 4.6-4.41l1.68 1.68A4 4 0 0 0 14.73 14l1.86 1.86A8.8 8.8 0 0 1 12 17zm-.61-9.84L15.84 11.6c.1-.33.16-.68.16-1.04a4 4 0 0 0-4-4c-.36 0-.71.06-1.04.16zM12 7c3.64 0 6.74 2.12 8.23 5a9.98 9.98 0 0 1-2.84 3.47l-1.46-1.46A5.94 5.94 0 0 0 16 12a4 4 0 0 0-4-4c-.7 0-1.35.18-1.92.5L8.71 7.13A8.83 8.83 0 0 1 12 7z"/></svg>
+                  </span>
+                </button>
+              </div>
+            </label>
 
-          <label class="form-field">
-            <span>Rol</span>
-            <select id="new-user-role" required>
-              <option value="director">Alimentador</option>
-              <option value="visitante">Visitante</option>
-            </select>
-          </label>
+            <label class="form-field">
+              <span>Rol</span>
+              <select id="new-user-role" required>
+                <option value="director">Alimentador</option>
+                <option value="visitante">Visitante</option>
+              </select>
+            </label>
 
-          <label class="form-field" id="new-user-municipality-field">
-            <span>Municipio</span>
-            <select id="new-user-municipality" required>
-              <option value="">Selecciona un municipio</option>
-              <option value="Amacuzac">Amacuzac</option>
-              <option value="Atlatlahucan">Atlatlahucan</option>
-              <option value="Axochiapan">Axochiapan</option>
-              <option value="Ayala">Ayala</option>
-              <option value="Coatetelco">Coatetelco</option>
-              <option value="Coatlán del Río">Coatlán del Río</option>
-              <option value="Cuautla">Cuautla</option>
-              <option value="Cuernavaca">Cuernavaca</option>
-              <option value="Emiliano Zapata">Emiliano Zapata</option>
-              <option value="Hueyapan">Hueyapan</option>
-              <option value="Huitzilac">Huitzilac</option>
-              <option value="Jantetelco">Jantetelco</option>
-              <option value="Jiutepec">Jiutepec</option>
-              <option value="Jojutla">Jojutla</option>
-              <option value="Jonacatepec de Leandro Valle">Jonacatepec de Leandro Valle</option>
-              <option value="Mazatepec">Mazatepec</option>
-              <option value="Miacatlán">Miacatlán</option>
-              <option value="Ocuituco">Ocuituco</option>
-              <option value="Puente de Ixtla">Puente de Ixtla</option>
-              <option value="Temixco">Temixco</option>
-              <option value="Temoac">Temoac</option>
-              <option value="Tepalcingo">Tepalcingo</option>
-              <option value="Tepoztlán">Tepoztlán</option>
-              <option value="Tetecala">Tetecala</option>
-              <option value="Tetela del Volcán">Tetela del Volcán</option>
-              <option value="Tlalnepantla">Tlalnepantla</option>
-              <option value="Tlaltizapán de Zapata">Tlaltizapán de Zapata</option>
-              <option value="Tlaquiltenango">Tlaquiltenango</option>
-              <option value="Tlayacapan">Tlayacapan</option>
-              <option value="Totolapan">Totolapan</option>
-              <option value="Xochitepec">Xochitepec</option>
-              <option value="Xoxocotla">Xoxocotla</option>
-              <option value="Yautepec">Yautepec</option>
-              <option value="Yecapixtla">Yecapixtla</option>
-              <option value="Zacatepec">Zacatepec</option>
-              <option value="Zacualpan de Amilpas">Zacualpan de Amilpas</option>
-            </select>
-          </label>
+            <label class="form-field" id="new-user-municipality-field">
+              <span>Municipio</span>
+              <select id="new-user-municipality" required>
+                <option value="">Selecciona un municipio</option>
+                <option value="Amacuzac">Amacuzac</option>
+                <option value="Atlatlahucan">Atlatlahucan</option>
+                <option value="Axochiapan">Axochiapan</option>
+                <option value="Ayala">Ayala</option>
+                <option value="Coatetelco">Coatetelco</option>
+                <option value="Coatlán del Río">Coatlán del Río</option>
+                <option value="Cuautla">Cuautla</option>
+                <option value="Cuernavaca">Cuernavaca</option>
+                <option value="Emiliano Zapata">Emiliano Zapata</option>
+                <option value="Hueyapan">Hueyapan</option>
+                <option value="Huitzilac">Huitzilac</option>
+                <option value="Jantetelco">Jantetelco</option>
+                <option value="Jiutepec">Jiutepec</option>
+                <option value="Jojutla">Jojutla</option>
+                <option value="Jonacatepec de Leandro Valle">Jonacatepec de Leandro Valle</option>
+                <option value="Mazatepec">Mazatepec</option>
+                <option value="Miacatlán">Miacatlán</option>
+                <option value="Ocuituco">Ocuituco</option>
+                <option value="Puente de Ixtla">Puente de Ixtla</option>
+                <option value="Temixco">Temixco</option>
+                <option value="Temoac">Temoac</option>
+                <option value="Tepalcingo">Tepalcingo</option>
+                <option value="Tepoztlán">Tepoztlán</option>
+                <option value="Tetecala">Tetecala</option>
+                <option value="Tetela del Volcán">Tetela del Volcán</option>
+                <option value="Tlalnepantla">Tlalnepantla</option>
+                <option value="Tlaltizapán de Zapata">Tlaltizapán de Zapata</option>
+                <option value="Tlaquiltenango">Tlaquiltenango</option>
+                <option value="Tlayacapan">Tlayacapan</option>
+                <option value="Totolapan">Totolapan</option>
+                <option value="Xochitepec">Xochitepec</option>
+                <option value="Xoxocotla">Xoxocotla</option>
+                <option value="Yautepec">Yautepec</option>
+                <option value="Yecapixtla">Yecapixtla</option>
+                <option value="Zacatepec">Zacatepec</option>
+                <option value="Zacualpan de Amilpas">Zacualpan de Amilpas</option>
+              </select>
+            </label>
+          </div>
 
           <p class="form-feedback" id="user-admin-feedback"></p>
 
@@ -748,9 +760,109 @@
           </div>
         </section>
 
-        <section class="user-admin-block">
-          <h3>Usuarios registrados</h3>
-          <div class="user-admin-list" id="user-admin-list"></div>
+        <section class="user-admin-block user-management-panel" aria-labelledby="admin-users-list-heading">
+          <div class="user-management-panel__header">
+            <h3 id="admin-users-list-heading">Usuarios registrados</h3>
+            <p>Selecciona una fila para ver datos completos y acciones disponibles.</p>
+          </div>
+          <div class="user-management-layout">
+            <div class="user-admin-list" id="user-admin-list"></div>
+            <aside class="user-detail-panel" id="user-detail-panel" aria-live="polite">
+              <div class="user-detail-panel__empty">
+                <h4>Detalle de usuario</h4>
+                <p>Selecciona un usuario para consultar sus datos y acciones.</p>
+              </div>
+            </aside>
+          </div>
+        </section>
+
+        <section class="user-admin-block admin-layer-table-section" id="admin-layer-table-section" hidden>
+          <div class="admin-layer-table-section__header">
+            <div>
+              <h3>Capas cargadas</h3>
+              <p>Inventario administrativo con dueño, estado, procesamiento y metadatos de control.</p>
+            </div>
+            <button class="ghost-button" type="button" id="admin-layer-refresh">Actualizar</button>
+          </div>
+
+          <div class="admin-layer-filters" aria-label="Filtros de capas cargadas">
+            <label class="form-field">
+              <span>Buscar</span>
+              <input id="admin-layer-search" type="search" placeholder="Título, correo, municipio..." />
+            </label>
+            <label class="form-field">
+              <span>Estado</span>
+              <select id="admin-layer-status">
+                <option value="">Todos</option>
+                <option value="pending_review">Pendiente</option>
+                <option value="approved">Aprobado</option>
+                <option value="published">Disponible</option>
+                <option value="unpublished">Retirada</option>
+                <option value="rejected">Rechazado</option>
+                <option value="deleted">Eliminada</option>
+              </select>
+            </label>
+            <label class="form-field">
+              <span>Procesamiento</span>
+              <select id="admin-layer-processing">
+                <option value="">Todos</option>
+                <option value="pending">En proceso</option>
+                <option value="processed">Procesada</option>
+                <option value="failed">Con error</option>
+              </select>
+            </label>
+            <label class="form-field">
+              <span>Fenómeno</span>
+              <input id="admin-layer-phenomenon" type="text" placeholder="Geológicos, SE..." />
+            </label>
+            <label class="form-field">
+              <span>Filas</span>
+              <select id="admin-layer-page-size">
+                <option value="10">10</option>
+                <option value="20" selected>20</option>
+                <option value="50">50</option>
+              </select>
+            </label>
+          </div>
+
+          <p class="form-feedback admin-layer-feedback" id="admin-layer-feedback" aria-live="polite"></p>
+
+          <div class="admin-layer-table-wrap">
+            <table class="admin-layer-table">
+              <thead>
+                <tr>
+                  <th scope="col">Capa</th>
+                  <th scope="col">Responsable</th>
+                  <th scope="col">Fenómeno</th>
+                  <th scope="col">Tipo</th>
+                  <th scope="col">Estado</th>
+                  <th scope="col">Procesamiento</th>
+                  <th scope="col">Carga</th>
+                  <th scope="col">Acción</th>
+                </tr>
+              </thead>
+              <tbody id="admin-layer-table-body">
+                <tr>
+                  <td colspan="8">Sin datos cargados.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="admin-layer-pagination">
+            <span id="admin-layer-page-summary">0 capas</span>
+            <div>
+              <button class="ghost-button" type="button" id="admin-layer-prev">Anterior</button>
+              <button class="ghost-button" type="button" id="admin-layer-next">Siguiente</button>
+            </div>
+          </div>
+
+          <aside class="admin-layer-details" id="admin-layer-details" aria-live="polite">
+            <div class="admin-layer-details__empty">
+              <h4>Detalle de capa</h4>
+              <p>Selecciona una fila para revisar información completa sin perder la tabla.</p>
+            </div>
+          </aside>
         </section>
       </div>
     </form>

@@ -11,6 +11,7 @@ import {
   deleteLayerController,
   getLayerGeoJsonController,
   getLayerDetailController,
+  listAdminLayerTableController,
   listLayersController,
   listAdminLayersController,
   listOwnLayersController,
@@ -22,6 +23,7 @@ import {
   uploadLayerController,
 } from "./layers.controller.js";
 import {
+  adminLayerListSchema,
   layerIdSchema,
   publishStateSchema,
   rasterLegendSchema,
@@ -49,6 +51,12 @@ layersRouter.get(
   "/admin/manageable",
   authorizeRoles(ROLE_CODES.ADMIN),
   asyncHandler(listAdminLayersController)
+);
+layersRouter.get(
+  "/admin",
+  authorizeRoles(ROLE_CODES.ADMIN),
+  validate(adminLayerListSchema),
+  asyncHandler(listAdminLayerTableController)
 );
 layersRouter.post(
   "/",
