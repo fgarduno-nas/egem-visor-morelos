@@ -1,4 +1,6 @@
 import { runtimeConfig } from "./app/config/runtime-config.js";
+import { invalidateCache } from "./app/services/http-client.js";
+import { restorableSession, loadPrivateCatalog } from "./app/utils/session-utils.js";
 import { loginRequest } from "./app/services/auth-api.js";
 import {
   createUserRequest,
@@ -72,7 +74,7 @@ import {
   GOES_IR_COLOR_RAMP,
   createGoesIrFrameRenderer,
 } from "./app/weather/cloud-top-enhancement.js";
-import { CloudTopMapLayer } from "./app/weather/cloud-top-layer.js";
+import { CloudTopMapLayer, isExpectedCloudTopCancellation as isExpectedCloudTopImageCancellation } from "./app/weather/cloud-top-layer.js";
 import { installMapExport } from "./app/utils/map-export.js";
 
   const MORELOS_CENTER = [-99.07, 18.84];
@@ -759,6 +761,7 @@ import { installMapExport } from "./app/utils/map-export.js";
   });
 
   map.on("error", (event) => {
+    if (isExpectedCloudTopImageCancellation(event.error)) return;
     if (event?.error?.message?.includes("World_Imagery")) {
       console.warn("Error cargando tiles de Esri World Imagery", event.error);
     }
@@ -9320,7 +9323,9 @@ import { installMapExport } from "./app/utils/map-export.js";
   function loadSession() {
     try {
       const session = JSON.parse(localStorage.getItem(STORAGE_KEYS.session));
-      if (session && session.role) return session;
+      const restored = restorableSession(session);
+      if (restored) return restored;
+      localStorage.removeItem(STORAGE_KEYS.session);
     } catch (error) {
       console.warn("No se pudo leer la sesión almacenada.", error);
     }
@@ -9621,12 +9626,25 @@ import { installMapExport } from "./app/utils/map-export.js";
       console.info("Capas públicas obtenidas:", publicLayers);
       const records = [...publicLayers];
 
-      if (state.session.role === "admin" && state.session.token) {
-        const manageableLayers = await listAdminLayersRequest(state.session.token);
-        mergeRecords(records, manageableLayers);
-      } else if (state.session.role === "director" && state.session.token) {
-        const ownLayers = await listMyLayersRequest(state.session.token);
-        mergeRecords(records, ownLayers);
+      try {
+        const privateLayers = await loadPrivateCatalog(state.session, {
+          currentSession: () => state.session,
+          listAdmin: listAdminLayersRequest,
+          listOwn: listMyLayersRequest,
+          onUnauthorized: () => {
+            clearPrivateRuntimeState();
+            clearPreviewStateOnRoleChange();
+            invalidateCache();
+            state.session = createVisitorSession();
+            saveSession();
+            renderSession();
+            setSystemStatus("Sesión caducada", "Continúas en consulta pública. Inicia sesión de nuevo para acceder a tus capas privadas.");
+          },
+        });
+        mergeRecords(records, privateLayers);
+      } catch (error) {
+        // A private-catalog failure must not discard the public result above.
+        console.warn("No se pudieron consultar las capas privadas; el catálogo público sigue disponible.", error);
       }
 
       const hydratedLayers = [];

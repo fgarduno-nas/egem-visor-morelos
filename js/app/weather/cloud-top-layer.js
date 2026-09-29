@@ -1,3 +1,22 @@
+const expectedImageCancellations = new WeakSet();
+
+export function isExpectedCloudTopCancellation(error) {
+  return Boolean(error && typeof error === "object" && expectedImageCancellations.has(error));
+}
+
+function replaceImageRequest(source, operation) {
+  // Pinned MapLibre 4.7.1 ImageSource: updateImage/onRemove abort _request,
+  // then load() forwards that fetch signal.reason asynchronously as an error.
+  // Remember that exact reason, not every AbortError from GOES or other sources.
+  const pending = source?._request;
+  const wasPending = pending?.signal && !pending.signal.aborted;
+  try { return operation(); }
+  finally {
+    const reason = wasPending && pending.signal.aborted ? pending.signal.reason : null;
+    if (reason?.name === "AbortError") expectedImageCancellations.add(reason);
+  }
+}
+
 export class CloudTopMapLayer {
   constructor(map, options = {}) {
     this.map = map;
@@ -91,7 +110,8 @@ export class CloudTopMapLayer {
       if (this.map.getLayer(layerId)) this.map.removeLayer(layerId);
     });
     this.getSourceIds().forEach((sourceId) => {
-      if (this.map.getSource(sourceId)) this.map.removeSource(sourceId);
+      const source = this.map.getSource(sourceId);
+      if (source) replaceImageRequest(source, () => this.map.removeSource(sourceId));
     });
     this.currentFrameId = null;
     this.imageCache.clear();
@@ -109,7 +129,7 @@ export class CloudTopMapLayer {
     const source = this.map.getSource(sourceId);
     if (source) {
       if (this.map.getLayer(layerId)) this.map.removeLayer(layerId);
-      this.map.removeSource(sourceId);
+      replaceImageRequest(source, () => this.map.removeSource(sourceId));
     }
     this.map.addSource(sourceId, {
       type: "raster",
@@ -137,16 +157,11 @@ export class CloudTopMapLayer {
     const coordinates = boundsToImageCoordinates(frame.bounds);
     const source = this.map.getSource(sourceId);
     if (source && typeof source.updateImage === "function") {
-      try {
-        source.updateImage({ url: frame.url, coordinates });
-      } catch (error) {
-        if (error?.name === "AbortError" || error?.code === "AbortError") return;
-        throw error;
-      }
+      replaceImageRequest(source, () => source.updateImage({ url: frame.url, coordinates }));
     } else {
       if (source) {
         if (this.map.getLayer(layerId)) this.map.removeLayer(layerId);
-        this.map.removeSource(sourceId);
+        replaceImageRequest(source, () => this.map.removeSource(sourceId));
       }
       this.map.addSource(sourceId, {
         type: "image",

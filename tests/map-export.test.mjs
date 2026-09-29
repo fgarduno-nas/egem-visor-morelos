@@ -152,3 +152,41 @@ test("GOES no intercambia buffers si termina una precarga durante la congelació
   restore();
   assert.equal(layer.exportFrozen, false);
 });
+
+// A fresh MapLibre map has an initial style whose load is asynchronous. Exercise
+// the actual export-scene constructor against that lifecycle, including icons.
+test("export scene installs its snapshot without diffing an unloaded style", async () => {
+  const { createExportScene } = await import("../js/app/utils/map-export-renderer.js");
+  const previousDocument = globalThis.document;
+  let removed = false;
+  globalThis.document = { createElement: () => ({ setAttribute() {}, style: {}, remove() { removed = true; } }), body: { append() {} } };
+  class SceneMap {
+    constructor() { this.handlers = {}; this.images = new Map(); }
+    jumpTo() {}
+    project(p) { return { x: p[0], y: p[1] }; }
+    getCanvas() { return { width: 2047, height: 1576, clientWidth: 2047 }; }
+    getBounds() { return {}; }
+    on(event, fn) { this.handlers[event] = fn; }
+    hasImage(id) { return this.images.has(id); }
+    addImage(id, data) { this.images.set(id, data); }
+    setStyle(style, options) {
+      if (options?.diff !== false) throw new Error('Style is not done loading');
+      this.style = style; this.handlers['style.load']();
+    }
+    remove() {}
+  }
+  const original = { constructor: SceneMap, stop() {},
+    getCanvas: () => ({ clientWidth: 2047, clientHeight: 1576 }),
+    getStyle: () => ({ version: 8, sources: {}, layers: [] }),
+    getZoom: () => 8, getPitch: () => 0, getBearing: () => 0, getPadding: () => ({}),
+    getCenter: () => ({ toArray: () => [0, 0] }), getRenderWorldCopies: () => false,
+    unproject: p => p, listImages: () => ['point'],
+    getImage: () => ({ data: { width: 1, height: 1, data: new Uint8Array([1, 2, 3, 255]) }, pixelRatio: 1 }),
+  };
+  try {
+    const scene = await createExportScene(original, { signal: new AbortController().signal });
+    scene.check();
+    assert.deepEqual([...scene.map.images.get('point').data], [1, 2, 3, 255]);
+    scene.destroy(); assert.equal(removed, true);
+  } finally { globalThis.document = previousDocument; }
+});

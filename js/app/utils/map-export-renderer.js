@@ -138,7 +138,9 @@ export async function createExportScene(original, { signal, prepareSources = asy
     const failures = [];
     map.on("error", event => failures.push(`${event.sourceId || "recurso"}: ${event.error?.message || "no disponible"}`));
     map.on("styleimagemissing", event => failures.push(`icono ${event.id}: no disponible`));
-    map.setStyle(style);
+    // This is a new, independent scene. Its empty initial style may still be
+    // loading, so there is no loaded style to diff against. Install explicitly.
+    map.setStyle(style, { diff: false });
     return {
       map, crop, destroy,
       check() {
