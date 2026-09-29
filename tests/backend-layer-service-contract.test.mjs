@@ -395,3 +395,11 @@ test("contrato administrativo presenta phenomenon legible sin perder clave tecni
   });
   assert.equal(normalizePhenomenonForDisplay(undefined).displayLabel, "Sin clasificar");
 });
+
+test("parseRasterLegend conserva personalización sin sobrescribir colores originales", () => {
+  const legend=helpers.parseRasterLegend(JSON.stringify({field:"Riesgo",classes:[{label:"Original",displayLabel:"Personalizado",color:"#112233",displayColor:"#334455",order:1}]}));
+  assert.equal(legend.classes[0].label,"Original");
+  assert.equal(legend.classes[0].color,"#112233");
+  assert.equal(legend.classes[0].displayLabel,"Personalizado");
+  assert.equal(legend.classes[0].displayColor,"#334455");
+});

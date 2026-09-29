@@ -11,6 +11,7 @@ const execFileAsync = promisify(execFile);
 const modulePath = path.resolve("js/app/utils/remote-style-utils.js");
 const moduleSource = await fs.readFile(modulePath, "utf8");
 const moduleUrl = `data:text/javascript;base64,${Buffer.from(moduleSource).toString("base64")}`;
+const adminDetailSource = await fs.readFile(path.resolve("js/app/utils/admin-layer-detail.js"), "utf8");
 const mapSource = await fs.readFile(path.resolve("js/map.js"), "utf8");
 const layersApiSource = await fs.readFile(path.resolve("js/app/services/layers-api.js"), "utf8");
 const layersApiModuleSource = layersApiSource
@@ -2910,7 +2911,7 @@ test("panel administrativo de usuarios usa seleccion maestro-detalle compacta", 
 
 test("panel administrativo evita cortes a media palabra salvo valores tecnicos", () => {
   const layerRowSource = extractFunctionSource(mapSource, "renderAdminLayerTableRow");
-  const layerDetailSource = extractFunctionSource(mapSource, "renderAdminLayerDetails");
+  const layerDetailSource = adminDetailSource;
   const userDetailSource = extractFunctionSource(mapSource, "renderManagedUserDetails");
 
   assert.match(cssSource, /body \{[\s\S]*?overflow-wrap: normal;[\s\S]*?word-break: normal;[\s\S]*?hyphens: none;/);
@@ -2922,10 +2923,10 @@ test("panel administrativo evita cortes a media palabra salvo valores tecnicos",
   assert.doesNotMatch(cssSource, /word-break:\s*break-word/);
 
   assert.match(layerRowSource, /class="technical-value"/);
-  assert.match(layerDetailSource, /\["Correo", owner\.email \|\| "Sin correo", "technical"\]/);
-  assert.match(layerDetailSource, /\["Geometría", layer\.geometryType \|\| "Sin geometría", "technical"\]/);
-  assert.match(layerDetailSource, /\["CRS", layer\.crs \|\| "No especificado", "technical"\]/);
-  assert.match(layerDetailSource, /\["Archivos", fileNames, "technical"\]/);
+  assert.match(layerDetailSource, /\["Correo", owner\.email, true\]/);
+  assert.match(layerDetailSource, /\["Geometría", layer\.geometryType, true\]/);
+  assert.match(layerDetailSource, /\["CRS del recurso procesado", layer\.crs, true\]/);
+  assert.match(layerDetailSource, /\["Archivo original", names, true\]/);
   assert.match(userDetailSource, /\["Correo", user\.email \|\| "Sin correo", "technical"\]/);
 });
 
@@ -2935,7 +2936,7 @@ test("tabla administrativa pagina, filtra, escapa datos y muestra fechas de More
   const phenomenonDisplaySource = extractFunctionSource(mapSource, "getAdminLayerPhenomenonDisplay");
   const focusDetailSource = extractFunctionSource(mapSource, "focusAdminLayerDetails");
   const returnDetailSource = extractFunctionSource(mapSource, "returnToAdminLayerTableRow");
-  const modalDetailSource = extractFunctionSource(mapSource, "renderAdminLayerDetails");
+  const modalDetailSource = adminDetailSource;
   const dateSource = extractFunctionSource(mapSource, "formatAdminLayerDate");
   const tableWrapRule = cssSource.match(/\.admin-layer-table-wrap \{[^}]*\}/)?.[0] ?? "";
 
@@ -2949,7 +2950,7 @@ test("tabla administrativa pagina, filtra, escapa datos y muestra fechas de More
   assert.match(renderRowSource, /escapeHtml\(title\)/);
   assert.match(renderRowSource, /title="\$\{escapeHtml\(title\)\}"/);
   assert.match(renderRowSource, /is-selected/);
-  assert.match(renderRowSource, /ownerEmail = owner\.email \|\| "Sin correo"/);
+  assert.match(renderRowSource, /ownerEmail = owner\.email \|\| "No especificado"/);
   assert.match(renderRowSource, /escapeHtml\(ownerEmail\)/);
   assert.match(renderRowSource, /getAdminLayerPhenomenonDisplay\(layer\)/);
   assert.match(renderRowSource, /data-admin-layer-details/);
@@ -2967,15 +2968,15 @@ test("tabla administrativa pagina, filtra, escapa datos y muestra fechas de More
   assert.match(modalDetailSource, /admin-layer-detail-grid/);
   assert.match(modalDetailSource, /Volver a la tabla/);
   assert.match(modalDetailSource, /Correo/);
-  assert.match(modalDetailSource, /\["Fenómeno", phenomenon, "normal"\]/);
-  assert.match(modalDetailSource, /Archivos/);
+  assert.match(modalDetailSource, /\["Fenómeno", phenomenon/);
+  assert.match(modalDetailSource, /Archivo original/);
   assert.match(detailSource, /Archivos:/);
   assert.match(dateSource, /America\/Mexico_City/);
   assert.match(tableWrapRule, /overflow-x: auto;/);
   assert.match(tableWrapRule, /overflow-y: hidden;/);
   assert.doesNotMatch(tableWrapRule, /height: clamp/);
   assert.doesNotMatch(cssSource, /@media \(max-width: 760px\)[\s\S]*?\.admin-layer-table-wrap \{[\s\S]*?height: 300px/);
-  assert.match(cssSource, /\.admin-layer-table[\s\S]*min-width: 1120px/);
+  assert.match(cssSource, /\.admin-layer-table[\s\S]*min-width: 980px/);
   assert.match(cssSource, /\.admin-layer-table th[\s\S]*position: sticky/);
   assert.match(cssSource, /\.admin-layer-details:focus-visible[\s\S]*outline: 3px solid/);
   assert.match(cssSource, /\.admin-layer-details\.is-highlighted[\s\S]*box-shadow:/);

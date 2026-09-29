@@ -1,3 +1,4 @@
+import { renderAdminLayerDetail } from "./app/utils/admin-layer-detail.js";
 import { runtimeConfig } from "./app/config/runtime-config.js";
 import { invalidateCache } from "./app/services/http-client.js";
 import { restorableSession, loadPrivateCatalog } from "./app/utils/session-utils.js";
@@ -7579,7 +7580,8 @@ import { installMapExport } from "./app/utils/map-export.js";
   }
 
   function getAdminLayerPhenomenonDisplay(layer = {}) {
-    return normalizePhenomenonForDisplay(layer.phenomenon || layer.phenomenonKey).displayLabel;
+    const label = normalizePhenomenonForDisplay(layer.phenomenon || layer.phenomenonKey).displayLabel;
+    return label === "Sin clasificar" ? "No especificado" : label;
   }
 
   async function renderUserAdminPanel() {
@@ -7812,19 +7814,19 @@ import { installMapExport } from "./app/utils/map-export.js";
     if (tableState.loading) {
       elements.adminLayerTableBody.innerHTML = `
         <tr>
-          <td colspan="8">Consultando capas cargadas...</td>
+          <td colspan="7">Consultando capas cargadas...</td>
         </tr>
       `;
     } else if (tableState.error) {
       elements.adminLayerTableBody.innerHTML = `
         <tr>
-          <td colspan="8">No se pudo cargar la tabla administrativa.</td>
+          <td colspan="7">No se pudo cargar la tabla administrativa.</td>
         </tr>
       `;
     } else if (!tableState.items.length) {
       elements.adminLayerTableBody.innerHTML = `
         <tr>
-          <td colspan="8">No hay capas que coincidan con los filtros.</td>
+          <td colspan="7">No hay capas que coincidan con los filtros.</td>
         </tr>
       `;
     } else {
@@ -7849,9 +7851,9 @@ import { installMapExport } from "./app/utils/map-export.js";
 
   function renderAdminLayerTableRow(layer) {
     const owner = layer.submittedBy || {};
-    const title = layer.title || "Capa sin título";
-    const ownerName = owner.name || "Usuario no disponible";
-    const ownerEmail = owner.email || "Sin correo";
+    const title = layer.title || "No especificado";
+    const ownerName = (owner.name && owner.name !== "Usuario no disponible") ? owner.name : "No especificado";
+    const ownerEmail = owner.email || "No especificado";
     const dateLabel = formatAdminLayerDate(layer.submittedAt || layer.createdAt);
     const status = layer.isDeleted ? "deleted" : layer.status;
     const isSelected = layer.id === state.adminLayerTable.selectedId;
@@ -7860,7 +7862,7 @@ import { installMapExport } from "./app/utils/map-export.js";
       <tr class="${isSelected ? "is-selected" : ""}">
         <td class="admin-layer-table__title">
           <strong title="${escapeHtml(title)}">${escapeHtml(title)}</strong>
-          <span>${escapeHtml(layer.municipality || "Sin municipio")}</span>
+          <span>${escapeHtml(layer.municipality || "No especificado")}</span>
         </td>
         <td>
           <strong title="${escapeHtml(ownerName)}">${escapeHtml(ownerName)}</strong>
@@ -7869,10 +7871,9 @@ import { installMapExport } from "./app/utils/map-export.js";
         <td>${escapeHtml(phenomenon)}</td>
         <td>
           <span>${escapeHtml(getAdminLayerTypeLabel(layer.resourceType || layer.sourceType))}</span>
-          <span>${escapeHtml(layer.geometryType || "Sin geometría")}</span>
+          <span>${escapeHtml(layer.geometryType || "No especificado")}</span>
         </td>
         <td><span class="badge ${getStatusBadgeClass(status)}">${escapeHtml(getAdminLayerStatusLabel(status))}</span></td>
-        <td><span class="badge ${getProcessingStatusClass(layer.processingStatus)}">${escapeHtml(getProcessingStatusLabel(layer.processingStatus))}</span></td>
         <td class="admin-layer-table__date">${escapeHtml(dateLabel)}</td>
         <td><button class="ghost-button" type="button" data-admin-layer-details="${escapeHtml(layer.id)}" aria-label="Ver detalles de ${escapeHtml(title)}" ${isSelected ? 'aria-current="true"' : ""}>Ver detalles</button></td>
       </tr>
@@ -7955,50 +7956,8 @@ import { installMapExport } from "./app/utils/map-export.js";
       return;
     }
 
-    const owner = layer.submittedBy || {};
-    const status = layer.isDeleted ? "deleted" : layer.status;
-    const fileNames = (layer.files || []).map((file) => file.originalName).filter(Boolean).join(", ") || "Sin archivos";
-    const phenomenon = getAdminLayerPhenomenonDisplay(layer);
-    const detailItems = [
-      ["Título", layer.title || "Capa sin título", "normal"],
-      ["Responsable", owner.name || "Usuario no disponible", "normal"],
-      ["Correo", owner.email || "Sin correo", "technical"],
-      ["Municipio", layer.municipality || "Sin municipio", "normal"],
-      ["Fenómeno", phenomenon, "normal"],
-      ["Tipo", getAdminLayerTypeLabel(layer.resourceType || layer.sourceType), "normal"],
-      ["Geometría", layer.geometryType || "Sin geometría", "technical"],
-      ["Objetos", formatAdminLayerNumber(layer.featureCount), "normal"],
-      ["CRS", layer.crs || "No especificado", "technical"],
-      ["Archivos", fileNames, "technical"],
-      ["Leyenda vectorial", `${formatAdminLayerNumber(layer.symbology?.vectorClassCount)} clase(s)`, "normal"],
-      ["Leyenda raster", `${formatAdminLayerNumber(layer.symbology?.rasterClassCount)} clase(s)`, "normal"],
-      ["Cargada", formatAdminLayerDate(layer.submittedAt || layer.createdAt), "normal"],
-    ];
-
     elements.adminLayerDetails.setAttribute("tabindex", "-1");
-    elements.adminLayerDetails.innerHTML = `
-      <div class="admin-layer-details__header">
-        <div>
-          <h4 title="${escapeHtml(layer.title || "Capa cargada")}">${escapeHtml(layer.title || "Capa cargada")}</h4>
-          <p>${escapeHtml(layer.description || "Capa registrada en el inventario administrativo.")}</p>
-        </div>
-        <div class="admin-layer-details__status">
-          <span class="badge ${getStatusBadgeClass(status)}">${escapeHtml(getAdminLayerStatusLabel(status))}</span>
-          <span class="badge ${getProcessingStatusClass(layer.processingStatus)}">${escapeHtml(getProcessingStatusLabel(layer.processingStatus))}</span>
-        </div>
-      </div>
-      <dl class="admin-layer-detail-grid">
-        ${detailItems.map(([label, value, kind]) => `
-          <div>
-            <dt>${escapeHtml(label)}</dt>
-            <dd class="${kind === "technical" ? "technical-value" : ""}" title="${escapeHtml(value)}">${escapeHtml(value)}</dd>
-          </div>
-        `).join("")}
-      </dl>
-      <div class="admin-layer-details__actions">
-        <button class="ghost-button" type="button" data-admin-layer-return>Volver a la tabla</button>
-      </div>
-    `;
+    elements.adminLayerDetails.innerHTML = renderAdminLayerDetail(layer);
   }
 
   function getAdminLayerStatusLabel(status) {
@@ -8022,9 +7981,9 @@ import { installMapExport } from "./app/utils/map-export.js";
   }
 
   function formatAdminLayerDate(value) {
-    if (!value) return "Sin fecha";
+    if (!value) return "No especificado";
     const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return "Sin fecha";
+    if (Number.isNaN(date.getTime())) return "No especificado";
     return new Intl.DateTimeFormat("es-MX", {
       timeZone: "America/Mexico_City",
       year: "numeric",

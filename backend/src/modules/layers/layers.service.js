@@ -1,3 +1,4 @@
+import { adminResourceType, safeAdminSymbology, safeAdminProcessingMessage, safeAdminFilename } from "./admin-layer-details.js";
 import fs from "node:fs";
 import path from "node:path";
 import slugify from "slugify";
@@ -780,13 +781,8 @@ function matchesAdminLayerSearch(layer, search) {
 
 function mapAdminLayerTableItem(layer) {
   const metadataProperties = layer.metadata?.properties ?? {};
-  const vectorLegendSource = metadataProperties.vectorLegend ?? buildVectorLegendPreview(metadataProperties);
-  const vectorLegend = Array.isArray(vectorLegendSource?.items)
-    ? vectorLegendSource.items
-    : Array.isArray(vectorLegendSource)
-      ? vectorLegendSource
-      : [];
-  const rasterLegend = Array.isArray(metadataProperties.rasterLegend) ? metadataProperties.rasterLegend : [];
+  const resourceType = adminResourceType(metadataProperties, layer.metadata?.geometryType || metadataProperties.geometryType, layer.sourceType);
+  const symbology = safeAdminSymbology(metadataProperties, resourceType, layer.metadata?.geometryType);
   const phenomenonInfo = getAdminLayerPhenomenon(metadataProperties);
   const processingStatus = metadataProperties.processingStatus || "pending";
   return {
@@ -797,7 +793,7 @@ function mapAdminLayerTableItem(layer) {
     phenomenon: phenomenonInfo.displayLabel,
     phenomenonKey: phenomenonInfo.technicalKey,
     sourceType: layer.sourceType,
-    resourceType: metadataProperties.resourceType ?? inferResourceTypeFromProperties(metadataProperties),
+    resourceType,
     status: layer.isDeleted ? "deleted" : layer.status,
     reviewStatus: layer.status,
     isDeleted: layer.isDeleted,
@@ -807,7 +803,9 @@ function mapAdminLayerTableItem(layer) {
     approvedAt: layer.approvedAt,
     publishedAt: layer.publishedAt,
     processingStatus,
-    processingMessage: sanitizeAdminMessage(metadataProperties.processingMessage || metadataProperties.processingError),
+    processingMessage: safeAdminProcessingMessage(metadataProperties),
+    isVisualizable: typeof metadataProperties.isVisualizable === "boolean" ? metadataProperties.isVisualizable : null,
+    capturedCrs: metadataProperties.crs || null,
     geometryType: layer.metadata?.geometryType || metadataProperties.geometryType || null,
     featureCount: layer.metadata?.featureCount ?? metadataProperties.featureCount ?? null,
     crs: layer.metadata?.crs || metadataProperties.crs || null,
@@ -817,15 +815,10 @@ function mapAdminLayerTableItem(layer) {
     scaleOrResolution: metadataProperties.scaleOrResolution || null,
     submittedBy: mapSafeUser(layer.createdBy, { includeEmail: true }),
     submittedAt: layer.createdAt,
-    symbology: {
-      vectorClassCount: vectorLegend.length,
-      rasterClassCount: rasterLegend.length,
-      hasRasterLegend: rasterLegend.length > 0,
-      hasVectorLegend: vectorLegend.length > 0,
-    },
+    symbology: symbology,
     files: (layer.files ?? []).map((file) => ({
       id: file.id,
-      originalName: file.originalName,
+      originalName: safeAdminFilename(file.originalName),
       extension: file.extension,
       mimeType: file.mimeType,
       sizeBytes: file.sizeBytes,
@@ -869,14 +862,6 @@ function getAdminLayerPhenomenonCandidates(properties = {}) {
   }
 
   return candidates.filter((value) => value !== null && value !== undefined && String(value).trim());
-}
-
-function sanitizeAdminMessage(value) {
-  if (!value) return null;
-  return String(value)
-    .replace(/[A-Z]:\\[^\s]+/gi, "[ruta local]")
-    .replace(/\/[^\s]+/g, "[ruta]")
-    .slice(0, 260);
 }
 
 function mapSafeUser(user, options = {}) {
@@ -951,6 +936,8 @@ function parseRasterLegend(value) {
         return {
           label,
           color,
+          displayLabel: normalizeOptionalText(item?.displayLabel) || label,
+          displayColor: normalizeHexColor(item?.displayColor) || color,
           value: normalizeOptionalText(item?.value),
           min: item?.min,
           max: item?.max,

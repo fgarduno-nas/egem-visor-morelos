@@ -35,7 +35,7 @@ export const uploadLayerBodySchema = z.object({
   municipality: z.string().max(150).optional().nullable(),
   source: z.string().max(180).optional().nullable(),
   responsibleAgency: z.string().max(180).optional().nullable(),
-  updatedAt: z.string().max(30).optional().nullable(),
+  updatedAt: z.string().max(40).optional().nullable(),
   scaleOrResolution: z.string().max(120).optional().nullable(),
   crs: z.string().max(120).optional().nullable(),
   rasterLegend: z.string().max(10000).optional().nullable(),
