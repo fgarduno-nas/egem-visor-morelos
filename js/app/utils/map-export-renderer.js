@@ -1,5 +1,37 @@
 export const EXPORT_SIZE = Object.freeze({ width: 2047, height: 1576 });
 
+// MapLibre 4.7 simulates curvature by clipping at 85% of the plane horizon.
+// In a taller export this can cut valid ground that is still below the real
+// plane horizon. Extend depth coverage on the temporary map only; x/y camera
+// projection stays unchanged. Never fabricate ground above the horizon.
+export function extendExportGroundCoverage(transform, pitch) {
+  if (!pitch) return;
+  const planeHorizon = Math.tan((90 - pitch) * Math.PI / 180) * transform.cameraToCenterDistance;
+  const topDistance = transform.centerPoint.y;
+  if (planeHorizon <= topDistance + 1) {
+    throw new Error("El formato ampliado alcanza el horizonte de esta vista inclinada. Reduce la inclinación antes de exportar; no se ha cambiado el encuadre del visor.");
+  }
+  if (transform.getHorizon() < topDistance + 1) {
+    const nativeHorizon = transform.getHorizon.bind(transform);
+    transform.getHorizon = () => Math.max(nativeHorizon(), topDistance + 1);
+    transform._calcMatrices();
+    // 4.7 disables distance-based raster LOD at pitch <= 60 without padding.
+    // Use its existing LOD traversal for distant raster tiles, without changing
+    // projection, camera, or vector/symbol detail. Symmetric padding on this
+    // read-only traversal view leaves centerPoint unchanged. roundZoom is the
+    // raster-source flag in MapLibre 4.7's SourceCache coveringTiles options.
+    const coveringTiles = transform.coveringTiles;
+    if (coveringTiles) transform.coveringTiles = function(options) {
+      if (!options.roundZoom) return coveringTiles.call(this, options);
+      const view = Object.create(this);
+      view._edgeInsets = Object.create(this._edgeInsets);
+      view._edgeInsets.top += 0.1;
+      view._edgeInsets.bottom += 0.1;
+      return coveringTiles.call(view, options);
+    };
+  }
+}
+
 export function exportGeometry(width, height, fov = 36.86989764584402, pitch = 0) {
   if (!(width > 0 && height > 0)) throw new Error("El mapa no está visible.");
   const renderHeight = Math.ceil(width * EXPORT_SIZE.height / EXPORT_SIZE.width);
@@ -83,6 +115,7 @@ export async function createExportScene(original, { signal, prepareSources = asy
     if (camera.pitch) {
       if (!map.transform || !Number.isFinite(map.transform.fov)) throw new Error("No se puede conservar la perspectiva con esta versión de MapLibre. Usa una vista sin inclinación.");
       map.transform.fov = geometry.fov;
+      extendExportGroundCoverage(map.transform, camera.pitch);
     }
     const assertCamera = () => {
       for (const sample of samples) {

@@ -2,6 +2,33 @@ const HANDLERS = ["scrollZoom", "boxZoom", "dragRotate", "dragPan", "keyboard", 
 import { createExportScene } from "./map-export-renderer.js";
 const LOGO_OPACITY = 1;
 
+export function waitForExportResource(promise, signal) {
+  return new Promise((resolve, reject) => {
+    const abort = () => reject(signal.reason || new DOMException("Captura cancelada", "AbortError"));
+    Promise.resolve(promise).then(resolve, reject).finally(() => signal.removeEventListener("abort", abort));
+    if (signal.aborted) { abort(); return; }
+    signal.addEventListener("abort", abort, { once: true });
+  });
+}
+
+async function timedExportPhase(name, operation) {
+  const start = performance.now();
+  try { return await operation(); }
+  finally { performance.measure(`egem:export:${name}`, { start, end: performance.now() }); }
+}
+
+export function encodePng(canvas, timeoutMs = 20000) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("La codificación PNG no terminó a tiempo. Cierra otras tareas intensivas y vuelve a intentar.")), timeoutMs);
+    try {
+      canvas.toBlob(blob => {
+        clearTimeout(timer);
+        if (blob) resolve(blob); else reject(new Error("No se pudo codificar el PNG."));
+      }, "image/png");
+    } catch (error) { clearTimeout(timer); reject(error); }
+  });
+}
+
 function loadExportLogo() {
   return new Promise((resolve, reject) => {
     const logo = new Image();
@@ -164,12 +191,13 @@ export async function captureExpandedMap(map, options) {
   const timeout = setTimeout(() => controller.abort(new Error("La nueva extensión no terminó de cargar en 45 segundos. Revisa la conexión y las capas visibles.")), 45000);
   let scene;
   try {
+    if (options.prepare) await timedExportPhase("resources", () => waitForExportResource(options.prepare(controller.signal), controller.signal));
     options.check();
-    scene = await createExportScene(map, { signal: controller.signal, prepareSources: options.prepareSources });
-    return await captureMap(scene.map, {
+    scene = await timedExportPhase("scene", () => createExportScene(map, { signal: controller.signal, prepareSources: options.prepareSources }));
+    return await timedExportPhase("render", () => captureMap(scene.map, {
       ...options, signal: controller.signal, crop: scene.crop,
       check: () => { options.check(); scene.check(); },
-    });
+    }));
   } catch (error) {
     if (controller.signal.aborted && controller.signal.reason?.name !== "AbortError") throw controller.signal.reason;
     throw error;
@@ -236,7 +264,7 @@ function drawAnnotations(ctx, width, height, date, scale, credits, logo) {
   }
 }
 
-export function installMapExport({ map, button, status, freeze, check, attribution, prepareSources }) {
+export function installMapExport({ map, button, status, freeze, check, attribution, prepareSources, prepare }) {
   const checkErrors = trackExportErrors(map);
   const logoReady = loadExportLogo();
   // Report a failed preload only when the user requests an export.
@@ -262,8 +290,9 @@ export function installMapExport({ map, button, status, freeze, check, attributi
     let writable;
     let shell;
     let wasInert;
+    const started = performance.now();
     try {
-      check(); checkErrors();
+      checkErrors();
       release = freeze();
       shell = document.querySelector(".app-shell");
       wasInert = shell?.inert;
@@ -287,7 +316,7 @@ export function installMapExport({ map, button, status, freeze, check, attributi
         controller.abort(); return { error };
       });
       const captured = captureExpandedMap(map, {
-        date, check: () => { check(); checkErrors(); }, extraAttribution: attribution(), signal: controller.signal, logo: logoReady, prepareSources,
+        date, check: () => { check(); checkErrors(); }, extraAttribution: attribution(), signal: controller.signal, logo: logoReady, prepareSources, prepare,
       }).then((canvas) => { output = canvas; return { canvas }; }, (error) => ({ error })).finally(() => {
         release(); release = () => {};
         if (shell) shell.inert = wasInert;
@@ -295,9 +324,7 @@ export function installMapExport({ map, button, status, freeze, check, attributi
       const [selected, result] = await Promise.all([selection, captured]);
       if (selected.error) throw selected.error;
       if (result.error) throw result.error;
-      const blob = await new Promise((resolve, reject) => {
-        output.toBlob((value) => value ? resolve(value) : reject(new Error("No se pudo codificar el PNG.")), "image/png");
-      });
+      const blob = await timedExportPhase("encode", () => encodePng(output));
       if (selected.handle) {
         writable = await selected.handle.createWritable();
         await writable.write(blob);
@@ -323,6 +350,7 @@ export function installMapExport({ map, button, status, freeze, check, attributi
       if (output) { output.width = 0; output.height = 0; }
       busy = false; button.disabled = false;
       button.removeAttribute("aria-busy");
+      performance.measure("egem:export:total", { start: started, end: performance.now() });
     }
   });
 }

@@ -659,6 +659,22 @@ import { installMapExport } from "./app/utils/map-export.js";
     map,
     button: document.getElementById("toolbar-save-image"),
     status: document.getElementById("map-export-status"),
+    prepare: async (signal) => {
+      // Wait for current work, then retry missing PNGs once. Registered images
+      // are reused by loadPointIconImage; the export clone never fetches them.
+      await Promise.all([...state.pendingLayerLoads.values(), ...state.pendingPointIconLoads.values()]);
+      signal.throwIfAborted();
+      for (const layer of state.userLayers.filter(item => item.visible)) {
+        const icons = getLayerPointIcons(layer);
+        if (!icons.length) continue;
+        if (!layer.__pointIconLoadDiagnostics?.failed?.length &&
+            icons.every(icon => map.hasImage(buildPointIconImageId(layer, icon)))) continue;
+        await ensurePointIconImagesForLayer(layer);
+        signal.throwIfAborted();
+        const source = map.getSource(`source-${layer.id}`);
+        if (source && layer.data) source.setData(layer.data);
+      }
+    },
     check: () => {
       // These anonymous CARTO endpoints currently return HTTP 200 error images
       // (API KEY REQUIRED), so MapLibre's error event cannot detect the failure.
@@ -683,7 +699,7 @@ import { installMapExport } from "./app/utils/map-export.js";
       for (const layer of state.userLayers.filter((item) => item.visible)) {
         if (layer.loadError) throw new Error(`No se puede exportar ${layer.title}: ${layer.loadError}`);
         const failed = layer.__pointIconLoadDiagnostics?.failed?.[0];
-        if (failed) throw new Error(`No se puede exportar el icono de ${layer.title}: ${failed.imageUrl || failed.error}. Verifica disponibilidad y permisos CORS, o desactiva la capa.`);
+        if (failed) throw new Error(`No se puede exportar el icono de ${layer.title}: ${failed.imageUrl || "recurso desconocido"}. ${failed.error}. Verifica disponibilidad y permisos CORS, o desactiva la capa.`);
       }
       if (state.cloudTop.userEnabled && !state.cloudTop.mapLayer?.currentFrameId) {
         throw new Error("GOES no tiene un cuadro disponible. Espera a que cargue o desactiva GOES para guardar el mapa.");
@@ -3962,6 +3978,8 @@ import { installMapExport } from "./app/utils/map-export.js";
           styleUrl: icon.styleUrl || null,
           imageUrl: icon.imageUrl || null,
           imageId: icon.imageId,
+          loadMs: icon.loadMs,
+          route: icon.route,
         })),
         failed: failedIcons,
       };
@@ -3999,16 +4017,19 @@ import { installMapExport } from "./app/utils/map-export.js";
   }
 
   async function loadPointIconImage(layer, icon) {
+    const started = performance.now();
     const imageId = buildPointIconImageId(layer, icon);
     icon.__imageId = imageId;
+    let route = "map-registry";
     if (!map.hasImage(imageId)) {
       const imageUrl = await getPointIconImageUrl(layer, icon);
+      route = imageUrl.startsWith("blob:") ? "authenticated-blob" : "direct-url";
       const image = await loadMapImage(imageUrl, { timeoutMs: POINT_ICON_LOAD_TIMEOUT_MS });
       if (!map.hasImage(imageId)) {
         map.addImage(imageId, image, { pixelRatio: 1 });
       }
     }
-    return { ...icon, imageId };
+    return { ...icon, imageId, route, loadMs: performance.now() - started };
   }
 
   function getLayerPointIcons(layer) {
@@ -4044,15 +4065,21 @@ import { installMapExport } from "./app/utils/map-export.js";
         reject(new Error(`No se pudo cargar la imagen del icono en ${Math.round(timeoutMs / 1000)} segundos.`));
       }, timeoutMs);
       try {
-        map.loadImage(url, (error, image) => {
+        // MapLibre 4.7 returns a Promise<GetResourceResponse>, not a callback.
+        Promise.resolve(map.loadImage(url)).then(({ data: image }) => {
           if (settled) return;
           settled = true;
           clearTimeout(timeoutId);
-          if (error || !image) {
-            reject(error || new Error("No se pudo cargar la imagen del icono."));
+          if (!image) {
+            reject(new Error("No se pudo cargar la imagen del icono."));
             return;
           }
           resolve(image);
+        }, (error) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeoutId);
+          reject(error);
         });
       } catch (error) {
         if (settled) return;

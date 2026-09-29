@@ -2,7 +2,28 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { exportDate, metricScale, trackExportErrors, captureMap } from "../js/app/utils/map-export.js";
 import { CloudTopMapLayer } from "../js/app/weather/cloud-top-layer.js";
-import { exportGeometry, snapshotStyle, assertGoesCoverage } from "../js/app/utils/map-export-renderer.js";
+import { exportGeometry, snapshotStyle, assertGoesCoverage, extendExportGroundCoverage } from "../js/app/utils/map-export-renderer.js";
+
+test("la extensión inclinada aumenta el plano lejano sin inventar suelo sobre el horizonte", () => {
+  let recalculated = 0;
+  const transform = { cameraToCenterDistance: 825, centerPoint: { y: 438.5 }, getHorizon: () => 404.87, _calcMatrices: () => recalculated++ };
+  extendExportGroundCoverage(transform, 60);
+  assert.equal(transform.getHorizon(), 439.5);
+  assert.equal(recalculated, 1);
+  const above = { ...transform, centerPoint: { y: 500 } };
+  assert.throws(() => extendExportGroundCoverage(above, 60), /horizonte/);
+});
+
+test("el LOD lejano solo cambia el recorrido raster y conserva el centro y los vectores", () => {
+  const t = { cameraToCenterDistance: 825, centerPoint: { y: 438.5 }, _edgeInsets: { top: 0, bottom: 0 },
+    getHorizon: () => 404.87, _calcMatrices() {},
+    coveringTiles() { return { top: this._edgeInsets.top, offset: this._edgeInsets.top - this._edgeInsets.bottom, center: this.centerPoint }; },
+  };
+  extendExportGroundCoverage(t, 60);
+  assert.deepEqual(t.coveringTiles({ roundZoom: false }), { top: 0, offset: 0, center: t.centerPoint });
+  assert.deepEqual(t.coveringTiles({ roundZoom: true }), { top: .1, offset: 0, center: t.centerPoint });
+  assert.deepEqual(t._edgeInsets, { top: 0, bottom: 0 });
+});
 
 test("formato 2047:1576 conserva ancho lógico y añade territorio vertical en paisaje", () => {
   const geometry = exportGeometry(1200, 500);
