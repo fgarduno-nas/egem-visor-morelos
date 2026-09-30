@@ -3,7 +3,7 @@ const sharp = require('sharp');
 const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
-const out = path.resolve('review-png/formato');
+const out = path.resolve(process.env.EXPORT_REVIEW_DIR || path.join(require('node:os').tmpdir(), 'egem-export-format-review'));
 fs.mkdirSync(out, { recursive: true });
 (async () => {
   const browser = await chromium.launch({ headless: true, channel: 'msedge' });
@@ -17,7 +17,7 @@ fs.mkdirSync(out, { recursive: true });
     const res = await route.fetch();
     const body = (await res.text())
       .replace('context.scale(2, 2);', 'window.qaRaw = output.toDataURL(); context.scale(2, 2);')
-      .replace('finish(null, output);', `window.qaExport = {center:map.getCenter().toArray(),zoom:map.getZoom(),bearing:map.getBearing(),pitch:map.getPitch(),width,height,crop,
+      .replace('finish(null, output);', `window.qaExport = {center:map.getCenter().toArray(),zoom:map.getZoom(),bearing:map.getBearing(),pitch:map.getPitch(),orientation:snapshot,thematic,width,height,crop,
         horizontal:[map.unproject([0,height/2]).toArray(),map.unproject([width,height/2]).toArray()],scale,
         scaleMeters:map.unproject([width/2-scale.pixels/ratio,centerY]).distanceTo(map.unproject([width/2+scale.pixels/ratio,centerY])),
         frozenUrl:qa.state.cloudTop.mapLayer && qa.map.getStyle().sources[qa.state.cloudTop.mapLayer.getSourceId(qa.state.cloudTop.mapLayer.activeBuffer)]?.url,
@@ -58,15 +58,38 @@ fs.mkdirSync(out, { recursive: true });
     exported.horizontal.flat().forEach((v,i)=>assert.ok(Math.abs(v-before.horizontal.flat()[i])<1e-7));
     const meta=await sharp(path.join(out,`${name}.png`)).metadata(); assert.deepEqual([meta.width,meta.height],[2047,1576]);
     const raw=Buffer.from((await page.evaluate(()=>qaRaw)).split(',')[1],'base64');
-    const area={left:0,top:0,width:2047,height:1200};
+    const area={left:0,top:160,width:1000,height:1040};
     const a=await sharp(raw).extract(area).raw().toBuffer();
     const b=await sharp(path.join(out,`${name}.png`)).extract(area).raw().toBuffer();
     assert.equal(Buffer.compare(a,b),0,'No stretching after render');
     await sharp(path.join(out,`${name}.png`)).extract({left:0,top:1240,width:2047,height:336}).toFile(path.join(out,`${name}-detalle.png`));
-    results.push({name,before,exported,dimensions:[2047,1576],unchangedViewport:true,rawPixelMatch:true});
+    const logoPixels = await page.evaluate(async finalPng => {
+      const load = src => new Promise((resolve,reject) => {const image=new Image();image.onload=()=>resolve(image);image.onerror=reject;image.src=src;});
+      const [raw, final, logo] = await Promise.all([load(qaRaw),load(finalPng),load('/assets/encabezadoform.png')]);
+      const expected=document.createElement('canvas');expected.width=final.width;expected.height=final.height;
+      const e=expected.getContext('2d');e.drawImage(raw,0,0);e.scale(2,2);e.imageSmoothingEnabled=true;e.imageSmoothingQuality='high';
+      const w=210,h=w*logo.naturalHeight/logo.naturalWidth,x=10,y=final.height/2-10-h;
+      e.globalAlpha=.75;e.drawImage(logo,x,y,w,h);e.globalAlpha=1;
+      const actual=document.createElement('canvas');actual.width=final.width;actual.height=final.height;const a=actual.getContext('2d');a.drawImage(final,0,0);
+      const rect=[Math.floor(x*2)-4,Math.floor(y*2)-4,w*2+8,h*2+8];
+      const ep=e.getImageData(...rect).data,ap=a.getImageData(...rect).data;
+      return {matches:ep.every((v,i)=>v===ap[i]),width:w*2,height:h*2};
+    }, 'data:image/png;base64,'+fs.readFileSync(path.join(out,`${name}.png`)).toString('base64'));
+    assert.ok(logoPixels.matches,'Marca y margen exterior son exactamente mapa + asset original, sin tarjeta blanca');
+    assert.ok(exported.thematic?.title.startsWith("SE 02"));
+    assert.equal(exported.thematic.classes.length,10);
+    results.push({name,before,logoPixels,exported,dimensions:[2047,1576],unchangedViewport:true,rawPixelMatch:true});
     fs.writeFileSync(path.join(out,'results.json'),JSON.stringify(results,null,2));
     console.log('PASS',name);
   }
+  const se02 = page.locator('[data-layer-id="backend-cmuhd3t7b000vl3b11fge7gny"] input[type="checkbox"]');
+  await se02.check({timeout:60000});
+  await page.waitForFunction(() => {
+    const layer=qa.state.userLayers.find(l=>l.id==='backend-cmuhd3t7b000vl3b11fge7gny');
+    return layer?.data?.features?.length && !qa.state.pendingLayerLoads.size && !qa.state.pendingPointIconLoads.size;
+  });
+  const points=await page.evaluate(()=>qa.state.userLayers.find(l=>l.id==='backend-cmuhd3t7b000vl3b11fge7gny').data.features.reduce((r,f)=>{const role=f.properties.__geometryRole;if(role==='manantial'||role==='pozo')r[role]=(r[role]||0)+1;return r;},{}));
+  assert.deepEqual(points,{pozo:643,manantial:220});
   await save('satelite-goes');
   await page.evaluate(()=>qa.setCloudTopVisibility(false));
   await page.waitForFunction(()=>qa.map.isStyleLoaded());
@@ -78,6 +101,7 @@ fs.mkdirSync(out, { recursive: true });
     qa.map.setLayoutProperty('basemap-topografico','visibility','none');
     qa.map.addSource('qa-light-osm',{type:'raster',tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],tileSize:256,attribution:'© OpenStreetMap contributors'});
     qa.map.addLayer({id:'qa-light-osm',type:'raster',source:'qa-light-osm'},'satellite-layer');
+    qa.state.activeBaseMap='OSM (prueba local)';
   });
   await save('claro-osm-prueba');
   await page.evaluate(()=>{
@@ -99,7 +123,7 @@ fs.mkdirSync(out, { recursive: true });
   await page.evaluate(()=>{
     qa.map.removeLayer('qa-extra');qa.map.removeSource('qa-point');
     qa.map.setLayoutProperty('qa-light-osm','visibility','none');
-    qa.applyBaseMapVisibility('topografico');
+    qa.state.activeBaseMap='topografico';qa.applyBaseMapVisibility('topografico');
   });
   await save('movil-topografico');
   await page.waitForFunction(()=>qa.map.isStyleLoaded());

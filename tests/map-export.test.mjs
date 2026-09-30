@@ -190,3 +190,151 @@ test("export scene installs its snapshot without diffing an unloaded style", asy
     scene.destroy(); assert.equal(removed, true);
   } finally { globalThis.document = previousDocument; }
 });
+
+import { annotationLayout, EXPORT_ANNOTATIONS, drawAnnotations } from '../js/app/utils/map-export.js';
+
+const measuredContext = () => ({font:'', measureText(text) {return {width:text.length*parseFloat(this.font.match(/[\d.]+px/)[0])*.51};}});
+const overlaps = (a,b) => a.width && b.width && a.x < b.x+b.width && a.x+a.width > b.x && a.y < b.y+b.height && a.y+a.height > b.y;
+for (const [width,height] of [[1023.5,788],[600,350],[390,844],[2047,1576]]) {
+  test(`anotaciones independientes y escala centrada ${width}x${height}`, () => {
+    for(const text of ['Satélite · Esri', 'Mapa topográfico de nombre largo para prueba · © OpenStreetMap contributors · GOES IR · 29-sep 12:30 · NOAA nowCOAST']) {
+      const scale=metricScale(23000,Math.min(100,width*.13));
+      const layout=annotationLayout(measuredContext(),width,height,scale,text,4);
+      assert.equal(layout.scale.x+layout.scale.width/2,width/2);
+      assert.equal(layout.logo.x,EXPORT_ANNOTATIONS.margin);
+      assert.equal(layout.logo.y+layout.logo.height,height-EXPORT_ANNOTATIONS.margin);
+      assert.ok(layout.logo.width<=210 && layout.logo.width<340);
+      assert.equal(layout.logo.width/layout.logo.height,4);
+      assert.ok(Math.abs(layout.credits.x+layout.credits.width-(width-EXPORT_ANNOTATIONS.margin))<1e-9);
+      assert.ok(layout.credits.lines.length<=2);
+      assert.equal(layout.credits.lines.join(' '),text);
+      for(const a of Object.values(layout)) {
+        assert.ok(a.x>=0 && a.y>=0 && a.x+a.width<=width && a.y+a.height<=height);
+        for(const b of Object.values(layout)) if(a!==b) assert.ok(!overlaps(a,b));
+      }
+    }
+  });
+}
+
+test('marca 75%, escala sin fondo y créditos 38%, sin propagación de alfa', () => {
+  const text=[],backgrounds=[],images=[];const ctx={...measuredContext(),save(){},restore(){},beginPath(){},roundRect(){},fill(){backgrounds.push(this.fillStyle)},drawImage(...args){images.push([...args,this.globalAlpha])},strokeText(){},fillText(value){text.push(value);assert.equal(this.globalAlpha,1)},moveTo(){},lineTo(){},stroke(){}};
+  const previous=globalThis.DOMParser;globalThis.DOMParser=class {parseFromString(s){return {body:{textContent:s}}}};
+  try {
+    const originalLogo = {naturalWidth:3200,naturalHeight:800};
+    drawAnnotations(ctx,1023.5,788,{pixels:85,label:'10 km'},['Esri'],originalLogo,'Satélite');
+    assert.equal(images[0][0], originalLogo, 'drawImage recibe el asset original, sin máscara ni reconstrucción');
+    assert.equal(ctx.globalAlpha, 1);
+    assert.deepEqual(backgrounds,['rgba(0,0,0,0.38)']);
+    assert.equal(images[0].at(-1),.75);
+    assert.deepEqual(images[0].slice(3,5),[210,52.5]);
+    assert.equal(images.length,1);assert.deepEqual(text,['10 km','Satélite · Esri']);
+    assert.ok(!text.some(t=>/\d{2}[:/]\d{2}/.test(t)));
+  } finally {globalThis.DOMParser=previous;}
+});
+
+import { readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+
+test("asset institucional conserva exactamente el fondo guinda y los píxeles originales", () => {
+  const bytes = readFileSync(new URL("../assets/encabezadoform.png", import.meta.url));
+  assert.equal(createHash("sha256").update(bytes).digest("hex"), "96457d15f37030b8a3348841e46a1e0416d404be5793dcac3d2acd0e69ca4a6e");
+});
+
+import { northRotation, captureExportOrientation, drawExportNorth } from '../js/app/utils/map-export.js';
+for (const [bearing, expected] of [[0,0],[45,-45],[90,-90],[180,-180],[270,90],[-45,45],[-90,90],[359.95,0],[360,0],[720,0],[-720,0],[-.05,0],[360.05,0],[.11,-.11]]) {
+  test(`norte geográfico: bearing ${bearing} -> ${expected}`, () => assert.ok(Math.abs(northRotation(bearing)-expected)<1e-9));
+}
+function northContext() {
+  const calls=[];const ctx={calls};
+  for(const name of ['save','restore','translate','scale','rotate','beginPath','arc','fill','stroke','fillText','moveTo','lineTo','closePath'])ctx[name]=(...args)=>calls.push([name,...args]);
+  return ctx;
+}
+test('snapshot de orientación es inmutable e independiente de la cámara posterior', () => {
+  let bearing=45,pitch=30;const snapshot=captureExportOrientation({getBearing:()=>bearing,getPitch:()=>pitch});
+  bearing=90;pitch=60;
+  assert.deepEqual(snapshot,{bearing:45,pitch:30});assert.ok(Object.isFrozen(snapshot));
+  assert.throws(()=>{snapshot.bearing=180},TypeError);
+  assert.throws(()=>northRotation(NaN),/orientación/);
+});
+test('pitch 0, intermedio y máximo 85 no afectan ángulo ni deforman el norte', () => {
+  const drawings=[0,35,85].map(pitch=>{const ctx=northContext();drawExportNorth(ctx,1023.5,788,{bearing:45,pitch});return ctx.calls});
+  assert.deepEqual(drawings[0],drawings[1]);assert.deepEqual(drawings[0],drawings[2]);
+  assert.ok(drawings[0].some(([name,text])=>name==='fillText'&&text==='N'));
+  for(const [name,x,y] of drawings[0]) if(name==='scale')assert.equal(x,y);
+  assert.deepEqual(drawings[0].filter(c=>c[0]==='rotate'),[['rotate',-Math.PI/4]]);
+});
+for(const [width,height] of [[1023.5,788],[292,544],[584,1088],[2047,1576]]) {
+  test(`norte visible y dentro de canvas ${width}x${height}, sin colisión con pie`, () => {
+    const ctx=northContext();const north=drawExportNorth(ctx,width,height,{bearing:0,pitch:0});
+    assert.equal(north.angle,0);assert.equal(north.width,north.height);
+    assert.ok(north.x>0&&north.y>0&&north.x+north.width<width&&north.y+north.height<height);
+    assert.ok(Math.abs(width-north.x-north.width-north.y)<1e-9);
+    const footer=annotationLayout(measuredContext(),width,height,metricScale(10000,Math.min(100,width*.13)),'Satélite · Esri · GOES IR · NOAA',4);
+    for(const block of Object.values(footer))assert.ok(!overlaps(north,block));
+  });
+}
+test('cambio de orientación antes del render no produce un PNG con norte obsoleto', async () => {
+  const map=mockMap();const orientation=captureExportOrientation(map);map.getBearing=()=>90;
+  await assert.rejects(captureMap(map,{orientation,check(){}}),/orientación cambió/);
+  assert.equal(map.listenerCount(),0);assert.equal(map.dragPan.enabled,true);
+});
+
+for (const bearing of [0,45,90,135,180,270,-45,-90,359.95]) {
+  test(`N junto a la punta y vertical: bearing ${bearing}, pitch 0/60`, () => {
+    const results=[];
+    for(const pitch of [0,60]) {
+      const ctx=northContext();let rotation=0;const stack=[];let text;
+      ctx.save=()=>stack.push(rotation);ctx.restore=()=>{rotation=stack.pop()};
+      ctx.rotate=angle=>{rotation+=angle};
+      ctx.fillText=(glyph,x,y)=>{text={glyph,x,y,rotation,align:ctx.textAlign,baseline:ctx.textBaseline,font:ctx.font}};
+      const box=drawExportNorth(ctx,1023.5,788,{bearing,pitch});
+      const radians=northRotation(bearing)*Math.PI/180;
+      assert.equal(text.glyph,'N');assert.equal(text.rotation,0);
+      assert.equal(text.align,'center');assert.equal(text.baseline,'middle');
+      assert.equal(text.font,'bold 11px Arial, sans-serif');
+      assert.ok(Math.abs(text.x-23*Math.sin(radians))<1e-9);
+      assert.ok(Math.abs(text.y+23*Math.cos(radians))<1e-9);
+      assert.ok(Math.abs(Math.hypot(box.label.x-box.tip.x,box.label.y-box.tip.y)-9)<1e-9);
+      // Conservative 10×12 glyph envelope: every corner remains in the circle.
+      for(const dx of [-5,5])for(const dy of [-6,6])assert.ok(Math.hypot(text.x+dx,text.y+dy)<32);
+      assert.ok(23-Math.hypot(5,6)>14.6,'Glyph cannot touch arrow tip or its stroke');
+      results.push({text,box});
+    }
+    assert.deepEqual(results[0],results[1]);
+  });
+}
+
+import { BRAND_WATERMARK_OPACITY, EGEM_HEADING, drawExportHeading } from '../js/app/utils/map-export.js';
+test('alfa 75% aislado con save/restore; escala solo halo y barra sin tarjeta', () => {
+  const events=[],stack=[];const ctx={...measuredContext(),globalAlpha:1,
+    save(){stack.push(this.globalAlpha);events.push(['save'])},restore(){this.globalAlpha=stack.pop();events.push(['restore'])},
+    drawImage(){events.push(['image',this.globalAlpha])},beginPath(){},moveTo(){},lineTo(){},
+    strokeText(t){events.push(['strokeText',t,this.globalAlpha,this.strokeStyle])},
+    fillText(t){events.push(['fillText',t,this.globalAlpha,this.fillStyle])},
+    stroke(){events.push(['stroke',this.globalAlpha,this.strokeStyle,this.lineWidth])},
+    fill(){assert.fail('La escala no debe dibujar rellenos')},roundRect(){assert.fail('La escala no debe dibujar tarjetas')}
+  };
+  const previous=globalThis.DOMParser;globalThis.DOMParser=class{parseFromString(s){return{body:{textContent:s}}}};
+  try {
+    drawAnnotations(ctx,1023.5,788,{pixels:85,label:'10 km'},[],{naturalWidth:3200,naturalHeight:800});
+    assert.equal(BRAND_WATERMARK_OPACITY,.75);const i=events.findIndex(e=>e[0]==='image');
+    assert.deepEqual(events.slice(i-1,i+2),[['save'],['image',.75],['restore']]);
+    assert.equal(ctx.globalAlpha,1);assert.equal(stack.length,0);
+    assert.deepEqual(events.filter(e=>e[0]==='strokeText'||e[0]==='fillText'),[['strokeText','10 km',1,EXPORT_ANNOTATIONS.scaleHalo],['fillText','10 km',1,'#fff']]);
+    assert.deepEqual(events.filter(e=>e[0]==='stroke'),[['stroke',1,EXPORT_ANNOTATIONS.scaleHalo,3],['stroke',1,'#fff',1.5]]);
+  } finally {globalThis.DOMParser=previous;}
+});
+for(const [width,height] of [[1023.5,788],[292,544],[584,1088],[2047,1576]]) {
+  test(`EGEM guinda con halo sin tarjeta, superior izquierdo ${width}x${height}`,()=>{
+    const events=[];const ctx={...measuredContext(),save(){},restore(){},scale(x,y){assert.equal(x,y)},
+      strokeText(t,x,y){events.push(['halo',t,x,y,this.strokeStyle,this.globalAlpha])},
+      fillText(t,x,y){events.push(['text',t,x,y,this.fillStyle,this.globalAlpha])}};
+    const box=drawExportHeading(ctx,width,height);
+    assert.equal(EGEM_HEADING.color,'#501C32');
+    assert.deepEqual(events.map(e=>[e[0],e[1],e[4],e[5]]),[['halo','EGEM',EGEM_HEADING.halo,1],['text','EGEM','#501C32',1]]);
+    assert.equal(box.x,box.y);assert.ok(box.x>0&&box.y>0&&box.x+box.width<width&&box.y+box.height<height);
+    assert.ok(!overlaps(box,drawExportNorth(northContext(),width,height,{bearing:90,pitch:60})));
+    const footer=annotationLayout(measuredContext(),width,height,{pixels:60,label:'10 km'},'Satélite · GOES',4);
+    for(const block of Object.values(footer))assert.ok(!overlaps(box,block));
+  });
+}

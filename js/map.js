@@ -1,3 +1,6 @@
+import { createPointIconLoader, canonicalPointSymbol } from "./app/utils/point-icon-resource.js";
+import { immutableLegendSnapshot } from "./app/utils/export-legend.js";
+import { createThematicSelection, latestThematicId } from "./app/utils/thematic-selection.js";
 import { renderAdminLayerDetail } from "./app/utils/admin-layer-detail.js";
 import { runtimeConfig } from "./app/config/runtime-config.js";
 import { invalidateCache } from "./app/services/http-client.js";
@@ -82,6 +85,7 @@ import { installMapExport } from "./app/utils/map-export.js";
   const STORAGE_KEYS = {
     session: "egem-session",
     layerPrefs: "egem-layer-prefs-v1",
+    thematic: "egem-thematic-selection-v1",
     managedUsers: "egem-managed-users-v1",
     topbarMode: "egem-topbar-mode-v1",
   };
@@ -93,6 +97,7 @@ import { installMapExport } from "./app/utils/map-export.js";
   const GOES_IR_OVERLAY_OPACITY = 0.62;
   const TOOLBAR_AUTO_COLLAPSE_MS = 8000;
   const POINT_ICON_LOAD_TIMEOUT_MS = 6500;
+  const pointIconLoader = createPointIconLoader({ timeoutMs: POINT_ICON_LOAD_TIMEOUT_MS });
   const GOES_IR_ACCESSIBLE_DESCRIPTION =
     "Imagen infrarroja GOES. Los colores representan diferencias de temperatura radiativa; las zonas más frías suelen corresponder a nubes más altas. No representa lluvia directa.";
 
@@ -658,25 +663,24 @@ import { installMapExport } from "./app/utils/map-export.js";
 
   mountOrientationControl();
 
+  const thematicSelection = createThematicSelection();
+
   installMapExport({
     map,
     button: document.getElementById("toolbar-save-image"),
     status: document.getElementById("map-export-status"),
+    thematicSnapshot: captureThematicExportSnapshot,
     prepare: async (signal) => {
-      // Wait for current work, then retry missing PNGs once. Registered images
-      // are reused by loadPointIconImage; the export clone never fetches them.
+      const selected = state.userLayers.find(layer => layer.visible && layer.id !== state.previewLayerId);
+      const activation = selected?.__activation;
       await Promise.all([...state.pendingLayerLoads.values(), ...state.pendingPointIconLoads.values()]);
       signal.throwIfAborted();
-      for (const layer of state.userLayers.filter(item => item.visible)) {
-        const icons = getLayerPointIcons(layer);
-        if (!icons.length) continue;
-        if (!layer.__pointIconLoadDiagnostics?.failed?.length &&
-            icons.every(icon => map.hasImage(buildPointIconImageId(layer, icon)))) continue;
-        await ensurePointIconImagesForLayer(layer);
-        signal.throwIfAborted();
-        const source = map.getSource(`source-${layer.id}`);
-        if (source && layer.data) source.setData(layer.data);
+      if (state.userLayers.find(layer => layer.visible && layer.id !== state.previewLayerId) !== selected ||
+          (selected && (selected.__activation !== activation || !state.userLayers.includes(selected)))) {
+        throw new DOMException("La capa cambió durante la preparación", "AbortError");
       }
+      // Activation owns loading and registration. Never restart a failed request
+      // here: either canonical recovery is complete or check() reports its error.
     },
     check: () => {
       // These anonymous CARTO endpoints currently return HTTP 200 error images
@@ -721,8 +725,14 @@ import { installMapExport } from "./app/utils/map-export.js";
         if (playing && cloud.userEnabled && document.visibilityState !== "hidden") cloud.playback?.play();
       };
     },
-    attribution: () => state.cloudTop.userEnabled
-      ? state.cloudTop.activeProvider?.attribution || "NOAA/NOS nowCOAST · NOAA/NESDIS GOES" : "",
+    baseName: () => ({ satelite: "Satélite", topografico: "Topográfico", claro: "CARTO Claro", oscuro: "CARTO Oscuro" })[state.activeBaseMap] || state.activeBaseMap,
+    attribution: () => {
+      if (!state.cloudTop.userEnabled) return "";
+      const frame = state.cloudTop.visibleFrame || state.cloudTop.lastValidFrame;
+      const time = frame ? formatFrameTime(frame.timestamp, { timeZone: CLOUD_TOP_TIME_ZONE }) : "";
+      const source = state.cloudTop.activeProvider?.attribution || "NOAA/NOS nowCOAST · NOAA/NESDIS";
+      return `GOES IR${time ? ` · ${time}` : ""} · ${source}`;
+    },
     prepareSources: async (style, bounds, signal) => {
       const source = style.sources[ROAD_REFERENCE_LEVELS[3].sourceId];
       if (!source) return;
@@ -1482,7 +1492,7 @@ import { installMapExport } from "./app/utils/map-export.js";
     const shouldOpen = hasLayers || !searchTerm;
     const openAttribute = shouldOpen ? "open" : "";
     const countLabel = hasLayers ? `${layers.length} capa${layers.length === 1 ? "" : "s"}` : "Sin capas";
-    const activeCount = layers.filter((layer) => layer.visible).length;
+    const activeCount = layers.filter((layer) => layer.visible && layer.id !== state.previewLayerId).length;
     const activeBadge = activeCount
       ? `<span class="layer-group__active">${activeCount} activa${activeCount === 1 ? "" : "s"}</span>`
       : "";
@@ -1575,7 +1585,7 @@ import { installMapExport } from "./app/utils/map-export.js";
 
   function renderVisitorLayerItem(layer) {
     const checked = layer.visible ? "checked" : "";
-    const disableToggle = !canSeeLayer(layer) || layer.isLoading ? "disabled" : "";
+    const disableToggle = !canSeeLayer(layer) ? "disabled" : "";
     const loadingStatus = layer.isLoading ? '<span class="layer-loading-state" aria-live="polite">Cargando</span>' : "";
     const errorStatus = layer.loadError ? `<span class="layer-error-state" aria-live="polite">${escapeHtml(layer.loadError)}</span>` : "";
     const itemClassName = [
@@ -1924,6 +1934,36 @@ import { installMapExport } from "./app/utils/map-export.js";
     `;
   }
 
+  function captureThematicExportSnapshot() {
+    if (state.pendingLayerLoads.size || state.pendingPointIconLoads.size) throw new Error("Espera a que termine de cargar la capa antes de exportar su simbología.");
+    const layer = state.userLayers.find(l => l.visible && l.id !== state.previewLayerId && canSeeLayer(l));
+    if (!layer) return null;
+    const vector = getVectorLayerSymbology(layer);
+    const raster = isImageBackedLayer(layer) ? getRasterLayerSymbology(layer) : null;
+    if (raster?.classes?.some(item => item.needsMetadata)) throw new Error(`La capa «${layer.title}» no tiene simbología raster publicada. No se puede exportar una leyenda completa hasta disponer de sus clases reales.`);
+    const classes = []; const seen = new Set();
+    for (const [kind, legend] of [["vector", vector], ["raster", raster]]) {
+      for (const item of legend?.classes || []) {
+        const descriptor = getLegendSymbolDescriptor(item);
+        const entry = { kind, ...structuredClone(item), label: item.displayLabel || item.label || item.originalLabel || "Clase", shape: descriptor.shape, color: descriptor.displayColor, outlineColor: descriptor.outlineColor };
+        // Copy the exact recolored point symbol already used by MapLibre, including its contour.
+        const editedIcon = ["dot", "triangle"].includes(descriptor.shape)
+          ? map.getImage(`egem-draft-${descriptor.shape}-${descriptor.displayColor.replace("#", "")}`) : null;
+        if (editedIcon?.data) entry.image = { width: editedIcon.data.width, height: editedIcon.data.height, data: Array.from(editedIcon.data.data) };
+        if (!entry.image && descriptor.iconImageUrl) {
+          const icon = layer.__pointIconImages?.find(icon => icon.imageUrl === descriptor.iconImageUrl);
+          const loaded = icon && map.getImage(icon.imageId);
+          if (loaded?.data) entry.image = { width: loaded.data.width, height: loaded.data.height, data: Array.from(loaded.data.data) };
+        }
+        const key = JSON.stringify([kind, entry.label, entry.shape, entry.color, entry.group, entry.value]);
+        if (!seen.has(key)) { seen.add(key); classes.push(entry); }
+      }
+    }
+    return immutableLegendSnapshot({ id: layer.id, title: layer.title || layer.fileName || "Capa temática", resourceType: layer.resourceType, geometry: [...getLayerGeometryTypes(layer)],
+      vectorLegend: vector, rasterLegend: raster, opacity: layer.opacity ?? 1, classes,
+      base: state.activeBaseMap, goes: { enabled: state.cloudTop.userEnabled, frame: state.cloudTop.visibleFrame || state.cloudTop.lastValidFrame }, bearing: map.getBearing(), pitch: map.getPitch() });
+  }
+
   function renderFloatingLegendContent(layer) {
     const sections = [];
     const vectorLegend = getVectorLayerSymbology(layer);
@@ -1964,6 +2004,8 @@ import { installMapExport } from "./app/utils/map-export.js";
   }
 
   function getRasterLayerSymbology(layer) {
+    const persisted = layer.metadata?.rasterLegend || layer.metadata?.properties?.rasterLegend;
+    if (persisted?.type === "raster" && persisted.classes?.length && layer.legend?.type !== "raster") return persisted;
     if (layer.legend?.type === "raster" && Array.isArray(layer.legend.classes) && layer.legend.classes.length) {
       return layer.legend;
     }
@@ -3374,7 +3416,9 @@ import { installMapExport } from "./app/utils/map-export.js";
 
   function applyVisibleSnapshot() {
     const staticIds = new Set(state.visibleSnapshot.staticIds || []);
-    const userIds = new Set(state.visibleSnapshot.userIds || []);
+    const ids = state.visibleSnapshot.userIds || [];
+    const last = ids.filter(id => id !== state.visibleSnapshot.previewId && state.userLayers.some(l => l.id === id)).at(-1);
+    const userIds = new Set([last, state.visibleSnapshot.previewId].filter(Boolean));
 
     staticLayers.forEach((layer) => {
       layer.visible = staticIds.has(layer.id);
@@ -3803,7 +3847,9 @@ import { installMapExport } from "./app/utils/map-export.js";
       applyStaticLayerOpacity(layer.id);
     });
 
+    const selected = latestThematicId(state.userLayers.filter(l => l.id !== state.previewLayerId), state.activeLayerStack);
     state.userLayers.forEach((layer) => {
+      if (layer.id !== state.previewLayerId && layer.id !== selected) layer.visible = false;
       if (layer.visible !== false && canSeeLayer(layer)) {
         if (canRenderLayerFromCachedResources(layer)) {
           addUserLayerToMap(layer);
@@ -3836,6 +3882,7 @@ import { installMapExport } from "./app/utils/map-export.js";
   }
 
   function resetThematicRuntimeState(options = {}) {
+    thematicSelection.clear();
     state.userLayers.forEach((layer) => {
       layer.visible = false;
       layer.isLoading = false;
@@ -3908,6 +3955,7 @@ import { installMapExport } from "./app/utils/map-export.js";
         return loadedLayer;
       })
       .finally(() => {
+        if (state.pendingLayerLoads.get(layer.id) !== loadPromise) return;
         state.pendingLayerLoads.delete(layer.id);
         layer.isLoading = false;
         renderLayerCatalog(elements.layerSearch.value.trim().toLowerCase());
@@ -3920,6 +3968,7 @@ import { installMapExport } from "./app/utils/map-export.js";
   }
 
   async function loadProcessedGeoJsonForLayer(layer) {
+    const activation = layer.__activation;
     const timings = {
       startedAt: performance.now(),
       downloadMs: 0,
@@ -3930,6 +3979,7 @@ import { installMapExport } from "./app/utils/map-export.js";
     };
     const downloadStartedAt = performance.now();
     const remoteGeojson = await fetchLayerJson(layer, layer.processedGeojsonUrl);
+    activation?.signal.throwIfAborted();
     timings.downloadMs = performance.now() - downloadStartedAt;
     const prepStartedAt = performance.now();
     const normalizedRemote = normalizeBackendProcessedGeoJson(
@@ -3953,12 +4003,14 @@ import { installMapExport } from "./app/utils/map-export.js";
   }
 
   async function ensurePointIconImagesForLayer(layer) {
+    const activation = layer.__activation;
     const pointIcons = getLayerPointIcons(layer);
     if (!pointIcons.length || !layer?.data?.features?.length) return layer;
     if (state.pendingPointIconLoads.has(layer.id)) return state.pendingPointIconLoads.get(layer.id);
 
     const loadPromise = (async () => {
       const results = await Promise.allSettled(pointIcons.map((icon) => loadPointIconImage(layer, icon)));
+      activation?.signal.throwIfAborted();
       const loadedIcons = results
         .filter((result) => result.status === "fulfilled" && result.value)
         .map((result) => result.value);
@@ -3984,6 +4036,7 @@ import { installMapExport } from "./app/utils/map-export.js";
           imageId: icon.imageId,
           loadMs: icon.loadMs,
           route: icon.route,
+          recoveredError: icon.recoveredError || null,
         })),
         failed: failedIcons,
       };
@@ -3995,6 +4048,7 @@ import { installMapExport } from "./app/utils/map-export.js";
       applyPointFallbackIconFeatureIds(layer);
       return layer;
     })().catch((error) => {
+      activation?.signal.throwIfAborted();
       console.warn("No se pudieron cargar iconos PNG de puntos; se mantiene el fallback pequeño por tipo.", error);
       layer.__pointIconImages = [];
       layer.__pointIconLoadDiagnostics = {
@@ -4013,7 +4067,7 @@ import { installMapExport } from "./app/utils/map-export.js";
       applyPointFallbackIconFeatureIds(layer);
       return layer;
     }).finally(() => {
-      state.pendingPointIconLoads.delete(layer.id);
+      if (state.pendingPointIconLoads.get(layer.id) === loadPromise) state.pendingPointIconLoads.delete(layer.id);
     });
 
     state.pendingPointIconLoads.set(layer.id, loadPromise);
@@ -4021,6 +4075,7 @@ import { installMapExport } from "./app/utils/map-export.js";
   }
 
   async function loadPointIconImage(layer, icon) {
+    const activation = layer.__activation;
     const started = performance.now();
     const imageId = buildPointIconImageId(layer, icon);
     icon.__imageId = imageId;
@@ -4028,10 +4083,30 @@ import { installMapExport } from "./app/utils/map-export.js";
     if (!map.hasImage(imageId)) {
       const imageUrl = await getPointIconImageUrl(layer, icon);
       route = imageUrl.startsWith("blob:") ? "authenticated-blob" : "direct-url";
-      const image = await loadMapImage(imageUrl, { timeoutMs: POINT_ICON_LOAD_TIMEOUT_MS });
-      if (!map.hasImage(imageId)) {
-        map.addImage(imageId, image, { pixelRatio: 1 });
+      let image;
+      let remoteError;
+      try {
+        image = await loadMapImage(imageUrl, { timeoutMs: POINT_ICON_LOAD_TIMEOUT_MS, signal: activation?.signal });
+      } catch (error) {
+        activation?.signal.throwIfAborted();
+        remoteError = error;
+        const legend = getVectorLayerSymbology(layer);
+        const item = legend?.classes?.find(item =>
+          (icon.styleUrl && item.styleUrl === icon.styleUrl) ||
+          (icon.styleId && item.styleId === icon.styleId) ||
+          (icon.value != null && item.value === icon.value));
+        const canonical = item && canonicalPointSymbol(item);
+        if (!canonical) throw error;
+        try { image = createFallbackPointIcon(canonical.shape, canonical.color); }
+        catch (fallbackError) { throw new AggregateError([error, fallbackError], `Fallaron el PNG y su símbolo canónico: ${imageUrl}`); }
+        if (!image?.data?.length) throw new Error(`No se pudo construir el símbolo canónico: ${imageUrl}`);
+        route = "canonical-local";
       }
+      activation?.signal.throwIfAborted();
+      if (!map.hasImage(imageId)) map.addImage(imageId, image, { pixelRatio: 1 });
+      if (!map.hasImage(imageId)) throw new Error(`No se registró el símbolo: ${imageId}`);
+      if (remoteError) return { ...icon, imageId, route, loadMs: performance.now() - started,
+        recoveredError: { message: remoteError.message, stage: remoteError.stage || "resource" } };
     }
     return { ...icon, imageId, route, loadMs: performance.now() - started };
   }
@@ -4060,38 +4135,7 @@ import { installMapExport } from "./app/utils/map-export.js";
   }
 
   function loadMapImage(url, options = {}) {
-    const timeoutMs = options.timeoutMs || POINT_ICON_LOAD_TIMEOUT_MS;
-    return new Promise((resolve, reject) => {
-      let settled = false;
-      const timeoutId = setTimeout(() => {
-        if (settled) return;
-        settled = true;
-        reject(new Error(`No se pudo cargar la imagen del icono en ${Math.round(timeoutMs / 1000)} segundos.`));
-      }, timeoutMs);
-      try {
-        // MapLibre 4.7 returns a Promise<GetResourceResponse>, not a callback.
-        Promise.resolve(map.loadImage(url)).then(({ data: image }) => {
-          if (settled) return;
-          settled = true;
-          clearTimeout(timeoutId);
-          if (!image) {
-            reject(new Error("No se pudo cargar la imagen del icono."));
-            return;
-          }
-          resolve(image);
-        }, (error) => {
-          if (settled) return;
-          settled = true;
-          clearTimeout(timeoutId);
-          reject(error);
-        });
-      } catch (error) {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timeoutId);
-        reject(error);
-      }
-    });
+    return pointIconLoader(url, options);
   }
 
   function applyPointIconFeatureIds(layer) {
@@ -4117,9 +4161,9 @@ import { installMapExport } from "./app/utils/map-export.js";
       const legendItem = getFeatureLegendClass(properties, legend);
       const displayColor = normalizeHexColor(
         legendItem?.displayColor,
-        normalizeHexColor(legendItem?.color || legendItem?.originalColor)
+        normalizeHexColor(legendItem?.originalColor, normalizeHexColor(legendItem?.color, "#7a203a"))
       );
-      const displayIconId = displayColor ? getDraftLegendPointIconImageId(legendItem, properties, displayColor) : null;
+      const displayIconId = displayColor && legendItem ? getDraftLegendPointIconImageId(legendItem, properties, displayColor) : null;
       if (displayIconId) {
         feature.properties = {
           ...properties,
@@ -4276,7 +4320,9 @@ import { installMapExport } from "./app/utils/map-export.js";
     const headers = {};
     const token = getPrivateLayerToken(layer);
     if (token) headers.Authorization = `Bearer ${token}`;
-    const response = await fetch(url, { headers });
+    const timeout = AbortSignal.timeout(30000);
+    const signal = layer.__activation ? AbortSignal.any([timeout, layer.__activation.signal]) : timeout;
+    const response = await fetch(url, { headers, signal });
     if (!response.ok) {
       throw new Error(response.status === 403
         ? "No tienes permisos para descargar el recurso procesado."
@@ -4597,6 +4643,7 @@ import { installMapExport } from "./app/utils/map-export.js";
   }
 
   async function previewLayer(layer) {
+    if (isPublishedStatus(layer.status)) { await toggleLayerVisibility(layer.id, true); fitLayer(layer); return; }
     clearPreviewLayer();
     state.previewLayerId = layer.id;
     layer.visible = true;
@@ -4668,46 +4715,46 @@ import { installMapExport } from "./app/utils/map-export.js";
     }
 
     if (userLayer) {
-      userLayer.visible = visible;
-      const legendRequestId = visible ? ++state.activeLegendRequestId : state.activeLegendRequestId;
+      const ticket = thematicSelection.select(visible ? layerId : null);
+      // Invalidate first. Slow predecessors must not block or resurrect this choice.
+      for (const layer of state.userLayers) {
+        if (layer.id === state.previewLayerId && layer.id !== layerId) continue;
+        if (layer.visible || layer.isLoading || layer.id === layerId) {
+          layer.visible = false; layer.isLoading = false; layer.loadError = null;
+          state.pendingLayerLoads.delete(layer.id); state.pendingPointIconLoads.delete(layer.id);
+          removeLayerBundle(layer.id, { preserveResources: true }); state.renderedLayers.delete(layer.id);
+          deactivateLayerInStack(layer.id); closePopupForLayer(layer.id);
+          syncLayerCatalogItemState(layer.id, false);
+        }
+      }
+      closeFloatingLegend({ renderCatalog: false });
+      userLayer.__activation = ticket;
+      userLayer.visible = visible; userLayer.isLoading = visible;
       if (visible) {
-        activateLayerInStack(userLayer.id);
+        activateLayerInStack(layerId);
+        renderLayerCatalog(elements.layerSearch.value.trim().toLowerCase());
         try {
           await ensureLayerResourcesLoaded(userLayer);
-          userLayer.loadError = null;
-          const isLatestLegendRequest = legendRequestId === state.activeLegendRequestId && userLayer.visible !== false;
-          if (!state.renderedLayers.has(userLayer.id) && (canSeeLayer(userLayer) || userLayer.id === state.previewLayerId)) {
-            addUserLayerToMap(userLayer);
-            state.renderedLayers.set(userLayer.id, true);
-          }
+          if (!ticket.current() || !state.userLayers.includes(userLayer)) return;
+          userLayer.loadError = null; userLayer.isLoading = false;
+          addUserLayerToMap(userLayer); state.renderedLayers.set(layerId, true);
           setUserLayerLayoutVisibility(userLayer, true);
-          userLayer.visible = true;
           syncLayerCatalogItemState(layerId, true);
-          if (isLatestLegendRequest) {
-            activateLayerInStack(userLayer.id);
-            openFloatingLegendForLayer(userLayer.id, { renderCatalog: false, requestId: legendRequestId });
-          }
+          openFloatingLegendForLayer(layerId, { renderCatalog: false });
         } catch (error) {
-          userLayer.visible = false;
+          if (!ticket.current() || !state.userLayers.includes(userLayer)) return;
+          userLayer.visible = false; userLayer.isLoading = false;
           userLayer.loadError = error.message || "Error de carga";
-          deactivateLayerInStack(userLayer.id);
-          state.renderedLayers.delete(userLayer.id);
-          syncLayerCatalogItemState(layerId, false);
-          captureVisibleSnapshot();
-          saveUserLayers();
-          updateInfoPanel({
-            title: "No se pudo cargar la capa",
-            description: error.message || "La capa no pudo descargarse. Intenta activarla nuevamente.",
-          });
+          removeLayerBundle(layerId); state.renderedLayers.delete(layerId);
+          deactivateLayerInStack(layerId); syncLayerCatalogItemState(layerId, false);
+          captureVisibleSnapshot(); saveUserLayers();
+          renderLayerCatalog(elements.layerSearch.value.trim().toLowerCase());
+          updateInfoPanel({ title: "No se pudo cargar la capa", description: userLayer.loadError });
           throw error;
         }
-      } else {
-        setUserLayerLayoutVisibility(userLayer, false);
-        deactivateLayerInStack(userLayer.id);
-        closePopupForLayer(userLayer.id);
-        syncFloatingLegendAfterLayerDeactivation(userLayer.id);
       }
       saveUserLayers();
+      renderLayerCatalog(elements.layerSearch.value.trim().toLowerCase());
     }
 
     captureVisibleSnapshot();
@@ -8456,8 +8503,12 @@ import { installMapExport } from "./app/utils/map-export.js";
     ensureReferenceLayerOrder();
   }
 
-  function removeLayerBundle(layerId) {
+  function removeLayerBundle(layerId, options = {}) {
     const layer = state.userLayers.find((item) => item.id === layerId) || state.uploadDraft.previewLayers.find((item) => item.id === layerId);
+    if (!options.preserveResources && layer?.__activation?.current()) {
+      thematicSelection.clear();
+      state.pendingLayerLoads.delete(layerId); state.pendingPointIconLoads.delete(layerId);
+    }
     [
       `${layerId}-point`,
       `${layerId}-point-icon`,
@@ -8469,6 +8520,7 @@ import { installMapExport } from "./app/utils/map-export.js";
       if (map.getLayer(id)) map.removeLayer(id);
     });
 
+    map.listImages().filter(id => id.startsWith(`${layerId}-point-icon-`)).forEach(id => map.removeImage(id));
     (layer?.__pointIconImages || []).forEach((icon) => {
       if (icon.imageId && map.hasImage(icon.imageId)) {
         map.removeImage(icon.imageId);
@@ -8480,7 +8532,7 @@ import { installMapExport } from "./app/utils/map-export.js";
         map.removeSource(sourceId);
       }
     });
-    if (layer) {
+    if (layer && !options.preserveResources) {
       revokeLayerObjectUrls(layer);
     }
   }
@@ -9337,14 +9389,17 @@ import { installMapExport } from "./app/utils/map-export.js";
   }
 
   function saveUserLayers() {
+    const selectedId = latestThematicId(state.userLayers.filter(l => l.id !== state.previewLayerId), state.activeLayerStack);
     const layerPrefs = [...staticLayers, ...state.userLayers]
       .map((layer) => ({
         layerKey: layer.backendLayerId || layer.id,
         backendLayerId: layer.backendLayerId || null,
-        visible: Boolean(layer.visible),
+        ...(staticLayers.includes(layer) ? { visible: Boolean(layer.visible) } : {}),
         opacity: clampLayerOpacity(layer.opacity ?? 1),
       }));
 
+    const selected = state.userLayers.find(layer => layer.id === selectedId);
+    localStorage.setItem(STORAGE_KEYS.thematic, JSON.stringify(selected ? selected.backendLayerId || selected.id : null));
     localStorage.setItem(STORAGE_KEYS.layerPrefs, JSON.stringify(layerPrefs));
   }
 
@@ -9562,7 +9617,7 @@ import { installMapExport } from "./app/utils/map-export.js";
       await waitForMapStyle();
     }
 
-    await syncLayersFromBackend({ preserveSessionVisibility: false });
+    await syncLayersFromBackend({ preserveSessionVisibility: true });
   }
 
   async function syncLayersFromBackend(options = {}) {
@@ -9616,6 +9671,11 @@ import { installMapExport } from "./app/utils/map-export.js";
       }
 
       const persistedPreferences = loadPersistedLayerPreferences();
+      const savedSelection = localStorage.getItem(STORAGE_KEYS.thematic);
+      let savedKey = null;
+      try { savedKey = savedSelection === null
+        ? [...persistedPreferences].filter(([key, pref]) => pref.visible && hydratedLayers.some(l => (l.backendLayerId || l.id) === key)).at(-1)?.[0] || null
+        : JSON.parse(savedSelection); } catch (_) { /* Invalid preference is discarded. */ }
       const previousVisibility = new Map(
         state.userLayers.map((layer) => [layer.backendLayerId || layer.id, Boolean(layer.visible)])
       );
@@ -9631,7 +9691,7 @@ import { installMapExport } from "./app/utils/map-export.js";
       const remoteLayers = hydratedLayers.map((layer) => {
         const preference = persistedPreferences.get(layer.backendLayerId || layer.id);
         const visible = preserveSessionVisibility
-          ? previousVisibility.get(layer.backendLayerId || layer.id) === true
+          ? (previousVisibility.size ? previousVisibility.get(layer.backendLayerId || layer.id) === true : (layer.backendLayerId || layer.id) === savedKey)
           : false;
         return {
           ...layer,
@@ -9639,7 +9699,12 @@ import { installMapExport } from "./app/utils/map-export.js";
           opacity: clampLayerOpacity(preference?.opacity ?? layer.opacity ?? 1),
         };
       });
+      thematicSelection.clear();
+      state.pendingLayerLoads.clear(); state.pendingPointIconLoads.clear();
       state.userLayers = [...localLayers, ...remoteLayers];
+      const selectedId = latestThematicId(state.userLayers, state.activeLayerStack);
+      for (const layer of state.userLayers) layer.visible = layer.id === selectedId;
+      saveUserLayers();
 
       staticLayers.forEach((layer) => {
         const preference = persistedPreferences.get(layer.id);
@@ -9651,6 +9716,7 @@ import { installMapExport } from "./app/utils/map-export.js";
       state.backendStatus.reachable = true;
       state.backendStatus.lastError = null;
       state.backendStatus.state = hydratedLayers.length ? "ready" : "empty";
+      if (selectedId) await toggleLayerVisibility(selectedId, true);
       renderVisibleLayers();
       renderLayerCatalog(elements.layerSearch.value.trim().toLowerCase());
       renderSession();

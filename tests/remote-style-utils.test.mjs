@@ -1725,15 +1725,15 @@ test("la reconstruccion backend no conserva estilos colapsados cuando existe cam
   assert.match(mapSource, /"muy alta": "#ff2200"/);
 });
 
-test("visibilidad y opacidad de capas grandes no reconstruyen fuentes innecesariamente", () => {
+test("sustitución temática retira fuentes; opacidad conserva actualizaciones eficientes", () => {
   const toggleSource = extractFunctionSource(mapSource, "toggleLayerVisibility");
   const schedulerSource = extractFunctionSource(mapSource, "scheduleLayerOpacityUpdate");
   const saveSource = extractFunctionSource(mapSource, "saveUserLayers");
   const renderCatalogSource = extractFunctionSource(mapSource, "renderLayerCatalog");
 
-  assert.match(toggleSource, /setUserLayerLayoutVisibility\(userLayer, false\)/);
-  assert.doesNotMatch(toggleSource, /removeLayerBundle\(userLayer\.id\)/);
-  assert.match(toggleSource, /!state\.renderedLayers\.has\(userLayer\.id\)/);
+  assert.match(toggleSource, /removeLayerBundle\(layer\.id, \{ preserveResources: true \}\)/);
+  assert.match(toggleSource, /thematicSelection\.select/);
+  assert.ok(toggleSource.indexOf("!ticket.current()") < toggleSource.indexOf("addUserLayerToMap(userLayer)"));
   assert.match(mapSource, /function updateLayerOpacity\(layerId, percentage, options = \{\}\)/);
   assert.match(mapSource, /scheduleLayerOpacityUpdate\(layerId, \(\) => applyUserLayerOpacityToMap\(userLayer\)\)/);
   assert.match(mapSource, /if \(options\.persist !== false\)/);
@@ -2080,9 +2080,9 @@ test("la pila de activacion controla prioridad de consulta y cierre de popup", (
   assert.match(activateSource, /filter\(\(id\) => id !== layerId\)/);
   assert.match(activateSource, /state\.activeLayerStack\.push\(layerId\)/);
   assert.match(deactivateSource, /filter\(\(id\) => id !== layerId\)/);
-  assert.match(toggleSource, /activateLayerInStack\(userLayer\.id\)/);
-  assert.match(toggleSource, /deactivateLayerInStack\(userLayer\.id\)/);
-  assert.match(toggleSource, /closePopupForLayer\(userLayer\.id\)/);
+  assert.match(toggleSource, /activateLayerInStack\(layerId\)/);
+  assert.match(toggleSource, /deactivateLayerInStack\(layerId\)/);
+  assert.match(toggleSource, /closePopupForLayer\(layer\.id\)/);
   assert.match(clickSource, /getQueryableThematicLayerStack\(\)\.reverse\(\)/);
   assert.match(queryableStackSource, /\[\.\.\.state\.activeLayerStack\]/);
   assert.match(queryableStackSource, /state\.previewLayerId/);
@@ -2180,8 +2180,8 @@ test("la simbologia usa un unico panel flotante independiente de visibilidad", a
   assert.match(mapSource, /function closeFloatingLegend\(options = \{\}\)/);
   assert.match(mapSource, /function openFloatingLegendForLayer\(layerId, options = \{\}\)/);
   assert.match(mapSource, /function syncFloatingLegendAfterLayerDeactivation\(layerId\)/);
-  assert.match(toggleSource, /openFloatingLegendForLayer\(userLayer\.id, \{ renderCatalog: false, requestId: legendRequestId \}\)/);
-  assert.match(toggleSource, /syncFloatingLegendAfterLayerDeactivation\(userLayer\.id\)/);
+  assert.match(toggleSource, /openFloatingLegendForLayer\(layerId, \{ renderCatalog: false \}\)/);
+  assert.match(toggleSource, /closeFloatingLegend\(\{ renderCatalog: false \}\)/);
   assert.match(previewSource, /openFloatingLegendForLayer\(layer\.id, \{ renderCatalog: false \}\)/);
   assert.doesNotMatch(floatingSource, /toggleLayerVisibility/);
   assert.doesNotMatch(floatingSource, /addUserLayerToMap/);
@@ -2193,10 +2193,10 @@ test("la leyenda flotante sigue la ultima capa activa y descarta aperturas antig
   const unavailableSource = extractFunctionSource(mapSource, "closeLegendIfLayerUnavailable");
 
   assert.match(mapSource, /activeLegendRequestId:\s*0/);
-  assert.match(toggleSource, /\+\+state\.activeLegendRequestId/);
-  assert.match(toggleSource, /const isLatestLegendRequest = legendRequestId === state\.activeLegendRequestId/);
-  assert.match(toggleSource, /if \(isLatestLegendRequest\) \{\s*activateLayerInStack\(userLayer\.id\);/s);
-  assert.match(toggleSource, /openFloatingLegendForLayer\(userLayer\.id, \{ renderCatalog: false, requestId: legendRequestId \}\)/);
+  assert.match(toggleSource, /thematicSelection\.select/);
+  assert.match(toggleSource, /!ticket\.current\(\) \|\| !state\.userLayers\.includes\(userLayer\)/);
+  assert.ok(toggleSource.indexOf("!ticket.current()") < toggleSource.indexOf("openFloatingLegendForLayer(layerId"));
+  assert.match(toggleSource, /openFloatingLegendForLayer\(layerId, \{ renderCatalog: false \}\)/);
   assert.match(mapSource, /options\.requestId && options\.requestId !== state\.activeLegendRequestId/);
   assert.match(mapSource, /function getTopActiveThematicLayerId\(\)/);
   assert.match(deactivateSource, /const fallbackId = getTopActiveThematicLayerId\(\)/);
@@ -2472,14 +2472,15 @@ test("el cuerpo compacto de simbologia no hereda el ancho de la cabecera", () =>
   assert.match(cssSource, /\.map-legend-float \{[\s\S]*?right: 6px;[\s\S]*?left: auto;[\s\S]*?max-width: calc\(100vw - 12px\);[\s\S]*?\.map-legend-float__header \{[\s\S]*?width: min\(260px, calc\(100vw - 12px\)\);/);
 });
 
-test("el visor inicia con capas tematicas apagadas aunque existan preferencias antiguas", () => {
+test("el visor restaura solo una temática válida y permite reinicio explícito de sesión", () => {
   const prefsSource = extractFunctionSource(mapSource, "loadPersistedLayerPreferences");
   const renderSource = extractFunctionSource(mapSource, "renderVisibleLayers");
   const buildCatalogSource = extractFunctionSource(mapSource, "buildCatalog");
 
   assert.match(mapSource, /async function syncLayersFromBackend\(options = \{\}\)/);
   assert.match(mapSource, /preserveSessionVisibility = options\.preserveSessionVisibility !== false/);
-  assert.match(mapSource, /const visible = preserveSessionVisibility\s*\?\s*previousVisibility\.get\(layer\.backendLayerId \|\| layer\.id\) === true\s*:\s*false/s);
+  assert.match(mapSource, /const visible = preserveSessionVisibility[\s\S]*?previousVisibility\.size[\s\S]*?=== savedKey\)[\s\S]*?: false/);
+  assert.match(mapSource, /layer.visible = layer.id === selectedId/);
   assert.doesNotMatch(mapSource, /preference\?\.visible\s*\?\?\s*isPublishedStatus\(layer\.status\)/);
   assert.match(prefsSource, /opacity:\s*clampLayerOpacity\(item\.opacity \?\? 1\)/);
   assert.match(prefsSource, /visible:\s*Boolean\(item\.visible\)/);
@@ -2507,7 +2508,7 @@ test("cambios de sesion y administracion no reactivan capas tematicas", async ()
 
   assert.match(mapSource, /syncLayersFromBackend\(\{ preserveSessionVisibility: false \}\)/);
   assert.match(logoutSource, /resetThematicRuntimeState\(\)/);
-  assert.match(initializeSource, /syncLayersFromBackend\(\{ preserveSessionVisibility: false \}\)/);
+  assert.match(initializeSource, /syncLayersFromBackend\(\{ preserveSessionVisibility: true \}\)/);
   assert.match(approveSource, /syncLayersFromBackend\(\{ preserveSessionVisibility: false \}\)/);
   assert.match(publishSource, /syncLayersFromBackend\(\{ preserveSessionVisibility: false \}\)/);
   assert.match(rejectSource, /syncLayersFromBackend\(\{ preserveSessionVisibility: false \}\)/);
@@ -2562,7 +2563,7 @@ test("previsualizacion privada usa token, Object URL y limpieza segura", () => {
 
   assert.match(fetchResourceSource, /getPrivateLayerToken\(layer\)/);
   assert.match(fetchResourceSource, /headers\.Authorization = `Bearer \$\{token\}`/);
-  assert.match(fetchResourceSource, /fetch\(url, \{ headers \}\)/);
+  assert.match(fetchResourceSource, /fetch\(url, \{ headers, signal \}\)/);
   assert.match(fetchBlobSource, /URL\.createObjectURL\(blob\)/);
   assert.match(hydrateOverlaySource, /fetchLayerBlobUrl\(layer, sourceUrl\)/);
   assert.match(hydrateOverlaySource, /revokeUrl: true/);
@@ -2631,7 +2632,7 @@ test("KMZ con iconos PNG registra symbol layer y evita circulos grandes duplicad
   assert.match(addGeoJsonSource, /\["!=", \["get", "__styleIconImageId"\], ""\]/);
   assert.match(addGeoJsonSource, /const pointSymbolDescriptorFilter = getPointSymbolDescriptorFilter\(\)/);
   assert.match(addGeoJsonSource, /\["!", pointSymbolDescriptorFilter\]/);
-  assert.match(loadImageSource, /map\.loadImage/);
+  assert.match(loadImageSource, /pointIconLoader\(url, options\)/);
   assert.match(mapSource, /POINT_ICON_LOAD_TIMEOUT_MS = 6500/);
   assert.match(ensureIconSource, /Promise\.allSettled/);
   assert.match(ensureIconSource, /loadPointIconImage\(layer, icon\)/);
@@ -2640,8 +2641,9 @@ test("KMZ con iconos PNG registra symbol layer y evita circulos grandes duplicad
   assert.match(ensureIconSource, /error: result\.reason\?\.message/);
   assert.match(ensureIconSource, /applyPointFallbackIconFeatureIds\(layer\)/);
   assert.match(extractFunctionSource(mapSource, "loadPointIconImage"), /map\.addImage\(imageId, image/);
-  assert.match(loadImageSource, /setTimeout/);
-  assert.match(loadImageSource, /clearTimeout/);
+  const resourceSource = await fs.readFile(path.resolve("js/app/utils/point-icon-resource.js"), "utf8");
+  assert.match(resourceSource, /controller\.abort/);
+  assert.match(resourceSource, /unschedule\(timer\)/);
   assert.match(featureIconSource, /styleUrl/);
   assert.match(featureIconSource, /normalizeLegendComparisonValue\(properties\[field\]\)/);
   assert.match(extractFunctionSource(mapSource, "legendClassMatchesFeatureByIdentity"), /if \(field\) return false/);

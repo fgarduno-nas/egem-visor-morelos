@@ -1,14 +1,94 @@
+import { drawExportLegend } from "./export-legend.js";
 const HANDLERS = ["scrollZoom", "boxZoom", "dragRotate", "dragPan", "keyboard", "doubleClickZoom", "touchZoomRotate", "touchPitch"];
 import { createExportScene } from "./map-export-renderer.js";
-const LOGO_OPACITY = 1;
+export const BRAND_WATERMARK_OPACITY = .75;
+export const EGEM_HEADING = Object.freeze({ text: "EGEM", color: "#501C32", fontSize: 18, halo: "rgba(255,255,255,0.85)", haloWidth: 2 });
+export const EXPORT_ANNOTATIONS = Object.freeze({
+  margin: 10, gap: 12, padding: 6, logoWidth: 210, logoFraction: .24,
+  creditFont: 8.5, minCreditFont: 7.5, scaleFont: 11,
+  creditBackground: "rgba(0,0,0,0.38)", scaleHalo: "rgba(0,0,0,0.75)", scaleHaloWidth: 2,
+});
+
+export const EXPORT_NORTH = Object.freeze({ radius: 32, labelRadius: 23, margin: 10, zeroTolerance: .1, background: "rgba(0,0,0,0.64)", burgundy: "#501c32" });
+
+// Geographic north, not magnetic/device heading. Pitch is traceability only.
+export function northRotation(bearing) {
+  if (!Number.isFinite(bearing)) throw new Error("La orientación del mapa no es válida.");
+  const angle = ((-bearing % 360) + 540) % 360 - 180;
+  return Math.abs(angle) <= EXPORT_NORTH.zeroTolerance ? 0 : angle;
+}
+
+export function captureExportOrientation(map) {
+  const bearing = map.getBearing(), pitch = map.getPitch();
+  northRotation(bearing);
+  if (!Number.isFinite(pitch)) throw new Error("La inclinación del mapa no es válida.");
+  return Object.freeze({ bearing, pitch });
+}
+
+export function drawExportNorth(ctx, width, height, orientation) {
+  const angle = northRotation(orientation.bearing);
+  const size = Math.max(.5, Math.min(width / 1023.5, height / 788));
+  const radius = EXPORT_NORTH.radius * size, margin = EXPORT_NORTH.margin * size;
+  const x = width - margin - radius, y = margin + radius;
+  ctx.save(); ctx.translate(x, y); ctx.scale(size, size);
+  ctx.globalAlpha = 1;
+  ctx.beginPath(); ctx.arc(0, 0, EXPORT_NORTH.radius, 0, Math.PI * 2);
+  ctx.fillStyle = EXPORT_NORTH.background; ctx.fill();
+  ctx.strokeStyle = "#fff"; ctx.lineWidth = .8; ctx.stroke();
+  const radians = angle * Math.PI / 180;
+  const labelX = Math.sin(radians) * EXPORT_NORTH.labelRadius;
+  const labelY = -Math.cos(radians) * EXPORT_NORTH.labelRadius;
+  // Arrow and label orbit share the badge center. Restore rotation before text:
+  // its anchor follows north, while the glyph stays upright at every bearing.
+  ctx.save(); ctx.rotate(radians);
+  ctx.beginPath(); ctx.moveTo(0, -14); ctx.lineTo(-8, 13); ctx.lineTo(0, 8); ctx.lineTo(8, 13); ctx.closePath();
+  ctx.fillStyle = "#fff"; ctx.fill(); ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.2; ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, -14); ctx.lineTo(8, 13); ctx.lineTo(0, 8); ctx.closePath();
+  ctx.fillStyle = EXPORT_NORTH.burgundy; ctx.fill();
+  ctx.restore();
+  ctx.fillStyle = "#fff"; ctx.font = "bold 11px Arial, sans-serif";
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillText("N", labelX, labelY);
+  ctx.restore();
+  return { x: x - radius, y: y - radius, width: radius * 2, height: radius * 2, angle,
+    label: { x: x + labelX * size, y: y + labelY * size },
+    tip: { x: x + Math.sin(radians) * 14 * size, y: y - Math.cos(radians) * 14 * size } };
+
+}
+
+export function drawExportHeading(ctx, width, height) {
+  const size = Math.max(.5, Math.min(width / 1023.5, height / 788));
+  const margin = EXPORT_NORTH.margin;
+  ctx.save(); ctx.scale(size, size); ctx.globalAlpha = 1;
+  ctx.font = `bold ${EGEM_HEADING.fontSize}px Arial, sans-serif`;
+  ctx.textAlign = "left"; ctx.textBaseline = "top"; ctx.lineJoin = "round";
+  ctx.strokeStyle = EGEM_HEADING.halo; ctx.lineWidth = EGEM_HEADING.haloWidth;
+  ctx.strokeText(EGEM_HEADING.text, margin, margin);
+  ctx.fillStyle = EGEM_HEADING.color; ctx.fillText(EGEM_HEADING.text, margin, margin);
+  const textWidth = ctx.measureText(EGEM_HEADING.text).width;
+  ctx.restore();
+  return { x: margin * size, y: margin * size, width: textWidth * size, height: EGEM_HEADING.fontSize * size };
+}
 
 export function waitForExportResource(promise, signal) {
   return new Promise((resolve, reject) => {
-    const abort = () => reject(signal.reason || new DOMException("Captura cancelada", "AbortError"));
-    Promise.resolve(promise).then(resolve, reject).finally(() => signal.removeEventListener("abort", abort));
+    let done = false;
+    const finish = (error, value) => {
+      if (done) return;
+      done = true; signal.removeEventListener("abort", abort);
+      if (error) reject(error); else resolve(value);
+    };
+    const abort = () => finish(signal.reason || new DOMException("Captura cancelada", "AbortError"));
+    Promise.resolve(promise).then(value => finish(null, value), error => finish(error));
     if (signal.aborted) { abort(); return; }
     signal.addEventListener("abort", abort, { once: true });
   });
+}
+
+export async function prepareExportResources(prepare, controller, timeoutMs = 45000) {
+  const timer = setTimeout(() => controller.abort(new Error("La capa no terminó de prepararse en 45 segundos. No se generó el PNG.")), timeoutMs);
+  try { await waitForExportResource(Promise.resolve().then(() => prepare?.(controller.signal)), controller.signal); }
+  finally { clearTimeout(timer); }
 }
 
 async function timedExportPhase(name, operation) {
@@ -96,8 +176,12 @@ function cameraKey(map) {
   return JSON.stringify([center.lng, center.lat, map.getZoom(), map.getBearing(), map.getPitch(), canvas.width, canvas.height, canvas.clientWidth, canvas.clientHeight]);
 }
 
-export function captureMap(map, { date, check, extraAttribution = "", signal, timeoutMs = 25000, logo = null, crop = null }) {
+export function captureMap(map, { date, check, extraAttribution = "", baseName = "", signal, timeoutMs = 25000, logo = null, crop = null, orientation = null, thematic = null }) {
   map.stop();
+  const snapshot = orientation ? captureExportOrientation({ getBearing: () => orientation.bearing, getPitch: () => orientation.pitch }) : captureExportOrientation(map);
+  if (Math.abs(((map.getBearing() - snapshot.bearing + 540) % 360) - 180) > 1e-7 || Math.abs(map.getPitch() - snapshot.pitch) > 1e-7) {
+    return Promise.reject(new Error("La orientación cambió antes de renderizar. Vuelve a exportar con la vista estable."));
+  }
   const key = cameraKey(map);
   const canvas = map.getCanvas();
   const width = canvas.clientWidth;
@@ -144,7 +228,7 @@ export function captureMap(map, { date, check, extraAttribution = "", signal, ti
         // overscan needed to reconcile integer DOM height with the exact ratio.
         context.drawImage(canvas, crop?.x || 0, crop?.y || 0, output.width, output.height, 0, 0, output.width, output.height);
         context.scale(2, 2);
-        const span = 100;
+        const span = Math.min(100, output.width / 2 * .13);
         const ratio = canvas.width / width;
         const centerY = ((crop?.y || 0) + output.height / 2) / ratio;
         const a = map.unproject([width / 2 - span / ratio, centerY]);
@@ -156,7 +240,11 @@ export function captureMap(map, { date, check, extraAttribution = "", signal, ti
         if (credits.some((text) => /CARTO|OpenTopoMap/.test(text))) credits.push("© OpenStreetMap contributors");
         if (credits.some((text) => /OpenTopoMap/.test(text))) credits.push("SRTM · © OpenTopoMap (CC-BY-SA)");
         credits.push(extraAttribution);
-        drawAnnotations(context, output.width / 2, output.height / 2, date.label, scale, credits, markImage);
+        const annotations = drawAnnotations(context, output.width / 2, output.height / 2, scale, credits, markImage, baseName);
+        const heading = drawExportHeading(context, output.width / 2, output.height / 2);
+        const north = drawExportNorth(context, output.width / 2, output.height / 2, snapshot);
+        const legendPlacement = { annotations, heading, north, background: EXPORT_ANNOTATIONS.creditBackground };
+        drawExportLegend(context, output.width / 2, output.height / 2, thematic, legendPlacement);
         finish(null, output);
       } catch (error) {
         if (output) { output.width = 0; output.height = 0; }
@@ -184,6 +272,8 @@ export function captureMap(map, { date, check, extraAttribution = "", signal, ti
 }
 
 export async function captureExpandedMap(map, options) {
+  map.stop();
+  const orientation = captureExportOrientation(map);
   const controller = new AbortController();
   const cancel = () => controller.abort(options.signal?.reason);
   options.signal?.addEventListener("abort", cancel, { once: true });
@@ -191,12 +281,14 @@ export async function captureExpandedMap(map, options) {
   const timeout = setTimeout(() => controller.abort(new Error("La nueva extensión no terminó de cargar en 45 segundos. Revisa la conexión y las capas visibles.")), 45000);
   let scene;
   try {
-    if (options.prepare) await timedExportPhase("resources", () => waitForExportResource(options.prepare(controller.signal), controller.signal));
+    // The UI path snapshots a ready scene synchronously before its first await.
+    // Later catalog selections cannot change the copied style, images or legend.
+    if (!options.snapshotAtStart && options.prepare) await timedExportPhase("resources", () => waitForExportResource(options.prepare(controller.signal), controller.signal));
     options.check();
     scene = await timedExportPhase("scene", () => createExportScene(map, { signal: controller.signal, prepareSources: options.prepareSources }));
     return await timedExportPhase("render", () => captureMap(scene.map, {
-      ...options, signal: controller.signal, crop: scene.crop,
-      check: () => { options.check(); scene.check(); },
+      ...options, orientation, signal: controller.signal, crop: scene.crop,
+      check: () => { if (!options.snapshotAtStart) options.check(); scene.check(); },
     }));
   } catch (error) {
     if (controller.signal.aborted && controller.signal.reason?.name !== "AbortError") throw controller.signal.reason;
@@ -208,63 +300,81 @@ export async function captureExpandedMap(map, options) {
   }
 }
 
-function drawAnnotations(ctx, width, height, date, scale, credits, logo) {
-  if (!logo?.naturalWidth || !logo?.naturalHeight) throw new Error("El logotipo institucional no está disponible. Recarga el visor antes de exportar.");
-  const plain = (html) => {
-    const doc = new DOMParser().parseFromString(html, "text/html");
-    return doc.body.textContent.replace(/\s+/g, " ").trim();
+// Coordinates are in half-resolution output pixels, independent of screen DPR.
+// At narrow widths the credit block rises one row, retaining whole words and
+// leaving the scale centered on the canvas (never on the remaining space).
+export function annotationLayout(ctx, width, height, scale, text, logoRatio) {
+  const c = EXPORT_ANNOTATIONS, { margin, gap, padding } = c;
+  ctx.font = `${c.scaleFont}px Arial, sans-serif`;
+  const scaleWidth = Math.max(scale.pixels, ctx.measureText(scale.label).width) + c.scaleHaloWidth;
+  const scaleBox = { x: (width - scaleWidth) / 2, y: height - margin - 24, width: scaleWidth, height: 24 };
+  const logoWidth = Math.min(c.logoWidth, width * c.logoFraction, scaleBox.x - gap - margin);
+  const logo = { x: margin, y: height - margin - logoWidth / logoRatio, width: logoWidth, height: logoWidth / logoRatio };
+  const wrap = (available, font) => {
+    ctx.font = `${font}px Arial, sans-serif`;
+    const lines = []; let line = "";
+    for (const word of text.split(/\s+/).filter(Boolean)) {
+      if (ctx.measureText(word).width > available) return null;
+      if (line && ctx.measureText(`${line} ${word}`).width > available) { lines.push(line); line = ""; }
+      line += (line ? " " : "") + word;
+    }
+    if (line) lines.push(line);
+    return lines.length <= 2 ? lines : null;
   };
-  const text = [...new Set(credits.filter(Boolean).map(plain))].join(" · ");
-  const logoWidth = Math.min(340, width - 36);
-  const maxCreditWidth = Math.max(150, Math.min(540, width - logoWidth - 58));
-  ctx.font = "11px Arial, sans-serif";
-  const lines = [];
-  let line = "";
-  for (const word of text.split(" ")) {
-    if (line && ctx.measureText(`${line} ${word}`).width > maxCreditWidth - 16) { lines.push(line); line = ""; }
-    line += (line ? " " : "") + word;
-  }
-  if (line) lines.push(line);
-  const creditHeight = lines.length ? lines.length * 14 + 8 : 0;
-  const x = 10;
-  const logoHeight = logoWidth * logo.naturalHeight / logo.naturalWidth;
-  const stacked = logoWidth < 300;
-  const cardHeight = logoHeight + (stacked ? 61 : 44);
-  const y = height - cardHeight - 12;
-  if (y < 10 || width < 225) throw new Error("Amplía el área del mapa para que la marca y las atribuciones sean legibles.");
-  ctx.fillStyle = "rgba(255,255,255,0.94)";
-  ctx.fillRect(x, y, logoWidth + 16, cardHeight);
-  ctx.save();
-  ctx.globalAlpha = LOGO_OPACITY;
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = "high";
-  ctx.drawImage(logo, x + 8, y + 8, logoWidth, logoHeight);
-  ctx.restore();
-  ctx.fillStyle = "#17312d";
-  ctx.font = "11px Arial, sans-serif";
-  const footerY = y + 8 + logoHeight + 14;
-  const scaleX = stacked ? x + 8 : x + 8 + logoWidth - 112;
-  const scaleY = footerY + (stacked ? 17 : 0);
-  ctx.fillText(date, x + 8, footerY);
-  ctx.fillText(scale.label, scaleX, scaleY);
-  ctx.strokeStyle = "#17312d";
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.moveTo(scaleX, scaleY + 5); ctx.lineTo(scaleX, scaleY + 10);
-  ctx.lineTo(scaleX + scale.pixels, scaleY + 10); ctx.lineTo(scaleX + scale.pixels, scaleY + 5);
-  ctx.stroke();
-  if (creditHeight) {
-    const creditWidth = Math.max(...lines.map(value => ctx.measureText(value).width)) + 16;
-    const creditX = width - creditWidth - 10;
-    const creditY = height - creditHeight - 12;
-    ctx.fillStyle = "rgba(24, 28, 27, 0.78)";
-    ctx.fillRect(creditX, creditY, creditWidth, creditHeight);
-    ctx.fillStyle = "#ffffff";
-    lines.forEach((value, index) => ctx.fillText(value, creditX + 8, creditY + 14 + index * 14));
-  }
+  let font = c.creditFont, raised = false;
+  let available = width - margin - (scaleBox.x + scaleWidth + gap) - padding * 2;
+  let lines = wrap(available, font);
+  if (!lines) { font = c.minCreditFont; lines = wrap(available, font); }
+  if (!lines) { raised = true; font = c.creditFont; available = width - margin * 2 - padding * 2; lines = wrap(available, font); }
+  if (!lines) { font = c.minCreditFont; lines = wrap(available, font); }
+  if (!lines || logoWidth < 50) throw new Error("El formato es demasiado estrecho para conservar legibles la marca, escala y créditos completos.");
+  const creditHeight = lines.length ? lines.length * (font + 3) + padding * 2 : 0;
+  const creditWidth = lines.length ? Math.max(...lines.map(line => ctx.measureText(line).width)) + padding * 2 : 0;
+  const credits = { x: width - margin - creditWidth, y: (raised ? Math.min(scaleBox.y, logo.y) - gap : height - margin) - creditHeight,
+    width: creditWidth,
+    height: creditHeight, font, lines };
+  if (Math.min(credits.y, logo.y, scaleBox.y) < margin) throw new Error("La imagen es demasiado baja para sus anotaciones.");
+  return { logo, scale: scaleBox, credits };
 }
 
-export function installMapExport({ map, button, status, freeze, check, attribution, prepareSources, prepare }) {
+export function drawAnnotations(ctx, width, height, scale, credits, logo, baseName = "") {
+  if (!logo?.naturalWidth || !logo?.naturalHeight) throw new Error("El logotipo institucional no está disponible. Recarga el visor antes de exportar.");
+  const plain = html => new DOMParser().parseFromString(html, "text/html").body.textContent.replace(/\s+/g, " ").trim();
+  const items = [...new Set(credits.filter(Boolean).flatMap(value => plain(value).split(" · ")).filter(Boolean))];
+  const text = [baseName, ...items].filter(Boolean).join(" · ");
+  const layout = annotationLayout(ctx, width, height, scale, text, logo.naturalWidth / logo.naturalHeight);
+  const c = EXPORT_ANNOTATIONS, box = layout.scale;
+  ctx.save();
+  ctx.globalAlpha = 1;
+  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
+  // Only the PNG's alpha is composited: no card, date or reserved footer.
+  ctx.save(); ctx.globalAlpha = BRAND_WATERMARK_OPACITY;
+  ctx.drawImage(logo, layout.logo.x, layout.logo.y, layout.logo.width, layout.logo.height);
+  ctx.restore(); ctx.globalAlpha = 1;
+  const background = (rect, color) => {
+    ctx.fillStyle = color; ctx.beginPath(); ctx.roundRect(rect.x, rect.y, rect.width, rect.height, 3); ctx.fill();
+  };
+  // The scale has no background: outlines follow only its glyphs and bar.
+  ctx.fillStyle = "#fff"; ctx.strokeStyle = c.scaleHalo; ctx.lineWidth = c.scaleHaloWidth; ctx.lineJoin = "round";
+  ctx.font = `${c.scaleFont}px Arial, sans-serif`; ctx.textAlign = "center";
+  ctx.strokeText(scale.label, width / 2, box.y + 11);
+  ctx.fillText(scale.label, width / 2, box.y + 11);
+  const x = (width - scale.pixels) / 2, y = box.y + 22;
+  ctx.beginPath(); ctx.moveTo(x, y - 5); ctx.lineTo(x, y);
+  ctx.lineTo(x + scale.pixels, y); ctx.lineTo(x + scale.pixels, y - 5);
+  ctx.strokeStyle = c.scaleHalo; ctx.lineWidth = 3; ctx.stroke();
+  ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5; ctx.stroke();
+  const credit = layout.credits;
+  if (credit.lines.length) {
+    background(credit, c.creditBackground);
+    ctx.fillStyle = "#fff"; ctx.font = `${credit.font}px Arial, sans-serif`; ctx.textAlign = "left";
+    credit.lines.forEach((line, i) => ctx.fillText(line, credit.x + c.padding, credit.y + c.padding + credit.font + i * (credit.font + 3)));
+  }
+  ctx.restore();
+  return layout;
+}
+
+export function installMapExport({ map, button, status, freeze, check, attribution, baseName = () => "", thematicSnapshot = () => null, prepareSources, prepare }) {
   const checkErrors = trackExportErrors(map);
   const logoReady = loadExportLogo();
   // Report a failed preload only when the user requests an export.
@@ -293,6 +403,7 @@ export function installMapExport({ map, button, status, freeze, check, attributi
     const started = performance.now();
     try {
       checkErrors();
+      const requestedCamera = cameraKey(map);
       release = freeze();
       shell = document.querySelector(".app-shell");
       wasInert = shell?.inert;
@@ -315,9 +426,15 @@ export function installMapExport({ map, button, status, freeze, check, attributi
         }
         controller.abort(); return { error };
       });
-      const captured = captureExpandedMap(map, {
-        date, check: () => { check(); checkErrors(); }, extraAttribution: attribution(), signal: controller.signal, logo: logoReady, prepareSources, prepare,
-      }).then((canvas) => { output = canvas; return { canvas }; }, (error) => ({ error })).finally(() => {
+      const captured = (async () => {
+        await timedExportPhase("resources", () => prepareExportResources(prepare, controller));
+        controller.signal.throwIfAborted();
+        if (cameraKey(map) !== requestedCamera) throw new Error("La vista cambió mientras se preparaba la capa. Vuelve a exportar.");
+        const thematic = thematicSnapshot();
+        return captureExpandedMap(map, {
+          date, thematic, snapshotAtStart: true, check: () => { check(); checkErrors(); }, extraAttribution: attribution(), baseName: baseName(), signal: controller.signal, logo: logoReady, prepareSources,
+        });
+      })().then((canvas) => { output = canvas; return { canvas }; }, (error) => ({ error })).finally(() => {
         release(); release = () => {};
         if (shell) shell.inert = wasInert;
       });
