@@ -65,6 +65,7 @@ model Layer {
   description    String?
   municipality   String?
   sourceType     String?
+  division       String?
   status         LayerStatus       @default(draft)
   rejectedReason String?
   publishedAt    DateTime?
@@ -78,6 +79,8 @@ model Layer {
   files          LayerFile[]
   metadata       LayerMetadata?
   approvals      ApprovalHistory[]
+
+  @@index([division])
 }
 
 model LayerFile {

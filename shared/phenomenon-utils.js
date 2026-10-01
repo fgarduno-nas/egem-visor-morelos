@@ -1,4 +1,4 @@
-const INSTITUTIONAL_PHENOMENA = [
+export const INSTITUTIONAL_PHENOMENA = [
   {
     key: "category:geologicos",
     label: "Geológicos",
@@ -16,8 +16,8 @@ const INSTITUTIONAL_PHENOMENA = [
   },
   {
     key: "category:sanitario-ecologico",
-    label: "Sanitario-ecológico",
-    aliases: ["sanitario-ecologico", "sanitario ecológico", "sanitario ecologico"],
+    label: "Sanitario-ecológicos",
+    aliases: ["sanitario-ecologicos", "sanitario-ecológicos", "sanitario-ecologico", "sanitario ecológico", "sanitario ecologico"],
   },
   {
     key: "category:socio-organizativos",

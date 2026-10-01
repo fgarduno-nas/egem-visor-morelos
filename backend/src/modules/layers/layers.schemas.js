@@ -1,3 +1,4 @@
+import { INSTITUTIONAL_DIVISIONS, divisionUploadTagsError, divisionUploadError } from "../../../../shared/division-utils.js";
 import { z } from "zod";
 import { LAYER_STATUS } from "../../shared/constants/layer-status.js";
 
@@ -40,8 +41,23 @@ export const uploadLayerBodySchema = z.object({
   crs: z.string().max(120).optional().nullable(),
   rasterLegend: z.string().max(10000).optional().nullable(),
   vectorLegend: z.string().max(30000).optional().nullable(),
+  division: z.enum(INSTITUTIONAL_DIVISIONS.map(item => item.key)).nullable().optional(),
+  phenomenon: z.string().nullable().optional(),
+  phenomenonKey: z.string().nullable().optional(),
   tags: tagsSchema,
   "tags[]": z.any().optional(),
+}).superRefine((body, ctx) => {
+  const parsedTags = tagsSchema.safeParse(body.tags?.length ? body.tags : body["tags[]"]);
+  if (!parsedTags.success) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["tags"], message: "La clasificación de fenómeno no es válida." });
+    return;
+  }
+  const tags = parsedTags.data;
+  body.tags = tags || [];
+  const explicit = body.phenomenonKey || body.phenomenon;
+  if (explicit && !body.tags.some(t => /^category:/i.test(t))) body.tags.push(explicit.startsWith("category:") ? explicit : `category:${explicit}`);
+  const error = divisionUploadTagsError(body.tags, body.division, [body.phenomenon, body.phenomenonKey]);
+  if (error) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["division"], message: error });
 });
 
 export const uploadLayerSchema = z.object({
@@ -79,6 +95,12 @@ export const adminLayerListSchema = z.object({
     status: optionalFilterSchema(40),
     processingStatus: optionalFilterSchema(40),
     phenomenon: optionalFilterSchema(80),
+    division: z.enum(["", ...INSTITUTIONAL_DIVISIONS.map(item => item.key)]).default(""),
+  }).superRefine((query, ctx) => {
+    if (query.phenomenon && query.division) {
+      const error = divisionUploadError(query.phenomenon, query.division);
+      if (error) ctx.addIssue({code:z.ZodIssueCode.custom,path:["phenomenon"],message:error});
+    }
   }).default({}),
 });
 

@@ -4651,3 +4651,26 @@ select {
 .admin-layer-detail-grid dd { white-space: pre-wrap; }
 @media (max-width: 1400px) { .admin-detail-legend { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 760px) { .admin-detail-legend { grid-template-columns: 1fr; } }
+
+/* Nested institutional divisions; native details remain keyboard accessible. */
+.layer-section { min-width: 0; border-left: 2px solid #d6c4ca; margin: 4px 0; }
+.layer-section > summary { cursor: pointer; padding: 8px 6px; color: #501c32; font-size: 12px; font-weight: 700; overflow-wrap: normal; word-break: normal; }
+.layer-section > summary:focus-visible { outline: 2px solid #501c32; outline-offset: -2px; }
+.layer-section__content { display: grid; gap: 6px; padding-left: 6px; min-width: 0; }
+.admin-layer-division { color: #501c32; font-weight: 600; }
+#upload-division-field[hidden], #upload-phenomenon-field[hidden] { display: none; }
+.app-shell--visitor .layer-section .layer-name--visitor {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: normal;
+  word-break: normal;
+  line-height: 1.35;
+}
+@media (min-width: 761px) {
+  .admin-layer-filters { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+}
+
+.layer-section { border-bottom: 1px solid var(--border-color, #d7c5ca); margin-bottom: 10px; }
+.layer-section > summary { padding: 12px 6px; color: #74223e; font-weight: 750; cursor: pointer; }
+.layer-section__content { padding-inline: 4px; }

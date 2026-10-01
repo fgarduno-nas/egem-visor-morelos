@@ -1,6 +1,6 @@
 import { createPointIconLoader, canonicalPointSymbol } from "./app/utils/point-icon-resource.js";
 import { immutableLegendSnapshot } from "./app/utils/export-legend.js";
-import { createThematicSelection, latestThematicId } from "./app/utils/thematic-selection.js";
+import { createThematicSelection, latestThematicId, isIndependentReference } from "./app/utils/thematic-selection.js";
 import { renderAdminLayerDetail } from "./app/utils/admin-layer-detail.js";
 import { runtimeConfig } from "./app/config/runtime-config.js";
 import { invalidateCache } from "./app/services/http-client.js";
@@ -59,6 +59,7 @@ import {
   buildGroundOverlayInfoLines,
   pickTopGroundOverlayHit,
 } from "./app/utils/ground-overlay-popup-utils.js";
+import { INSTITUTIONAL_DIVISIONS, phenomenaForDivision, reconcileDivisionPhenomenon, classificationLocation, effectiveDivisionKey, createDivisionFallbackReporter, divisionLabel, normalizeDivisionKey, isThematicPhenomenon, divisionUploadError, groupLayersByDivision } from "../shared/division-utils.js";
 import { normalizePhenomenonForDisplay } from "../shared/phenomenon-utils.js";
 import {
   CLOUD_TOP_SPEEDS,
@@ -360,13 +361,10 @@ import { installMapExport } from "./app/utils/map-export.js";
 
   const thematicLayerGroups = [
     { id: "limites", title: "Límites" },
-    { id: "geologicos", title: "Geológicos" },
-    { id: "hidrometeorologicos", title: "Hidrometeorológicos" },
-    { id: "quimicos-tecnologicos", title: "Químicos-tecnológicos" },
-    { id: "sanitario-ecologico", title: "Sanitario-ecológico" },
-    { id: "socio-organizativo", title: "Socio-organizativo" },
-    { id: "astronomicos", title: "Astronómicos" },
-    { id: "otras", title: "Otras capas" },
+    ...phenomenaForDivision("hazard").map(p => ({
+      id: normalizeLayerCategoryKey(p.key.replace(/^category:/, "")), title: p.label,
+    })),
+    { id: "otras", title: "Cartografía" },
   ];
 
   const state = {
@@ -418,6 +416,7 @@ import { installMapExport } from "./app/utils/map-export.js";
         status: "",
         processingStatus: "",
         phenomenon: "",
+        division: "",
       },
       selectedId: null,
       searchTimer: null,
@@ -504,7 +503,9 @@ import { installMapExport } from "./app/utils/map-export.js";
     },
     uploadDraft: {
       files: [],
-      category: "geologicos",
+      category: "",
+      kind: "thematic",
+      division: null,
       previewLayers: [],
       previewVisible: false,
       minimized: false,
@@ -580,6 +581,11 @@ import { installMapExport } from "./app/utils/map-export.js";
     cancelUploadLayer: document.getElementById("cancel-upload-layer"),
     uploadSelectFiles: document.getElementById("upload-select-files"),
     uploadSelectedFiles: document.getElementById("upload-selected-files"),
+    uploadLayerKind: document.getElementById("upload-layer-kind"),
+    uploadPhenomenonField: document.getElementById("upload-phenomenon-field"),
+    uploadLayerDivision: document.getElementById("upload-layer-division"),
+    uploadDivisionField: document.getElementById("upload-division-field"),
+    adminLayerDivision: document.getElementById("admin-layer-division"),
     uploadLayerCategory: document.getElementById("upload-layer-category"),
     uploadPreviewToggle: document.getElementById("upload-preview-toggle"),
     uploadPreviewState: document.getElementById("upload-preview-state"),
@@ -664,6 +670,7 @@ import { installMapExport } from "./app/utils/map-export.js";
   mountOrientationControl();
 
   const thematicSelection = createThematicSelection();
+  const reportDivisionFallback = createDivisionFallbackReporter();
 
   installMapExport({
     map,
@@ -671,11 +678,11 @@ import { installMapExport } from "./app/utils/map-export.js";
     status: document.getElementById("map-export-status"),
     thematicSnapshot: captureThematicExportSnapshot,
     prepare: async (signal) => {
-      const selected = state.userLayers.find(layer => layer.visible && layer.id !== state.previewLayerId);
+      const selected = state.userLayers.find(layer => layer.visible && !isIndependentReference(layer) && layer.id !== state.previewLayerId);
       const activation = selected?.__activation;
       await Promise.all([...state.pendingLayerLoads.values(), ...state.pendingPointIconLoads.values()]);
       signal.throwIfAborted();
-      if (state.userLayers.find(layer => layer.visible && layer.id !== state.previewLayerId) !== selected ||
+      if (state.userLayers.find(layer => layer.visible && !isIndependentReference(layer) && layer.id !== state.previewLayerId) !== selected ||
           (selected && (selected.__activation !== activation || !state.userLayers.includes(selected)))) {
         throw new DOMException("La capa cambió durante la preparación", "AbortError");
       }
@@ -937,8 +944,30 @@ import { installMapExport } from "./app/utils/map-export.js";
       button.addEventListener("click", () => scrollPanelToSection(button.dataset.panelTarget));
     });
 
+    const divisionOptions = INSTITUTIONAL_DIVISIONS.map(item => `<option value="${item.key}">${item.label}</option>`).join("");
+    elements.uploadLayerDivision.innerHTML = '<option value="">Selecciona una sección</option>' + divisionOptions;
+    elements.adminLayerDivision.innerHTML = '<option value="">Todas</option>' + divisionOptions;
+    elements.adminLayerDivision.addEventListener("change", () => {
+      state.adminLayerTable.filters.division = elements.adminLayerDivision.value;
+      state.adminLayerTable.filters.phenomenon = reconcileDivisionPhenomenon(elements.adminLayerDivision.value, state.adminLayerTable.filters.phenomenon);
+      state.adminLayerTable.pagination.page = 1;
+      loadAdminLayerTable();
+    });
+    elements.uploadLayerDivision.addEventListener("change", () => {
+      state.uploadDraft.division = normalizeDivisionKey(elements.uploadLayerDivision.value);
+      state.uploadDraft.category = reconcileDivisionPhenomenon(state.uploadDraft.division, state.uploadDraft.category);
+      applyCategoryToDraftLayers();
+      syncUploadDraftUi();
+    });
+    elements.uploadLayerKind.addEventListener("change", () => {
+      state.uploadDraft.kind = elements.uploadLayerKind.value;
+      state.uploadDraft.division = null;
+      state.uploadDraft.category = state.uploadDraft.kind === "thematic" ? "" : state.uploadDraft.kind;
+      applyCategoryToDraftLayers(); syncUploadDraftUi();
+    });
     elements.uploadLayerCategory.addEventListener("change", async (event) => {
       state.uploadDraft.category = event.target.value;
+
       applyCategoryToDraftLayers();
       if (state.uploadDraft.previewVisible) {
         await refreshUploadDraftPreview();
@@ -1392,14 +1421,20 @@ import { installMapExport } from "./app/utils/map-export.js";
       return;
     }
 
-    const groupedLayers = groupCatalogLayers(layers);
     if (state.selectedLayerId && !layers.some((layer) => layer.id === state.selectedLayerId)) {
       clearSelectedLayer();
     }
 
-    elements.layerList.innerHTML = getVisibleLayerGroups(groupedLayers, searchTerm)
-      .map((group) => renderLayerGroup(group, groupedLayers.get(group.id) || [], searchTerm))
-      .join("");
+    elements.layerList.innerHTML = groupLayersByDivision(layers.filter(layer => !isIndependentReference(layer))).map(section => {
+      const sectionLayers = section.layers;
+      const content = section.key === "vulnerability"
+        ? sectionLayers.map(renderLayerItem).join("") || '<p class="layer-group__empty">Sin capas</p>'
+        : phenomenaForDivision(section.key).map(phenomenon => renderLayerGroup(
+          {id:phenomenon.key, title:phenomenon.label}, sectionLayers.filter(layer => normalizePhenomenonForDisplay(layer.category).technicalKey === phenomenon.key), searchTerm)).join("");
+      return `<details class="layer-section" data-section="${section.key}" open><summary>${section.label} <span class="layer-group__count">[${sectionLayers.length}]</span></summary><div class="layer-section__content">${content}</div></details>`;
+    }).join("") + [
+      {id:"limites", title:"Límites"}, {id:"otras", title:"Cartografía"},
+    ].map(group => renderLayerGroup(group, layers.filter(layer => isIndependentReference(layer) && resolveLayerCategory(layer) === group.id), searchTerm)).join("");
     syncVisitorLayerPanelLabels();
 
     elements.layerList.querySelectorAll(".layer-item").forEach((item) => {
@@ -1471,20 +1506,10 @@ import { installMapExport } from "./app/utils/map-export.js";
 
   function syncVisitorLayerPanelLabels() {
     const visitor = isPublicVisitor();
-    elements.layersPanel?.setAttribute("aria-label", visitor ? "Catalogo de capas" : "Fenomenos y limites");
+    elements.layersPanel?.setAttribute("aria-label", visitor ? "Catalogo de capas" : "Secciones y límites");
     if (!elements.layerSearch) return;
     elements.layerSearch.placeholder = visitor ? "Buscar capa" : "Ej. inundacion, Cuernavaca";
     elements.layerSearch.setAttribute("aria-label", "Buscar capa");
-  }
-
-  function groupCatalogLayers(layers) {
-    const grouped = new Map(thematicLayerGroups.map((group) => [group.id, []]));
-    layers.forEach((layer) => {
-      const category = resolveLayerCategory(layer);
-      if (!grouped.has(category)) grouped.set(category, []);
-      grouped.get(category).push(layer);
-    });
-    return grouped;
   }
 
   function renderLayerGroup(group, layers, searchTerm = "") {
@@ -1492,13 +1517,11 @@ import { installMapExport } from "./app/utils/map-export.js";
     const shouldOpen = hasLayers || !searchTerm;
     const openAttribute = shouldOpen ? "open" : "";
     const countLabel = hasLayers ? `${layers.length} capa${layers.length === 1 ? "" : "s"}` : "Sin capas";
-    const activeCount = layers.filter((layer) => layer.visible && layer.id !== state.previewLayerId).length;
+    const activeCount = layers.filter((layer) => layer.visible && !isIndependentReference(layer) && layer.id !== state.previewLayerId).length;
     const activeBadge = activeCount
       ? `<span class="layer-group__active">${activeCount} activa${activeCount === 1 ? "" : "s"}</span>`
       : "";
-    const content = hasLayers
-      ? layers.map((layer) => renderLayerItem(layer)).join("")
-      : `<p class="layer-group__empty">No hay capas disponibles en esta subcapa por ahora.</p>`;
+    const content = hasLayers ? layers.map(layer => renderLayerItem(layer)).join("") : '<p class="layer-group__empty">Sin capas</p>';
 
     if (isPublicVisitor()) {
       return `
@@ -1662,6 +1685,7 @@ import { installMapExport } from "./app/utils/map-export.js";
       hidrometeorologicos: "hidrometeorologicos",
       hidrometeorologico: "hidrometeorologicos",
       "quimicos-tecnologicos": "quimicos-tecnologicos",
+      "quimico-tecnologicos": "quimicos-tecnologicos",
       "quimico-tecnologico": "quimicos-tecnologicos",
       "sanitario-ecologico": "sanitario-ecologico",
       "sanitario-ecologicos": "sanitario-ecologico",
@@ -1747,6 +1771,7 @@ import { installMapExport } from "./app/utils/map-export.js";
       layer.description,
       layer.municipality,
       layer.fileType,
+      divisionLabel(layer.divisionKey),
       getStatusLabel(layer.status),
     ]
       .join(" ")
@@ -1795,13 +1820,6 @@ import { installMapExport } from "./app/utils/map-export.js";
     return badges.join("");
   }
 
-  function getVisibleLayerGroups(groupedLayers, searchTerm = "") {
-    if (searchTerm) return thematicLayerGroups;
-    if (state.backendStatus.state === "unavailable" || state.backendStatus.state === "http-error" || state.backendStatus.state === "invalid") {
-      return thematicLayerGroups.filter((group) => (groupedLayers.get(group.id) || []).length > 0);
-    }
-    return thematicLayerGroups;
-  }
 
   function syncLayerCatalogNotice() {
     if (!elements.layerCatalogNotice) return;
@@ -1936,7 +1954,7 @@ import { installMapExport } from "./app/utils/map-export.js";
 
   function captureThematicExportSnapshot() {
     if (state.pendingLayerLoads.size || state.pendingPointIconLoads.size) throw new Error("Espera a que termine de cargar la capa antes de exportar su simbología.");
-    const layer = state.userLayers.find(l => l.visible && l.id !== state.previewLayerId && canSeeLayer(l));
+    const layer = state.userLayers.find(l => l.visible && !isIndependentReference(l) && l.id !== state.previewLayerId && canSeeLayer(l));
     if (!layer) return null;
     const vector = getVectorLayerSymbology(layer);
     const raster = isImageBackedLayer(layer) ? getRasterLayerSymbology(layer) : null;
@@ -3417,8 +3435,8 @@ import { installMapExport } from "./app/utils/map-export.js";
   function applyVisibleSnapshot() {
     const staticIds = new Set(state.visibleSnapshot.staticIds || []);
     const ids = state.visibleSnapshot.userIds || [];
-    const last = ids.filter(id => id !== state.visibleSnapshot.previewId && state.userLayers.some(l => l.id === id)).at(-1);
-    const userIds = new Set([last, state.visibleSnapshot.previewId].filter(Boolean));
+    const last = ids.filter(id => id !== state.visibleSnapshot.previewId && state.userLayers.some(l => l.id === id && !isIndependentReference(l))).at(-1);
+    const userIds = new Set([last, state.visibleSnapshot.previewId, ...ids.filter(id => state.userLayers.some(l => l.id === id && isIndependentReference(l)))].filter(Boolean));
 
     staticLayers.forEach((layer) => {
       layer.visible = staticIds.has(layer.id);
@@ -3849,7 +3867,7 @@ import { installMapExport } from "./app/utils/map-export.js";
 
     const selected = latestThematicId(state.userLayers.filter(l => l.id !== state.previewLayerId), state.activeLayerStack);
     state.userLayers.forEach((layer) => {
-      if (layer.id !== state.previewLayerId && layer.id !== selected) layer.visible = false;
+      if (!isIndependentReference(layer) && layer.id !== state.previewLayerId && layer.id !== selected) layer.visible = false;
       if (layer.visible !== false && canSeeLayer(layer)) {
         if (canRenderLayerFromCachedResources(layer)) {
           addUserLayerToMap(layer);
@@ -4714,10 +4732,37 @@ import { installMapExport } from "./app/utils/map-export.js";
       else state.renderedLayers.delete(layerId);
     }
 
+    if (userLayer && isIndependentReference(userLayer)) {
+      userLayer.__referenceSelection ||= createThematicSelection();
+      const ticket = userLayer.__referenceSelection.select(visible ? layerId : null);
+      userLayer.__activation = ticket;
+      userLayer.visible = visible;
+      if (visible) {
+        try {
+          await ensureLayerResourcesLoaded(userLayer);
+          if (!ticket.current() || !state.userLayers.includes(userLayer)) return;
+          userLayer.loadError = null;
+          addUserLayerToMap(userLayer); state.renderedLayers.set(layerId, true);
+          setUserLayerLayoutVisibility(userLayer, true);
+        } catch (error) {
+          if (!ticket.current()) return;
+          userLayer.visible = false; userLayer.loadError = error.message;
+          removeLayerBundle(layerId); saveUserLayers();
+          renderLayerCatalog(elements.layerSearch.value.trim().toLowerCase());
+          throw error;
+        }
+      } else {
+        removeLayerBundle(layerId); state.renderedLayers.delete(layerId);
+      }
+      saveUserLayers(); captureVisibleSnapshot();
+      renderLayerCatalog(elements.layerSearch.value.trim().toLowerCase());
+      return;
+    }
     if (userLayer) {
       const ticket = thematicSelection.select(visible ? layerId : null);
       // Invalidate first. Slow predecessors must not block or resurrect this choice.
       for (const layer of state.userLayers) {
+        if (isIndependentReference(layer)) continue;
         if (layer.id === state.previewLayerId && layer.id !== layerId) continue;
         if (layer.visible || layer.isLoading || layer.id === layerId) {
           layer.visible = false; layer.isLoading = false; layer.loadError = null;
@@ -6360,9 +6405,9 @@ import { installMapExport } from "./app/utils/map-export.js";
   function openUploadModal() {
     if (!state.uploadDraft.files.length && !state.uploadDraft.previewLayers.length) {
       resetUploadDraft();
-      state.uploadDraft.category = elements.uploadLayerCategory.value || "geologicos";
+      state.uploadDraft.category = elements.uploadLayerCategory.value || "";
     } else {
-      elements.uploadLayerCategory.value = state.uploadDraft.category || "geologicos";
+      elements.uploadLayerCategory.value = state.uploadDraft.category || "";
       syncUploadDraftUi();
     }
     state.uploadDraft.minimized = false;
@@ -6427,11 +6472,14 @@ import { installMapExport } from "./app/utils/map-export.js";
   }
 
   function resetUploadDraft() {
+    state.uploadDraft.division = null;
+    state.uploadDraft.kind = "thematic";
+    elements.uploadLayerKind.value = "thematic";
     clearUploadDraftPreview();
     state.uploadDraft.files = [];
     state.uploadDraft.previewLayers = [];
     state.uploadDraft.previewVisible = false;
-    state.uploadDraft.category = elements.uploadLayerCategory?.value || "geologicos";
+    state.uploadDraft.category = "";
     state.uploadDraft.minimized = false;
     state.uploadDraft.rasterLegendItems = [];
     state.uploadDraft.rasterLegendTitle = "";
@@ -6446,8 +6494,8 @@ import { installMapExport } from "./app/utils/map-export.js";
 
   function clearUploadDraftDerivedState(options = {}) {
     const category = options.preserveCategory === false
-      ? elements.uploadLayerCategory?.value || "geologicos"
-      : state.uploadDraft.category || elements.uploadLayerCategory?.value || "geologicos";
+      ? elements.uploadLayerCategory?.value || ""
+      : state.uploadDraft.category || elements.uploadLayerCategory?.value || "";
     clearUploadDraftPreview();
     state.uploadDraft.files = [];
     state.uploadDraft.previewLayers = [];
@@ -6483,6 +6531,18 @@ import { installMapExport } from "./app/utils/map-export.js";
   }
 
   function syncUploadDraftUi() {
+    const thematic = state.uploadDraft.kind === "thematic";
+    elements.uploadDivisionField.hidden = !thematic;
+    elements.uploadLayerDivision.required = thematic;
+    elements.uploadLayerDivision.disabled = !thematic;
+    elements.uploadLayerDivision.value = state.uploadDraft.division || "";
+    const options = phenomenaForDivision(state.uploadDraft.division);
+    elements.uploadPhenomenonField.hidden = !thematic || !options.length;
+    elements.uploadLayerCategory.disabled = !thematic || !options.length;
+    elements.uploadLayerCategory.required = thematic && options.length > 0;
+    elements.uploadLayerCategory.innerHTML = '<option value="">Selecciona un fenómeno</option>' + options.map(p => `<option value="${p.key.replace(/^category:/, "")}">${p.label}</option>`).join("");
+    elements.uploadLayerCategory.value = thematic ? state.uploadDraft.category : "";
+    elements.uploadLayerForm.querySelector('[type="submit"]').disabled = Boolean(divisionUploadError(state.uploadDraft.category, state.uploadDraft.division)) || !state.uploadDraft.files.length || state.isUploading;
     if (!elements.uploadSelectedFiles) return;
 
     if (!state.uploadDraft.files.length) {
@@ -6496,7 +6556,7 @@ import { installMapExport } from "./app/utils/map-export.js";
                 <strong class="upload-layer-entry__title">${escapeHtml(layer.title)}</strong>
                 <div class="upload-layer-entry__details">
                   <span>${escapeHtml(getUploadDraftLayerSummary(layer))}</span>
-                  <span>${escapeHtml(getThematicGroupTitle(state.uploadDraft.category))}</span>
+                  <span>${escapeHtml(classificationLocation(state.uploadDraft.division, state.uploadDraft.category))}</span>
                 </div>
               </div>
               <div class="upload-layer-entry__actions">
@@ -6591,7 +6651,7 @@ import { installMapExport } from "./app/utils/map-export.js";
     }
     if (elements.uploadClassificationSummary) {
       const title = elements.uploadLayerTitle?.value.trim() || state.uploadDraft.previewLayers[0]?.title || "Nombre pendiente";
-      elements.uploadClassificationSummary.textContent = `${getThematicGroupTitle(state.uploadDraft.category)} · ${title}`;
+      elements.uploadClassificationSummary.textContent = `${classificationLocation(state.uploadDraft.division, state.uploadDraft.category)} · ${title}`;
     }
     if (elements.uploadMetadataSummary) {
       elements.uploadMetadataSummary.textContent = buildUploadMetadataSummary();
@@ -6638,6 +6698,7 @@ import { installMapExport } from "./app/utils/map-export.js";
       state.uploadDraft.previewLayers = draftLayers.map((layer) => {
         const uploadMetadata = collectUploadMetadata();
         applyCategoryToLayer(layer, state.uploadDraft.category);
+        layer.divisionKey = normalizeDivisionKey(uploadMetadata.division);
         layer.title = uploadMetadata.title || layer.title;
         layer.description = uploadMetadata.description || layer.description;
         layer.municipality = uploadMetadata.municipality || layer.municipality;
@@ -6705,11 +6766,18 @@ import { installMapExport } from "./app/utils/map-export.js";
       return;
     }
 
-    if (!state.uploadDraft.category) {
+    if (!state.uploadDraft.category && state.uploadDraft.division !== "vulnerability") {
       elements.uploadLayerFeedback.textContent = "Selecciona el fenómeno donde se clasificará la capa.";
       return;
     }
 
+    const divisionError = divisionUploadError(state.uploadDraft.category, state.uploadDraft.division);
+    if (divisionError) {
+      elements.uploadLayerFeedback.textContent = divisionError;
+      elements.uploadLayerDivision.closest("details").open = true;
+      elements.uploadLayerDivision.focus();
+      return;
+    }
     if (state.isUploading) {
       elements.uploadLayerFeedback.textContent = "Ya hay una carga en proceso. Espera un momento.";
       return;
@@ -6798,6 +6866,7 @@ import { installMapExport } from "./app/utils/map-export.js";
   function applyCategoryToDraftLayers() {
     state.uploadDraft.previewLayers.forEach((layer) => {
       applyCategoryToLayer(layer, state.uploadDraft.category);
+      layer.divisionKey = normalizeDivisionKey(state.uploadDraft.division);
       layer.metadata = buildLayerMetadata(collectUploadMetadata(), layer);
     });
   }
@@ -6807,6 +6876,7 @@ import { installMapExport } from "./app/utils/map-export.js";
     const hasRaster = uploadDraftHasRasterResource();
     const hasVector = uploadDraftHasVectorResource();
     return {
+      division: state.uploadDraft.kind === "thematic" ? normalizeDivisionKey(state.uploadDraft.division) : null,
       title: elements.uploadLayerTitle?.value.trim() || "",
       description: elements.uploadLayerDescription?.value.trim() || "",
       municipality: elements.uploadLayerMunicipality?.value.trim() || "",
@@ -7807,8 +7877,13 @@ import { installMapExport } from "./app/utils/map-export.js";
       elements.adminLayerProcessing.value = state.adminLayerTable.filters.processingStatus;
     }
     if (elements.adminLayerPhenomenon) {
+      const division = state.adminLayerTable.filters.division;
+      const options = phenomenaForDivision(division || "hazard");
+      elements.adminLayerPhenomenon.innerHTML = '<option value="">Todos</option>' + options.map(p => `<option value="${p.key}">${p.label}</option>`).join("");
+      elements.adminLayerPhenomenon.disabled = division === "vulnerability";
       elements.adminLayerPhenomenon.value = state.adminLayerTable.filters.phenomenon;
     }
+    elements.adminLayerDivision.value = state.adminLayerTable.filters.division;
     if (elements.adminLayerPageSize) {
       elements.adminLayerPageSize.value = String(state.adminLayerTable.pagination.pageSize);
     }
@@ -7854,6 +7929,7 @@ import { installMapExport } from "./app/utils/map-export.js";
 
   function renderAdminLayerTable() {
     if (!elements.adminLayerTableBody) return;
+    syncAdminLayerTableControls();
     const tableState = state.adminLayerTable;
     if (elements.adminLayerFeedback) {
       elements.adminLayerFeedback.textContent = tableState.error || "";
@@ -7915,7 +7991,7 @@ import { installMapExport } from "./app/utils/map-export.js";
           <strong title="${escapeHtml(ownerName)}">${escapeHtml(ownerName)}</strong>
           <span class="technical-value" title="${escapeHtml(ownerEmail)}">${escapeHtml(ownerEmail)}</span>
         </td>
-        <td>${escapeHtml(phenomenon)}</td>
+        <td>${escapeHtml(classificationLocation(layer.divisionKey, layer.phenomenonKey || layer.referenceCategory || layer.phenomenon))}<span class="admin-layer-division">Sección: ${escapeHtml(divisionLabel(layer.divisionKey))} · Fenómeno: ${escapeHtml(layer.phenomenon || "No aplica")}</span></td>
         <td>
           <span>${escapeHtml(getAdminLayerTypeLabel(layer.resourceType || layer.sourceType))}</span>
           <span>${escapeHtml(layer.geometryType || "No especificado")}</span>
@@ -8506,7 +8582,8 @@ import { installMapExport } from "./app/utils/map-export.js";
   function removeLayerBundle(layerId, options = {}) {
     const layer = state.userLayers.find((item) => item.id === layerId) || state.uploadDraft.previewLayers.find((item) => item.id === layerId);
     if (!options.preserveResources && layer?.__activation?.current()) {
-      thematicSelection.clear();
+      if (isIndependentReference(layer)) layer.__referenceSelection?.clear();
+      else thematicSelection.clear();
       state.pendingLayerLoads.delete(layerId); state.pendingPointIconLoads.delete(layerId);
     }
     [
@@ -8870,6 +8947,7 @@ import { installMapExport } from "./app/utils/map-export.js";
       description: config.description,
       group: category ? getThematicGroupTitle(category) : "Capas cargadas",
       category,
+      divisionKey: normalizeDivisionKey(config.divisionKey),
       status: config.status || (state.session.role === "admin" ? "published" : "pending_review"),
       visible: true,
       municipality: config.municipality || municipality,
@@ -9394,7 +9472,7 @@ import { installMapExport } from "./app/utils/map-export.js";
       .map((layer) => ({
         layerKey: layer.backendLayerId || layer.id,
         backendLayerId: layer.backendLayerId || null,
-        ...(staticLayers.includes(layer) ? { visible: Boolean(layer.visible) } : {}),
+        ...((staticLayers.includes(layer) || isIndependentReference(layer)) ? { visible: Boolean(layer.visible) } : {}),
         opacity: clampLayerOpacity(layer.opacity ?? 1),
       }));
 
@@ -9661,6 +9739,7 @@ import { installMapExport } from "./app/utils/map-export.js";
         console.warn("No se pudieron consultar las capas privadas; el catálogo público sigue disponible.", error);
       }
 
+      reportDivisionFallback(records.filter(record => isThematicPhenomenon(extractCategoryFromRecord(record)) && !normalizeDivisionKey(record.divisionKey)).length);
       const hydratedLayers = [];
       for (const record of records) {
         try {
@@ -9690,7 +9769,7 @@ import { installMapExport } from "./app/utils/map-export.js";
 
       const remoteLayers = hydratedLayers.map((layer) => {
         const preference = persistedPreferences.get(layer.backendLayerId || layer.id);
-        const visible = preserveSessionVisibility
+        const visible = isIndependentReference(layer) ? preference?.visible === true : preserveSessionVisibility
           ? (previousVisibility.size ? previousVisibility.get(layer.backendLayerId || layer.id) === true : (layer.backendLayerId || layer.id) === savedKey)
           : false;
         return {
@@ -9703,7 +9782,7 @@ import { installMapExport } from "./app/utils/map-export.js";
       state.pendingLayerLoads.clear(); state.pendingPointIconLoads.clear();
       state.userLayers = [...localLayers, ...remoteLayers];
       const selectedId = latestThematicId(state.userLayers, state.activeLayerStack);
-      for (const layer of state.userLayers) layer.visible = layer.id === selectedId;
+      for (const layer of state.userLayers) if (!isIndependentReference(layer)) layer.visible = layer.id === selectedId;
       saveUserLayers();
 
       staticLayers.forEach((layer) => {
@@ -9716,6 +9795,7 @@ import { installMapExport } from "./app/utils/map-export.js";
       state.backendStatus.reachable = true;
       state.backendStatus.lastError = null;
       state.backendStatus.state = hydratedLayers.length ? "ready" : "empty";
+      for (const layer of state.userLayers.filter(l => isIndependentReference(l) && l.visible)) await toggleLayerVisibility(layer.id, true);
       if (selectedId) await toggleLayerVisibility(selectedId, true);
       renderVisibleLayers();
       renderLayerCatalog(elements.layerSearch.value.trim().toLowerCase());
@@ -9833,7 +9913,7 @@ import { installMapExport } from "./app/utils/map-export.js";
     const municipality =
       institutionalMetadata.municipality ||
       (state.session.role === "director" ? state.session.municipality : "Estado de Morelos");
-    const category = options.category || "geologicos";
+    const category = options.category || null;
 
     if (state.session.token) {
       const createdLayer = await uploadLayerRequest(
@@ -9843,7 +9923,8 @@ import { installMapExport } from "./app/utils/map-export.js";
           description:
             institutionalMetadata.description || "Capa cargada desde el visor institucional.",
           municipality,
-          tags: [`category:${category}`],
+          tags: category ? [`category:${category}`] : [],
+          division: institutionalMetadata.division,
           source: institutionalMetadata.source,
           responsibleAgency: institutionalMetadata.responsibleAgency,
           updatedAt: institutionalMetadata.updatedAt,
@@ -9891,6 +9972,7 @@ import { installMapExport } from "./app/utils/map-export.js";
 
     localLayers.forEach((layer) => {
       applyCategoryToLayer(layer, category);
+      layer.divisionKey = normalizeDivisionKey(institutionalMetadata.division);
       layer.status = state.session.role === "admin" ? "approved" : "pending_review";
       layer.title = title;
       layer.description =
@@ -9976,6 +10058,7 @@ import { installMapExport } from "./app/utils/map-export.js";
       description: record.description || hydratedLayer.description,
       category,
       group: getThematicGroupTitle(category),
+      divisionKey: effectiveDivisionKey(record.divisionKey, extractCategoryFromRecord(record)),
       municipality: record.municipality || "Cobertura estatal",
       createdBy: record.submittedBy?.name || record.createdBy?.name || "Sistema",
       createdById: record.submittedBy?.id || record.createdBy?.id || null,
@@ -10009,6 +10092,7 @@ import { installMapExport } from "./app/utils/map-export.js";
     return {
       title: record.title,
       category: extractCategoryFromRecord(record),
+      divisionKey: effectiveDivisionKey(record.divisionKey, extractCategoryFromRecord(record)),
       fileType: record.sourceType || record.files?.[0]?.extension || "",
       sourceKind: "backend-status",
       resourceType: record.resourceType || record.metadata?.properties?.resourceType || "vector",
@@ -10096,6 +10180,7 @@ import { installMapExport } from "./app/utils/map-export.js";
     return createUserLayer({
       title: record.title,
       category: extractCategoryFromRecord(record),
+      divisionKey: effectiveDivisionKey(record.divisionKey, extractCategoryFromRecord(record)),
       fileType: record.sourceType || "geojson",
       sourceKind: "geojson",
       resourceType: record.resourceType || "vector",
@@ -10132,6 +10217,7 @@ import { installMapExport } from "./app/utils/map-export.js";
     return createUserLayer({
       title: record.title,
       category: extractCategoryFromRecord(record),
+      divisionKey: effectiveDivisionKey(record.divisionKey, extractCategoryFromRecord(record)),
       fileType: record.sourceType || "geojson",
       sourceKind: "geojson",
       data: geojson,
@@ -10181,6 +10267,7 @@ import { installMapExport } from "./app/utils/map-export.js";
     return createUserLayer({
       title: record.title,
       category: extractCategoryFromRecord(record),
+      divisionKey: effectiveDivisionKey(record.divisionKey, extractCategoryFromRecord(record)),
       fileType: record.sourceType || "kmz",
       sourceKind: record.resourceType === "mixed" ? "mixed" : "ground-overlay",
       resourceType: record.resourceType || "ground-overlay",
@@ -10846,6 +10933,7 @@ import { installMapExport } from "./app/utils/map-export.js";
     return createUserLayer({
       title: record.title,
       category: extractCategoryFromRecord(record),
+      divisionKey: effectiveDivisionKey(record.divisionKey, extractCategoryFromRecord(record)),
       fileType: "geojson",
       sourceKind: "geojson",
       data: geojson,
@@ -10879,6 +10967,7 @@ import { installMapExport } from "./app/utils/map-export.js";
     return createUserLayer({
       title: record.title,
       category: extractCategoryFromRecord(record),
+      divisionKey: effectiveDivisionKey(record.divisionKey, extractCategoryFromRecord(record)),
       fileType: "shp",
       sourceKind: "geojson",
       data: normalizedRemote.geojson,
@@ -10899,6 +10988,7 @@ import { installMapExport } from "./app/utils/map-export.js";
     return {
       ...layers[0],
       category: extractCategoryFromRecord(record),
+      divisionKey: effectiveDivisionKey(record.divisionKey, extractCategoryFromRecord(record)),
       group: getThematicGroupTitle(extractCategoryFromRecord(record)),
       title: record.title,
       description: record.description || layers[0].description,
@@ -10922,6 +11012,12 @@ import { installMapExport } from "./app/utils/map-export.js";
   }
 
   function extractCategoryFromRecord(record) {
+    if (record.divisionKey === "vulnerability") return null;
+    if (record.referenceCategory) return record.referenceCategory.replace(/^category:/, "");
+    if (record.phenomenonKey) {
+      const normalized = normalizeLayerCategoryKey(record.phenomenonKey.replace(/^category:/, ""));
+      if (normalized) return normalized;
+    }
     const tags = record?.metadata?.properties?.tags;
     if (Array.isArray(tags)) {
       const tag = tags.find((value) => String(value).toLowerCase().startsWith("category:"));

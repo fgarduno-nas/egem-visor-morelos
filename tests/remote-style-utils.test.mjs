@@ -2479,7 +2479,7 @@ test("el visor restaura solo una temática válida y permite reinicio explícito
 
   assert.match(mapSource, /async function syncLayersFromBackend\(options = \{\}\)/);
   assert.match(mapSource, /preserveSessionVisibility = options\.preserveSessionVisibility !== false/);
-  assert.match(mapSource, /const visible = preserveSessionVisibility[\s\S]*?previousVisibility\.size[\s\S]*?=== savedKey\)[\s\S]*?: false/);
+  assert.match(mapSource, /const visible = isIndependentReference\(layer\) \? preference\?\.visible === true : preserveSessionVisibility[\s\S]*?previousVisibility\.size[\s\S]*?=== savedKey\)[\s\S]*?: false/);
   assert.match(mapSource, /layer.visible = layer.id === selectedId/);
   assert.doesNotMatch(mapSource, /preference\?\.visible\s*\?\?\s*isPublishedStatus\(layer\.status\)/);
   assert.match(prefsSource, /opacity:\s*clampLayerOpacity\(item\.opacity \?\? 1\)/);
@@ -2970,7 +2970,7 @@ test("tabla administrativa pagina, filtra, escapa datos y muestra fechas de More
   assert.match(modalDetailSource, /admin-layer-detail-grid/);
   assert.match(modalDetailSource, /Volver a la tabla/);
   assert.match(modalDetailSource, /Correo/);
-  assert.match(modalDetailSource, /\["Fenómeno", phenomenon/);
+  assert.match(modalDetailSource, /\["Fenómeno", layer\.divisionKey/);
   assert.match(modalDetailSource, /Archivo original/);
   assert.match(detailSource, /Archivos:/);
   assert.match(dateSource, /America\/Mexico_City/);

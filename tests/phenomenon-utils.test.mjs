@@ -15,7 +15,7 @@ test("normaliza fenomenos institucionales desde claves tecnicas y variantes hist
     ["category:hidrometeorologicos", "Hidrometeorológicos", "category:hidrometeorologicos"],
     ["category:quimico-tecnologicos", "Químico-tecnológicos", "category:quimico-tecnologicos"],
     ["category:quimicos_tecnologicos", "Químico-tecnológicos", "category:quimico-tecnologicos"],
-    ["category:sanitario-ecologico", "Sanitario-ecológico", "category:sanitario-ecologico"],
+    ["category:sanitario-ecologico", "Sanitario-ecológicos", "category:sanitario-ecologico"],
     ["category:socio-organizativo", "Socio-organizativos", "category:socio-organizativos"],
     ["category:socio_organizativos", "Socio-organizativos", "category:socio-organizativos"],
     ["category:astronomicos", "Astronómicos", "category:astronomicos"],

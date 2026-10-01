@@ -82,13 +82,16 @@ fs.mkdirSync(out, { recursive: true });
     fs.writeFileSync(path.join(out,'results.json'),JSON.stringify(results,null,2));
     console.log('PASS',name);
   }
-  const se02 = page.locator('[data-layer-id="backend-cmuhd3t7b000vl3b11fge7gny"] input[type="checkbox"]');
+  await page.waitForFunction(() => qa.state.userLayers.some(l => l.title.startsWith("SE 02")), null, { timeout: 60000 });
+  const se02Id = await page.evaluate(() => qa.state.userLayers.find(l => l.title.startsWith("SE 02"))?.id);
+  assert.ok(se02Id, "Se requiere SE 02 en el catálogo de prueba");
+  const se02 = page.locator(`[data-layer-id="${se02Id}"] input[type="checkbox"]`);
   await se02.check({timeout:60000});
   await page.waitForFunction(() => {
-    const layer=qa.state.userLayers.find(l=>l.id==='backend-cmuhd3t7b000vl3b11fge7gny');
+    const layer=qa.state.userLayers.find(l=>l.title.startsWith('SE 02'));
     return layer?.data?.features?.length && !qa.state.pendingLayerLoads.size && !qa.state.pendingPointIconLoads.size;
   });
-  const points=await page.evaluate(()=>qa.state.userLayers.find(l=>l.id==='backend-cmuhd3t7b000vl3b11fge7gny').data.features.reduce((r,f)=>{const role=f.properties.__geometryRole;if(role==='manantial'||role==='pozo')r[role]=(r[role]||0)+1;return r;},{}));
+  const points=await page.evaluate(()=>qa.state.userLayers.find(l=>l.title.startsWith('SE 02')).data.features.reduce((r,f)=>{const role=f.properties.__geometryRole;if(role==='manantial'||role==='pozo')r[role]=(r[role]||0)+1;return r;},{}));
   assert.deepEqual(points,{pozo:643,manantial:220});
   await save('satelite-goes');
   await page.evaluate(()=>qa.setCloudTopVisibility(false));

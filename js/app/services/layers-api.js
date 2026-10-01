@@ -98,6 +98,7 @@ export function shouldSendVectorLegend(metadata = {}) {
 export function buildLayerUploadFormData(metadata, files) {
   const formData = new FormData();
   formData.append("title", metadata.title);
+  if (metadata.division) formData.append("division", metadata.division);
   formData.append("description", metadata.description || "");
   formData.append("municipality", metadata.municipality || "");
   formData.append("source", metadata.source || "");
@@ -119,12 +120,22 @@ export function buildLayerUploadFormData(metadata, files) {
 }
 
 export async function uploadLayerRequest(token, metadata, files) {
+  let contract;
+  try {
+    contract = await request("/layers/classification-contract", { retries: 0, dedupe: false, cacheTtlMs: 0 });
+  } catch (_error) {
+    throw new Error("No se pudo confirmar que el servidor admite la clasificación institucional. No se envió ningún archivo; vuelve a intentarlo después de la actualización.");
+  }
+  if (contract?.data?.version !== 1) {
+    throw new Error("La clasificación del servidor se está actualizando. No se envió ningún archivo; vuelve a intentarlo cuando termine la actualización.");
+  }
   const formData = buildLayerUploadFormData(metadata, files);
 
   const payload = await request("/layers", {
     method: "POST",
     token,
     body: formData,
+    headers: { "X-EGEM-Classification-Version": "1" },
     timeoutMs: LAYER_UPLOAD_TIMEOUT_MS,
     retries: 0,
   });

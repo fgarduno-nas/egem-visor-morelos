@@ -217,9 +217,9 @@ test("parseVectorLegend identifica clases por identidad tecnica y permite colore
 test("mapLayer expone rasterLegend sin publicar diagnosticos internos", () => {
   const mapLayerSource = extractFunctionSource("mapLayer");
 
-  assert.match(mapLayerSource, /rasterLegendDetection,/);
-  assert.match(mapLayerSource, /processedGeojsonPath,/);
-  assert.match(mapLayerSource, /geospatialDiagnostics,/);
+  assert.doesNotMatch(mapLayerSource, /\.\.\.metadataProperties/);
+  assert.doesNotMatch(mapLayerSource, /processedGeojsonPath/);
+  assert.doesNotMatch(mapLayerSource, /geospatialDiagnostics/);
   assert.match(mapLayerSource, /\.\.\.publicMetadataProperties/);
   assert.match(mapLayerSource, /\.\.\.publicMetadataProperties/);
   assert.doesNotMatch(mapLayerSource, /\.\.\.metadataProperties,\s*vectorLegend/);
@@ -320,8 +320,8 @@ test("DTO administrativo expone remitente seguro y el publico no filtra rutas in
   assert.match(mapLayerSource, /publicUrl: isPublished \|\| includeOwner \? buildPublicFileUrl/);
   assert.doesNotMatch(mapLayerSource, /storagePath:\s*file\.storagePath/);
   assert.doesNotMatch(mapLayerSource, /\/opt\/|C:\\\\|passwordHash|accessToken|refreshToken/);
-  assert.match(mapLayerSource, /processedGeojsonPath,/);
-  assert.match(mapLayerSource, /geospatialDiagnostics,/);
+  assert.doesNotMatch(mapLayerSource, /processedGeojsonPath/);
+  assert.doesNotMatch(mapLayerSource, /geospatialDiagnostics/);
   assert.match(mapLayerSource, /normalizePublicGroundOverlays/);
   assert.match(mapLayerSource, /approvals: includeOwner/);
   assert.match(safeUserSource, /Usuario no disponible/);
@@ -366,8 +366,8 @@ test("tabla administrativa de capas usa endpoint paginado protegido y DTO seguro
   assert.match(phenomenonCandidatesSource, /properties\.phenomenon/);
   assert.match(phenomenonCandidatesSource, /properties\.category/);
   assert.match(phenomenonCandidatesSource, /properties\.tags/);
-  assert.match(mapperSource, /phenomenon:\s*phenomenonInfo\.displayLabel/);
-  assert.match(mapperSource, /phenomenonKey:\s*phenomenonInfo\.technicalKey/);
+  assert.match(mapperSource, /classificationFields\(layer\.division, phenomenonInfo\.technicalKey\)/);
+  assert.match(mapperSource, /classificationFields/);
   assert.match(includeSource, /createdBy: \{\s*select:/);
   assert.match(includeSource, /email: true/);
   assert.match(includeSource, /role: \{\s*select:/);
@@ -385,7 +385,7 @@ test("contrato administrativo presenta phenomenon legible sin perder clave tecni
   });
   assert.deepEqual(normalizePhenomenonForDisplay("category:SANITARIO_ECOLOGICO"), {
     technicalKey: "category:sanitario-ecologico",
-    displayLabel: "Sanitario-ecológico",
+    displayLabel: "Sanitario-ecológicos",
     recognized: true,
   });
   assert.deepEqual(normalizePhenomenonForDisplay("category:desconocido_local"), {

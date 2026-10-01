@@ -1,3 +1,4 @@
+import { classificationLocation, divisionLabel, effectiveDivisionKey, isThematicPhenomenon } from "../../../shared/division-utils.js";
 import { normalizePhenomenonForDisplay } from "../../../shared/phenomenon-utils.js";
 
 const missing = "No especificado";
@@ -60,7 +61,10 @@ export function renderAdminLayerDetail(layer) {
   if (["raster", "ground-overlay", "mixed"].includes(resource)) legends.push(legend("Leyenda raster", layer.symbology?.raster));
   return `<div class="admin-layer-details__header"><h4>Detalle de capa</h4></div>` +
     section("Información capturada durante la carga", [
-      ["Nombre de la capa", layer.title], ["Fenómeno", phenomenon === "Sin clasificar" ? missing : phenomenon],
+      ["Nombre de la capa", layer.title],
+      ["Sección", divisionLabel(effectiveDivisionKey(layer.divisionKey, layer.phenomenonKey))],
+      ["Fenómeno", layer.divisionKey === "vulnerability" || !isThematicPhenomenon(layer.phenomenonKey) ? "No aplica" : phenomenon],
+      ["Ubicación", classificationLocation(layer.divisionKey, layer.phenomenonKey || layer.referenceCategory || layer.phenomenon)],
       ["Descripción", layer.description], ["Municipio o cobertura", layer.municipality], ["Fuente", layer.source],
       ["Dependencia responsable", layer.responsibleAgency], ["Fecha de actualización de los datos", layer.sourceUpdatedAt],
       ["Escala o resolución", layer.scaleOrResolution], ["Sistema de referencia capturado", layer.capturedCrs, true],

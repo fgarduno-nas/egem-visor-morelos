@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { classificationContractController, requireClassificationContract } from "./classification-contract.js";
 
 import { asyncHandler } from "../../shared/utils/async-handler.js";
 import { validate } from "../../middlewares/validate.middleware.js";
@@ -33,6 +34,7 @@ import {
 
 export const layersRouter = Router();
 
+layersRouter.get("/classification-contract", classificationContractController);
 layersRouter.get("/public", asyncHandler(listPublicLayersController));
 
 layersRouter.use(authMiddleware);
@@ -61,6 +63,7 @@ layersRouter.get(
 layersRouter.post(
   "/",
   authorizeRoles(ROLE_CODES.ADMIN, ROLE_CODES.DATA_PROVIDER),
+  requireClassificationContract,
   upload.array("files", 10),
   validate(uploadLayerSchema),
   asyncHandler(uploadLayerController)

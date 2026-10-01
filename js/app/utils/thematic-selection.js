@@ -1,3 +1,7 @@
+export function isIndependentReference(layer) {
+  return layer?.sourceKind === "static" || ["limites", "otras"].includes(layer?.category);
+}
+
 // Catalog layers only: static references and uploadDraft.previewLayers never enter here.
 export function createThematicSelection() {
   let current = null;
@@ -17,7 +21,7 @@ export function createThematicSelection() {
 }
 
 export function latestThematicId(layers, orderedIds = []) {
-  const valid = new Set(layers.filter(layer => layer.visible !== false).map(layer => layer.id));
+  const valid = new Set(layers.filter(layer => layer.visible !== false && !isIndependentReference(layer)).map(layer => layer.id));
   return [...layers.map(layer => layer.id).filter(id => !orderedIds.includes(id)), ...orderedIds]
     .filter(id => valid.has(id)).at(-1) ?? null;
 }

@@ -119,7 +119,7 @@
             <div class="section-heading">
               <div>
                 <p class="section-kicker">Capas</p>
-                <h3>Fenómenos y límites</h3>
+                <h3>Secciones y límites</h3>
               </div>
             </div>
             <span class="panel-summary__chevron" aria-hidden="true"></span>
@@ -358,7 +358,7 @@
       </div>
 
       <p class="modal-copy">
-        Selecciona una sola capa, indica el fenómeno temático, revisa su vista previa y después envíala para revisión administrativa.
+        Selecciona una sola capa, elige su sección y clasificación, revisa su vista previa y después envíala para revisión administrativa.
       </p>
 
       <div class="upload-draft-grid">
@@ -378,20 +378,14 @@
         <details class="user-admin-block upload-accordion" id="upload-section-classification" open>
           <summary>
             <span>Clasificación</span>
-            <small id="upload-classification-summary">Fenómeno y nombre</small>
+            <small id="upload-classification-summary">Sección y nombre</small>
           </summary>
-          <label class="form-field">
-            <span>Fenómeno</span>
-            <select id="upload-layer-category" required>
-              <option value="geologicos">Geológicos</option>
-              <option value="hidrometeorologicos">Hidrometeorológicos</option>
-              <option value="quimicos-tecnologicos">Químicos-tecnológicos</option>
-              <option value="sanitario-ecologico">Sanitario-ecológico</option>
-              <option value="socio-organizativo">Socio-organizativo</option>
-              <option value="astronomicos">Astronómicos</option>
-            </select>
+          <label class="form-field"><span>Tipo de capa</span><select id="upload-layer-kind"><option value="thematic">Temática</option><option value="limites">Límites</option><option value="otras">Cartografía</option></select></label>
+          <label class="form-field" id="upload-division-field" for="upload-layer-division">
+            <span>Sección</span><select id="upload-layer-division" required aria-describedby="upload-division-help"></select>
+            <small id="upload-division-help">Selecciona primero la sección de la capa. Peligro y Riesgo requieren elegir uno de sus fenómenos disponibles; las capas de Vulnerabilidad se organizan directamente dentro de esa sección.</small>
           </label>
-
+          <label class="form-field" id="upload-phenomenon-field"><span>Fenómeno</span><select id="upload-layer-category" required></select></label>
           <label class="form-field">
             <span>Nombre de la capa</span>
             <input id="upload-layer-title" type="text" maxlength="180" placeholder="Se toma del archivo si se deja vacío" />
@@ -818,7 +812,11 @@
             </label>
             <label class="form-field">
               <span>Fenómeno</span>
-              <input id="admin-layer-phenomenon" type="text" placeholder="Geológicos, SE..." />
+              <select id="admin-layer-phenomenon"></select>
+            </label>
+            <label class="form-field">
+              <span>Sección</span>
+              <select id="admin-layer-division"></select>
             </label>
             <label class="form-field">
               <span>Filas</span>
@@ -838,7 +836,7 @@
                 <tr>
                   <th scope="col">Capa</th>
                   <th scope="col">Responsable</th>
-                  <th scope="col">Fenómeno</th>
+                  <th scope="col">Sección / Fenómeno</th>
                   <th scope="col">Tipo</th>
                   <th scope="col">Estado</th>
                   <th scope="col">Carga</th>

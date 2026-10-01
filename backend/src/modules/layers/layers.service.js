@@ -1,4 +1,5 @@
 import { adminResourceType, safeAdminSymbology, safeAdminProcessingMessage, safeAdminFilename } from "./admin-layer-details.js";
+import { classificationFields, effectiveDivisionKey, divisionLabel, divisionUploadTagsError, INSTITUTIONAL_DIVISIONS, normalizeDivisionKey } from "../../../../shared/division-utils.js";
 import fs from "node:fs";
 import path from "node:path";
 import slugify from "slugify";
@@ -30,6 +31,9 @@ export async function uploadLayer({ body, files, actor, req }) {
     throw new AppError("Debes adjuntar al menos un archivo.", 400);
   }
 
+  const divisionError = divisionUploadTagsError(body.tags, body.division, [body.phenomenon, body.phenomenonKey]);
+  if (divisionError) throw new AppError(divisionError, 400);
+
   const slugBase = slugify(body.title, { lower: true, strict: true });
   const slug = `${slugBase}-${Date.now()}`;
   const sourceType = path.extname(files[0].originalname).replace(".", "").toLowerCase();
@@ -41,6 +45,7 @@ export async function uploadLayer({ body, files, actor, req }) {
   const created = await prisma.layer.create({
     data: {
       title: body.title,
+      division: normalizeDivisionKey(body.division),
       slug,
       description: body.description ?? null,
       municipality: body.municipality ?? actor.municipality ?? null,
@@ -213,9 +218,12 @@ export async function listAdminLayerTable(query = {}) {
   const status = normalizeAdminFilter(query.status);
   const processingStatus = normalizeAdminFilter(query.processingStatus);
   const phenomenon = normalizeAdminFilter(query.phenomenon);
-  const searchCanTargetPhenomenon = search && normalizePhenomenonForDisplay(search).recognized;
+  const division = query.division || "";
+  const searchCanTargetPhenomenon = search && (normalizePhenomenonForDisplay(search).recognized ||
+    INSTITUTIONAL_DIVISIONS.map(item => item.label).some(label => normalizePhenomenonLookupValue(label).includes(normalizePhenomenonLookupValue(search))));
 
   const where = buildAdminLayerTableWhere({ search: searchCanTargetPhenomenon ? "" : search, status });
+  if (division) where.AND = [{ OR: [{ division }, ...(division === "hazard" ? [{ division: null }] : [])] }];
   const layers = await prisma.layer.findMany({
     where,
     include: getAdminLayerTableInclude(),
@@ -223,7 +231,7 @@ export async function listAdminLayerTable(query = {}) {
   });
 
   const filteredLayers = layers.filter((layer) =>
-    matchesAdminLayerTableFilters(layer, { search, processingStatus, phenomenon })
+    matchesAdminLayerTableFilters(layer, { search, processingStatus, phenomenon, division })
   );
   const totalItems = filteredLayers.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
@@ -248,6 +256,7 @@ export async function listAdminLayerTable(query = {}) {
       status,
       processingStatus,
       phenomenon,
+      division,
     },
   };
 }
@@ -524,12 +533,13 @@ export function mapLayer(layer, options = {}) {
   const includeAdmin = audience === "admin";
   const includeOwner = includeAdmin || audience === "owner";
   const metadataProperties = layer.metadata?.properties ?? {};
-  const {
-    rasterLegendDetection,
-    processedGeojsonPath,
-    geospatialDiagnostics,
-    ...publicMetadataProperties
-  } = metadataProperties;
+  // Explicit projection: classification never exposes arbitrary upload metadata.
+  const publicMetadataProperties = Object.fromEntries([
+    "tags", "source", "responsibleAgency", "updatedAt", "scaleOrResolution", "crs",
+    "geometryType", "featureCount", "coverage", "resourceType", "processingStatus",
+    "processedGeojsonUrl", "isVisualizable", "originalFileNames", "rasterLegend",
+  ].filter(key => Object.hasOwn(metadataProperties, key)).map(key => [key, metadataProperties[key]]));
+  publicMetadataProperties.processingMessage = safeAdminProcessingMessage(metadataProperties);
   const vectorLegend = metadataProperties.vectorLegend ?? buildVectorLegendPreview(metadataProperties);
   const vectorSublayers = Array.isArray(metadataProperties.vectorSublayers) ? metadataProperties.vectorSublayers : [];
   const isPublished = layer.status === LAYER_STATUS.PUBLISHED;
@@ -549,8 +559,10 @@ export function mapLayer(layer, options = {}) {
     sizeBytes: file.sizeBytes,
     publicUrl: isPublished || includeOwner ? buildPublicFileUrl(env.PUBLIC_BASE_URL, file.storagePath) : null,
   }));
+  const phenomenonInfo = getAdminLayerPhenomenon(metadataProperties);
   const base = {
     id: layer.id,
+    ...classificationFields(layer.division, phenomenonInfo.technicalKey),
     title: layer.title,
     slug: layer.slug,
     description: layer.description,
@@ -575,7 +587,10 @@ export function mapLayer(layer, options = {}) {
     files: safeFiles,
     metadata: layer.metadata
       ? {
-          ...layer.metadata,
+          featureCount: layer.metadata.featureCount,
+          geometryType: layer.metadata.geometryType,
+          bbox: layer.metadata.bbox,
+          crs: layer.metadata.crs,
           properties: {
             ...publicMetadataProperties,
             groundOverlays: safeGroundOverlays,
@@ -734,6 +749,7 @@ function buildAdminLayerTableWhere({ search, status }) {
 }
 
 function matchesAdminLayerTableFilters(layer, filters) {
+  if (filters.division && effectiveDivisionKey(layer.division, getAdminLayerPhenomenon(layer.metadata?.properties).technicalKey) !== filters.division) return false;
   const metadataProperties = layer.metadata?.properties ?? {};
   if (filters.search && !matchesAdminLayerSearch(layer, filters.search)) {
     return false;
@@ -764,6 +780,7 @@ function matchesAdminLayerSearch(layer, search) {
   const normalizedSearch = normalizePhenomenonLookupValue(search);
   const candidates = [
     layer.title,
+    divisionLabel(effectiveDivisionKey(layer.division, getAdminLayerPhenomenon(metadataProperties).technicalKey)),
     layer.description,
     layer.municipality,
     layer.createdBy?.name,
@@ -790,8 +807,7 @@ function mapAdminLayerTableItem(layer) {
     title: layer.title,
     description: layer.description,
     municipality: layer.municipality,
-    phenomenon: phenomenonInfo.displayLabel,
-    phenomenonKey: phenomenonInfo.technicalKey,
+    ...classificationFields(layer.division, phenomenonInfo.technicalKey),
     sourceType: layer.sourceType,
     resourceType,
     status: layer.isDeleted ? "deleted" : layer.status,
@@ -852,13 +868,13 @@ function getAdminLayerPhenomenonCandidates(properties = {}) {
   ];
 
   if (Array.isArray(properties.tags)) {
-    candidates.push(...properties.tags);
+    candidates.push(...properties.tags.filter(value => typeof value === "string" && /^category\s*:/i.test(value)));
   }
   if (Array.isArray(properties.metadata?.tags)) {
-    candidates.push(...properties.metadata.tags);
+    candidates.push(...properties.metadata.tags.filter(value => typeof value === "string" && /^category\s*:/i.test(value)));
   }
   if (Array.isArray(properties.properties?.tags)) {
-    candidates.push(...properties.properties.tags);
+    candidates.push(...properties.properties.tags.filter(value => typeof value === "string" && /^category\s*:/i.test(value)));
   }
 
   return candidates.filter((value) => value !== null && value !== undefined && String(value).trim());
