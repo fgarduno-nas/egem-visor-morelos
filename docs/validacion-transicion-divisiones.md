@@ -43,6 +43,12 @@ campos ajenos a `division`, verifica checksums y entradas de `_prisma_migrations
 restricciones y una segunda ejecución sin migraciones pendientes. Las credenciales
 sintéticas y archivos de ejecución no se incorporan a Git.
 
+La excepción histórica autorizada para tres IDs eliminados se ensaya también con
+títulos cambiados. El auditor separa esos overrides de categorías ordinarias y
+ambigüedades reales. Un cuarto ID sin categoría, un ID autorizado que vuelva a
+estar activo o uno que adquiera una categoría explícita deben abortar la
+migración con rollback completo. Ningún título se usa para clasificar.
+
 ## Compatibilidad y orden requerido para una publicación futura
 
 El backend final puede arrancar antes de la migración, pero no puede consultar el

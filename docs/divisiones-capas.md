@@ -64,6 +64,17 @@ ausente, desconocida o contradictoria aborta antes del backfill. Nunca se usan
 títulos, descripciones, geometrías, nombres de archivo o tags libres para inferir
 la clasificación. SE 02 conserva la categoría Geológicos que tiene registrada.
 
+Por autorización expresa del usuario, existe una excepción histórica limitada a
+`cmqs7uli10003l3dgilbk7jhm`, `cmqs8d6mt0003l3p1nzmrq8cg` y
+`cmqsf108j0003l3tkmx3k7ch4`. Son tres registros eliminados lógicamente y sin
+categoría técnica. La migración comprueba sus IDs exactos, que sigan eliminados y
+que no tengan ningún marcador de fenómeno o categoría; únicamente les asigna
+`division = vulnerability`. El fenómeno continúa nulo. No cambia su estado,
+metadata, archivos, propietario, fechas ni relaciones, y no reaparecen en el
+catálogo público. Los títulos no intervienen: cualquier otro registro ambiguo,
+incluso con un título similar, detiene la migración. El auditor informa estos
+tres overrides por separado y deja visibles las demás ambigüedades.
+
 No procede NOT NULL global en division ni en fenómeno: Vulnerabilidad carece
 de fenómeno y las referencias carecen de ambos. El fenómeno se conserva en el
 modelo actual de metadata, sin duplicarlo en otra columna. Triggers diferibles

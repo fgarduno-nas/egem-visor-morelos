@@ -29,14 +29,48 @@ LANGUAGE sql IMMUTABLE AS $$
     THEN min(key) ELSE NULL END FROM categories;
 $$;
 
+-- A category marker that is unknown or contradictory is still explicit and must
+-- never be treated as a category-free vulnerability layer.
+CREATE FUNCTION egem_layer_has_explicit_category(p jsonb) RETURNS boolean
+LANGUAGE sql IMMUTABLE AS $$
+  WITH containers AS (
+    SELECT p AS obj UNION ALL SELECT p->'metadata' UNION ALL SELECT p->'properties'
+  )
+  SELECT EXISTS (
+    SELECT 1 FROM containers c, jsonb_each(
+      CASE WHEN jsonb_typeof(c.obj)='object' THEN c.obj ELSE '{}'::jsonb END
+    ) kv WHERE kv.key IN ('phenomenon','category','theme','topic')
+      AND kv.value NOT IN ('null'::jsonb,'""'::jsonb)
+  ) OR EXISTS (
+    SELECT 1 FROM containers c, jsonb_array_elements_text(
+      CASE WHEN jsonb_typeof(c.obj->'tags')='array' THEN c.obj->'tags' ELSE '[]'::jsonb END
+    ) tags(tag) WHERE tag ~* '^category\s*:'
+  );
+$$;
+
 -- Freeze both sides during the preflight and backfill. No concurrent category edits.
 LOCK TABLE "Layer", "LayerMetadata" IN SHARE ROW EXCLUSIVE MODE;
 DO $$
 DECLARE invalid_ids text;
 BEGIN
+  -- Explicit user authorization applies only to these three deleted IDs.
+  -- No title, filename, geometry, or partial-text inference is permitted.
+  WITH authorized(id) AS (VALUES
+    ('cmqs7uli10003l3dgilbk7jhm'),
+    ('cmqs8d6mt0003l3p1nzmrq8cg'),
+    ('cmqsf108j0003l3tkmx3k7ch4')
+  ), inspected AS (
+    SELECT l.id, l."isDeleted", a.id IS NOT NULL AS authorized,
+      egem_layer_category(m.properties) AS category,
+      egem_layer_has_explicit_category(m.properties) AS explicit_category
+    FROM "Layer" l LEFT JOIN "LayerMetadata" m ON m."layerId" = l.id
+    LEFT JOIN authorized a ON a.id = l.id
+  )
   SELECT string_agg(id, ', ') INTO invalid_ids FROM (
-    SELECT l.id FROM "Layer" l LEFT JOIN "LayerMetadata" m ON m."layerId" = l.id
-    WHERE egem_layer_category(m.properties) IS NULL ORDER BY l.id LIMIT 20
+    SELECT id FROM inspected WHERE
+      (authorized AND (NOT "isDeleted" OR explicit_category OR category IS NOT NULL))
+      OR (category IS NULL AND NOT (authorized AND "isDeleted" AND NOT explicit_category))
+    ORDER BY id LIMIT 20
   ) invalid;
   IF invalid_ids IS NOT NULL THEN
     RAISE EXCEPTION 'Division migration stopped: missing/unknown/conflicting explicit category. Layer IDs: %', invalid_ids;
@@ -52,6 +86,14 @@ UPDATE "Layer" l SET division = 'hazard'
 FROM "LayerMetadata" m
 WHERE m."layerId" = l.id AND egem_layer_category(m.properties) NOT IN ('limites', 'otras');
 
+-- The three historical records remain soft-deleted. Only the new column changes.
+UPDATE "Layer" SET division = 'vulnerability'
+WHERE id IN (
+  'cmqs7uli10003l3dgilbk7jhm',
+  'cmqs8d6mt0003l3p1nzmrq8cg',
+  'cmqsf108j0003l3tkmx3k7ch4'
+);
+
 -- Cross-table invariants cannot be implemented by a PostgreSQL CHECK subquery.
 -- Deferred constraint triggers validate the final state of Prisma's nested writes.
 CREATE FUNCTION egem_assert_layer_division(layer_id text) RETURNS void
@@ -63,14 +105,9 @@ BEGIN
   WHERE l.id = layer_id;
   IF NOT FOUND THEN RETURN; END IF; -- physical cascade deletion is not blocked
   IF value = 'vulnerability' THEN
-    IF EXISTS (
-      SELECT 1 FROM "LayerMetadata" m,
-      LATERAL (SELECT m.properties AS obj UNION ALL SELECT m.properties->'metadata' UNION ALL SELECT m.properties->'properties') c
-      WHERE m."layerId"=layer_id AND (
-        EXISTS (SELECT 1 FROM jsonb_each(CASE WHEN jsonb_typeof(c.obj)='object' THEN c.obj ELSE '{}'::jsonb END) kv WHERE kv.key IN ('phenomenon','category','theme','topic') AND kv.value NOT IN ('null'::jsonb,'""'::jsonb))
-        OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(c.obj->'tags')='array' THEN c.obj->'tags' ELSE '[]'::jsonb END) t WHERE t ~* '^category\s*:')
-      )
-    ) THEN RAISE EXCEPTION 'Vulnerability layer % cannot have phenomenon', layer_id USING ERRCODE='23514'; END IF;
+    IF EXISTS (SELECT 1 FROM "LayerMetadata" m WHERE m."layerId"=layer_id
+      AND egem_layer_has_explicit_category(m.properties))
+    THEN RAISE EXCEPTION 'Vulnerability layer % cannot have phenomenon', layer_id USING ERRCODE='23514'; END IF;
   ELSIF category IN ('limites','otras') THEN
     IF value IS NOT NULL THEN RAISE EXCEPTION 'Reference layer % cannot have section', layer_id USING ERRCODE='23514'; END IF;
   ELSIF category IS NULL OR value IS NULL OR NOT COALESCE((egem_classification_contract()->'rules'->value) ? category, false) THEN
