@@ -379,7 +379,7 @@ test("la interfaz publica no renderiza textos tecnicos ni marca anterior", async
   assert.match(visibleText, /Universidad Autónoma del Estado de Morelos/);
 });
 
-test("el aviso institucional de version de prueba se muestra en cada carga sin persistencia", async () => {
+test("el aviso institucional de bienvenida se muestra en cada carga sin persistencia", async () => {
   const html = await fs.readFile(path.resolve("index.html"), "utf8");
   const setupSource = extractFunctionSource(mapSource, "setupUi");
   const showSource = extractFunctionSource(mapSource, "showTrialNoticeModal");
@@ -393,10 +393,12 @@ test("el aviso institucional de version de prueba se muestra en cada carga sin p
   assert.match(html, /aria-modal="true"/);
   assert.match(html, /aria-labelledby="trial-notice-title"/);
   assert.match(html, /aria-describedby="trial-notice-message"/);
-  assert.match(html, /id="trial-notice-title">Visualizador en versión de prueba<\/h2>/);
-  assert.match(html, /Este visualizador se encuentra actualmente en etapa de prueba y construcción\. Algunas funciones, capas o contenidos pueden cambiar durante su desarrollo\./);
+  assert.match(html, /id="trial-notice-title">Bienvenido al Visualizador Geoespacial del Estado de Morelos<\/h2>/);
+  assert.match(html, /Consulta información geoespacial del estado de Morelos y explora las capas disponibles en el mapa\./);
+  assert.doesNotMatch(html, /Visualizador en versión de prueba/u);
+  assert.doesNotMatch(html, /Credencial de prueba actual|etapa de prueba del visor/u);
   assert.match(html, /id="accept-trial-notice"[^>]*>Entendido<\/button>/);
-  assert.match(html, /id="close-trial-notice"[^>]*aria-label="Cerrar aviso de versión de prueba"/);
+  assert.match(html, /id="close-trial-notice"[^>]*aria-label="Cerrar aviso de bienvenida"/);
   assert.match(html, /<div class="app-shell" tabindex="-1">/);
   assert.match(cssSource, /\.modal--trial-notice\s*\{/);
   assert.match(cssSource, /\.modal--trial-notice::backdrop\s*\{/);
@@ -612,12 +614,12 @@ test("el encabezado usa un único menú de acciones sin botones distribuidos", a
   assert.match(mapSource, /document\.getElementById\("open-login"\)\?\.classList\.toggle\("hidden", state\.session\.isAuthenticated\)/);
 });
 
-test("el encabezado contiene un unico aviso Version de prueba no interactivo", () => {
-  const badgeMarkup = htmlSource.match(/<span class="trial-version-badge"[^>]*>Versión de prueba<\/span>/u)?.[0] || "";
-  const visibleOccurrences = htmlSource.match(/>Versión de prueba<\/span>/g) || [];
+test("el encabezado contiene una unica insignia VGEM 2.1 no interactiva", () => {
+  const badgeMarkup = htmlSource.match(/<span class="trial-version-badge"[^>]*>Versión: VGEM 2\.1<\/span>/u)?.[0] || "";
+  const visibleOccurrences = htmlSource.match(/>Versión: VGEM 2\.1<\/span>/g) || [];
 
   assert.equal(visibleOccurrences.length, 1);
-  assert.match(badgeMarkup, /aria-label="Versión de prueba"/);
+  assert.match(badgeMarkup, /aria-label="Versión: VGEM 2\.1"/);
   assert.doesNotMatch(badgeMarkup, /button|href|role="button"|tabindex/u);
   assert.match(cssSource, /\.trial-version-badge\s*\{/);
   assert.match(cssSource, /\.app-shell--topbar-collapsed \.brand-title-row\s*\{/);
@@ -672,7 +674,7 @@ test("el limite estatal resaltado se define una sola vez y se restaura al frente
   assert.match(mapSource, /const visible = staticLayers\.find\(\(layer\) => layer\.id === "estado"\)\?\.visible !== false/);
   assert.match(mapSource, /safeSetLayoutProperty\("estado-highlight-halo", "visibility", visible \? "visible" : "none"\)/);
   assert.match(mapSource, /safeSetLayoutProperty\("estado-highlight", "visibility", visible \? "visible" : "none"\)/);
-  assert.match(mapSource, /map\.moveLayer\(layerId\)/);
+  assert.match(mapSource, /function restoreStateBoundaryHighlight\(\)[\s\S]*?ensureReferenceLayerOrder\(\)/);
 });
 
 test("los limites mantienen estado inicial activo y jerarquia visual independiente de capas tematicas", () => {
@@ -1093,6 +1095,32 @@ test("el orden central mantiene vialidades encima de peligros y limites encima d
   assert.match(baseMapSource, /ensureReferenceLayerOrder\(\)/);
   assert.match(restoreSource, /initializeReferenceRoads\(\)/);
   assert.match(restoreSource, /ensureReferenceLayerOrder\(\)/);
+});
+
+test("Carreteras reutiliza la referencia vial y conserva controles independientes", () => {
+  const staticLayerBlock = mapSource.match(/const staticLayers = \[(?<body>[\s\S]*?)\n  \];/u)?.groups.body || "";
+  const catalogSource = extractFunctionSource(mapSource, "renderLayerCatalog");
+  const visibilitySource = extractFunctionSource(mapSource, "setReferenceRoadVisibility");
+  const staticVisibilitySource = extractFunctionSource(mapSource, "setStaticVisibility");
+  const opacitySource = extractFunctionSource(mapSource, "applyStaticLayerOpacity");
+  const roadsSource = extractFunctionSource(mapSource, "initializeReferenceRoads");
+  const orderingSource = extractFunctionSource(mapSource, "ensureReferenceLayerOrder");
+  const goesSource = extractFunctionSource(mapSource, "initializeCloudTopAnimation");
+
+  for (const id of ["estado", "municipios", "carreteras", "cuerpos-agua"]) {
+    assert.match(staticLayerBlock, new RegExp(`id: "${id}"[\\s\\S]*?visible: true`));
+  }
+  assert.match(staticLayerBlock, /id: "carreteras"[\s\S]*?category: "otras"/);
+  assert.match(catalogSource, /\{id:"limites", title:"Límites"\}, \{id:"otras", title:"Cartografía"\}/);
+  assert.match(visibilitySource, /const enabled = staticLayers\.find\(\(layer\) => layer\.id === "carreteras"\)\?\.visible !== false/);
+  assert.match(staticVisibilitySource, /layerId === "carreteras"[\s\S]*?setReferenceRoadVisibility/);
+  assert.match(opacitySource, /layerId === "carreteras"[\s\S]*?safeSetPaintProperty/);
+  assert.match(roadsSource, /if \(!map\.getSource\(config\.sourceId\)\)/);
+  assert.match(orderingSource, /ROAD_REFERENCE_LAYER_IDS\.forEach[\s\S]*ROAD_REFERENCE_BOUNDARY_LAYER_IDS\.forEach/);
+  assert.match(goesSource, /beforeLayerIds: \[\]/);
+  assert.match(orderingSource, /WATER_REFERENCE_LAYER_IDS\.forEach[\s\S]*ROAD_REFERENCE_LAYER_IDS\.forEach[\s\S]*ROAD_REFERENCE_BOUNDARY_LAYER_IDS\.forEach[\s\S]*state\.cloudTop\.mapLayer\?\.getLayerIds\(\)/);
+  assert.match(extractFunctionSource(mapSource, "toggleLayerVisibility"), /if \(staticLayer\)[\s\S]*?setStaticVisibility\(layerId, visible\)/);
+  assert.match(extractFunctionSource(mapSource, "saveUserLayers"), /staticLayers\.includes\(layer\)/);
 });
 
 test("las vialidades usan casing negro, centro blanco punteado y etiquetas oficiales", () => {
@@ -1827,7 +1855,7 @@ test("visitante omite bloque de informacion lateral y administrador lo conserva"
   assert.match(updateInfoSource, /elements\.infoPanel\.innerHTML/);
 });
 
-test("visitante no conserva transparencia fija y activa capas al 100 por ciento", () => {
+test("visitante conserva la opacidad temática y la preferencia manual", () => {
   const toggleVisibilitySource = extractFunctionSource(mapSource, "toggleLayerVisibility");
   const saveSource = extractFunctionSource(mapSource, "saveUserLayers");
 
@@ -1838,7 +1866,8 @@ test("visitante no conserva transparencia fija y activa capas al 100 por ciento"
   assert.doesNotMatch(mapSource, /updateLayerOpacity\(layerId, 80/);
   assert.doesNotMatch(cssSource, /20%/);
   assert.doesNotMatch(cssSource, /layer-transparency-toggle/);
-  assert.match(toggleVisibilitySource, /if \(visible && isPublicVisitor\(\)\) \{[\s\S]*updateLayerOpacity\(layerId, 100, \{ persist: false \}\)/);
+  assert.doesNotMatch(toggleVisibilitySource, /updateLayerOpacity\(layerId, 100/);
+  assert.match(mapSource, /const DEFAULT_THEMATIC_OPACITY = 0\.75/);
   assert.match(saveSource, /opacity:\s*clampLayerOpacity\(layer\.opacity \?\? 1\)/);
   assert.doesNotMatch(saveSource, /getPersistableLayerOpacity/);
 });
@@ -2482,7 +2511,7 @@ test("el visor restaura solo una temática válida y permite reinicio explícito
   assert.match(mapSource, /const visible = isIndependentReference\(layer\) \? preference\?\.visible === true : preserveSessionVisibility[\s\S]*?previousVisibility\.size[\s\S]*?=== savedKey\)[\s\S]*?: false/);
   assert.match(mapSource, /layer.visible = layer.id === selectedId/);
   assert.doesNotMatch(mapSource, /preference\?\.visible\s*\?\?\s*isPublishedStatus\(layer\.status\)/);
-  assert.match(prefsSource, /opacity:\s*clampLayerOpacity\(item\.opacity \?\? 1\)/);
+  assert.match(prefsSource, /opacity:\s*clampLayerOpacity\(item\.opacity \?\? DEFAULT_THEMATIC_OPACITY\)/);
   assert.match(prefsSource, /visible:\s*Boolean\(item\.visible\)/);
   assert.match(renderSource, /if \(layer\.visible !== false && canSeeLayer\(layer\)\)/);
   assert.match(renderSource, /canRenderLayerFromCachedResources\(layer\)/);
@@ -2493,7 +2522,7 @@ test("el visor restaura solo una temática válida y permite reinicio explícito
   assert.match(mapSource, /closeFloatingLegend\(\{ renderCatalog: false \}\)/);
   assert.match(mapSource, /id: "estado"[\s\S]*?visible: true/);
   assert.match(mapSource, /id: "municipios"[\s\S]*?visible: true/);
-  assert.doesNotMatch(mapSource, /layer\.visible = preference\.visible/);
+  assert.match(mapSource, /staticLayers\.forEach\(\(layer\) => \{[\s\S]*?layer\.visible = preference\.visible/);
   assert.match(buildCatalogSource, /staticLayers\.map/);
   assert.match(buildCatalogSource, /userLayers\.map/);
 });

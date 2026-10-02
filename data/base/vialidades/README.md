@@ -1,13 +1,13 @@
 # Vialidades por escala
 
-Datos proporcionados como insumo cartografico para el Atlas de Riesgos de Morelos. Procesamiento registrado el 15 de septiembre de 2026. La institucion de origen, licencia y atribucion definitiva estan pendientes de confirmacion.
+Datos proporcionados como insumo cartografico para el Atlas de Riesgos de Morelos. Procesamiento registrado el 15 de septiembre de 2026. El responsable del proyecto confirma que la red carretera y sus nombres proceden del INEGI.
 
 ## Procedencia
 
-- Procedencia institucional: pendiente de confirmación.
+- Fuente de la red carretera y sus nombres: Instituto Nacional de Estadística y Geografía (INEGI), según confirmación del responsable del proyecto.
 - Licencia y condiciones de publicación: pendientes de confirmación.
-- Atribución pública: pendiente de confirmación.
-- No se atribuye este insumo a INEGI, IMT o SICT porque los metadatos incluidos no lo demuestran.
+- Producto original específico, edición, año y escala: pendientes de confirmación documental; la metadata disponible no los identifica con certeza.
+- No se incorporaron datos externos nuevos para esta atribución ni para las correcciones conservadoras de nombres.
 
 Los metadatos `.shp.xml` del insumo indican procesamiento con ArcGIS Desktop 10.8 el 15 de septiembre de 2026, recorte desde una capa denominada `red_vial` usando `Limite_Edo_Morelos`, y disolución de `Vial_1` por `NOMBRE` y `ADMINISTRA`.
 
@@ -37,7 +37,7 @@ La conversión se realizó desde Shapefile `EPSG:32614` hacia GeoJSON `EPSG:4326
 
 ## Publicacion
 
-Estos archivos quedan preparados como derivados web para revision publica del Atlas. La procedencia institucional, licencia y atribucion definitiva continuan pendientes de confirmacion.
+Estos archivos quedan preparados como derivados web para revision publica del Atlas. La fuente INEGI fue confirmada por el responsable; el producto específico, licencia y condiciones de publicación continúan pendientes de confirmación documental. Se conservan los metadatos originales del procesamiento.
 
 ## Auditoria de nombres viales
 

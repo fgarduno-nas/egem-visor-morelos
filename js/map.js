@@ -285,7 +285,31 @@ import { installMapExport } from "./app/utils/map-export.js";
       opacity: 1,
       description: "División municipal para consulta operativa.",
     },
+    {
+      id: "carreteras",
+      title: "Carreteras",
+      group: "Cartografía",
+      category: "otras",
+      status: "published",
+      sourceKind: "static",
+      visible: true,
+      opacity: 1,
+      description: "Red vial de referencia del estado de Morelos.",
+    },
+    {
+      id: "cuerpos-agua",
+      title: "Cuerpos de agua",
+      group: "Cartografía",
+      category: "otras",
+      status: "published",
+      sourceKind: "static",
+      visible: true,
+      opacity: 1,
+      description: "Cuerpos de agua de Morelos; insumo original atribuido a INEGI y archivo integrado por UAEM.",
+    },
   ];
+
+  const DEFAULT_THEMATIC_OPACITY = 0.75;
 
   const INSTITUTIONAL_BOUNDARY_COLOR = "#7a203a";
   const STATE_BOUNDARY_HALO_COLOR = "#fff7ef";
@@ -355,6 +379,7 @@ import { installMapExport } from "./app/utils/map-export.js";
     "estado-highlight-halo",
     "estado-highlight",
   ];
+  const WATER_REFERENCE_LAYER_IDS = ["cuerpos-agua-fill", "cuerpos-agua-outline"];
   const LOCALITY_LABEL_LAYER_IDS = LOCALITY_LABEL_TIERS.map((tier) => tier.id);
   const REFERENCE_LABEL_LAYER_IDS = [...LOCALITY_LABEL_LAYER_IDS, ...MUNICIPAL_LABEL_TIERS.map((tier) => tier.id)];
   const ROAD_REFERENCE_MAX_CACHED_CHUNKS = 32;
@@ -393,6 +418,7 @@ import { installMapExport } from "./app/utils/map-export.js";
       estado: null,
       municipios: null,
       municipiosLabels: null,
+      cuerposAgua: null,
     },
     users: [],
     adminUsers: {
@@ -784,6 +810,14 @@ import { installMapExport } from "./app/utils/map-export.js";
       console.warn("Error cargando tiles de Esri World Imagery", event.error);
     }
     console.error("Error en MapLibre:", event.error);
+  });
+
+  const initialStaticPreferences = loadPersistedLayerPreferences();
+  staticLayers.forEach((layer) => {
+    const preference = initialStaticPreferences.get(layer.id);
+    if (!preference) return;
+    layer.visible = preference.visible;
+    layer.opacity = preference.opacity;
   });
 
   setupUi();
@@ -1178,19 +1212,21 @@ import { installMapExport } from "./app/utils/map-export.js";
 
   async function loadStaticData() {
     try {
-      const [estadoResponse, municipiosResponse, municipiosLabelsResponse] = await Promise.all([
+      const [estadoResponse, municipiosResponse, municipiosLabelsResponse, cuerposAguaResponse] = await Promise.all([
         fetch("data/base/estado.geojson"),
         fetch("data/base/municipios.geojson"),
         fetch("data/base/municipios_label_points.geojson"),
+        fetch("data/base/hidrografia/cuerpos-agua.geojson"),
       ]);
 
-      if (!estadoResponse.ok || !municipiosResponse.ok || !municipiosLabelsResponse.ok) {
+      if (!estadoResponse.ok || !municipiosResponse.ok || !municipiosLabelsResponse.ok || !cuerposAguaResponse.ok) {
         throw new Error("No se pudieron cargar los archivos base.");
       }
 
       state.staticData.estado = await estadoResponse.json();
       state.staticData.municipios = await municipiosResponse.json();
       state.staticData.municipiosLabels = await municipiosLabelsResponse.json();
+      state.staticData.cuerposAgua = await cuerposAguaResponse.json();
     } catch (error) {
       console.error("Error cargando datos base:", error);
       updateInfoPanel({
@@ -1425,16 +1461,18 @@ import { installMapExport } from "./app/utils/map-export.js";
       clearSelectedLayer();
     }
 
-    elements.layerList.innerHTML = groupLayersByDivision(layers.filter(layer => !isIndependentReference(layer))).map(section => {
+    const institutionalSections = [
+      {id:"limites", title:"Límites"}, {id:"otras", title:"Cartografía"},
+    ].map(group => renderLayerGroup(group, layers.filter(layer => isIndependentReference(layer) && resolveLayerCategory(layer) === group.id), searchTerm)).join("");
+    const thematicSections = groupLayersByDivision(layers.filter(layer => !isIndependentReference(layer))).map(section => {
       const sectionLayers = section.layers;
       const content = section.key === "vulnerability"
         ? sectionLayers.map(renderLayerItem).join("") || '<p class="layer-group__empty">Sin capas</p>'
         : phenomenaForDivision(section.key).map(phenomenon => renderLayerGroup(
           {id:phenomenon.key, title:phenomenon.label}, sectionLayers.filter(layer => normalizePhenomenonForDisplay(layer.category).technicalKey === phenomenon.key), searchTerm)).join("");
       return `<details class="layer-section" data-section="${section.key}" open><summary>${section.label} <span class="layer-group__count">[${sectionLayers.length}]</span></summary><div class="layer-section__content">${content}</div></details>`;
-    }).join("") + [
-      {id:"limites", title:"Límites"}, {id:"otras", title:"Cartografía"},
-    ].map(group => renderLayerGroup(group, layers.filter(layer => isIndependentReference(layer) && resolveLayerCategory(layer) === group.id), searchTerm)).join("");
+    }).join("");
+    elements.layerList.innerHTML = thematicSections + institutionalSections;
     syncVisitorLayerPanelLabels();
 
     elements.layerList.querySelectorAll(".layer-item").forEach((item) => {
@@ -1717,7 +1755,7 @@ import { installMapExport } from "./app/utils/map-export.js";
   }
 
   function getLayerOpacity(layer) {
-    return clampLayerOpacity(layer?.opacity ?? 1);
+    return clampLayerOpacity(layer?.opacity ?? (layer && !isIndependentReference(layer) ? DEFAULT_THEMATIC_OPACITY : 1));
   }
 
   function getLayerOpacityPercent(layer) {
@@ -2182,11 +2220,23 @@ import { installMapExport } from "./app/utils/map-export.js";
   }
 
   function injectStaticSources() {
-    if (!state.staticData.estado || !state.staticData.municipios || !state.staticData.municipiosLabels) return;
+    if (!state.staticData.estado || !state.staticData.municipios || !state.staticData.municipiosLabels || !state.staticData.cuerposAgua) return;
 
     upsertGeoJsonSource("estado-source", state.staticData.estado);
     upsertGeoJsonSource("municipios-source", state.staticData.municipios);
     upsertGeoJsonSource(MUNICIPAL_LABEL_SOURCE_ID, state.staticData.municipiosLabels);
+    upsertGeoJsonSource("cuerpos-agua-source", state.staticData.cuerposAgua,
+      "Agua: INEGI (origen) · UAEM-FA (archivo)");
+
+    const waterOpacity = getLayerOpacity(staticLayers.find((layer) => layer.id === "cuerpos-agua"));
+    addLayerIfMissing({
+      id: "cuerpos-agua-fill", type: "fill", source: "cuerpos-agua-source",
+      paint: { "fill-color": "#397fba", "fill-opacity": 0.58 * waterOpacity },
+    });
+    addLayerIfMissing({
+      id: "cuerpos-agua-outline", type: "line", source: "cuerpos-agua-source",
+      paint: { "line-color": "#205783", "line-width": 1.2, "line-opacity": 0.84 * waterOpacity },
+    });
 
     addLayerIfMissing({
       id: "estado-fill",
@@ -2281,6 +2331,7 @@ import { installMapExport } from "./app/utils/map-export.js";
 
     setStaticVisibility("estado", staticLayers.find((layer) => layer.id === "estado").visible);
     setStaticVisibility("municipios", staticLayers.find((layer) => layer.id === "municipios").visible);
+    setStaticVisibility("cuerpos-agua", staticLayers.find((layer) => layer.id === "cuerpos-agua").visible);
     initializeLocalityLabels();
     updateReferenceRoadLabelPaint();
     ensureReferenceLayerOrder();
@@ -2579,6 +2630,8 @@ import { installMapExport } from "./app/utils/map-export.js";
         center: ["interpolate", ["linear"], ["zoom"], 15.2, 0.82, 16, 0.74, 17, 0.62, 18, 0.48],
       },
     };
+    const roadOpacity = getLayerOpacity(staticLayers.find((layer) => layer.id === "carreteras"));
+    const scaledOpacity = (base) => roadOpacity === 1 ? base : ["*", base, roadOpacity];
     const centerDashArrays = {
       1: [2.4, 1.6],
       2: [2, 1.6],
@@ -2606,7 +2659,7 @@ import { installMapExport } from "./app/utils/map-export.js";
       paint: {
         "line-color": "#000000",
         "line-width": widths[level].casing,
-        "line-opacity": opacities[level].casing,
+        "line-opacity": scaledOpacity(opacities[level].casing),
         "line-blur": 0,
       },
     });
@@ -2622,7 +2675,7 @@ import { installMapExport } from "./app/utils/map-export.js";
       paint: {
         "line-color": "#ffffff",
         "line-width": widths[level].center,
-        "line-opacity": opacities[level].center,
+        "line-opacity": scaledOpacity(opacities[level].center),
         "line-dasharray": centerDashArrays[level],
         "line-blur": 0,
       },
@@ -2691,7 +2744,7 @@ import { installMapExport } from "./app/utils/map-export.js";
         "text-halo-color": state.activeBaseMap === "oscuro" ? "#111827" : "#ffffff",
         "text-halo-width": 1.2,
         "text-halo-blur": 0.25,
-        "text-opacity": level === 1 ? 0.88 : level === 2 ? 0.78 : 0.72,
+        "text-opacity": scaledOpacity(level === 1 ? 0.88 : level === 2 ? 0.78 : 0.72),
       },
     });
   }
@@ -2908,8 +2961,9 @@ import { installMapExport } from "./app/utils/map-export.js";
   }
 
   function setReferenceRoadVisibility(activeLevel) {
+    const enabled = staticLayers.find((layer) => layer.id === "carreteras")?.visible !== false;
     Object.entries(ROAD_REFERENCE_LEVELS).forEach(([levelKey, config]) => {
-      const visible = Number(levelKey) === activeLevel;
+      const visible = enabled && Number(levelKey) === activeLevel;
       config.layerIds.forEach((layerId) => {
         safeSetLayoutProperty(layerId, "visibility", visible ? "visible" : "none");
       });
@@ -2918,6 +2972,9 @@ import { installMapExport } from "./app/utils/map-export.js";
   }
 
   function ensureReferenceLayerOrder() {
+    WATER_REFERENCE_LAYER_IDS.forEach((layerId) => {
+      if (map.getLayer(layerId)) safeMoveLayer(layerId);
+    });
     ROAD_REFERENCE_LAYER_IDS.forEach((layerId) => {
       if (map.getLayer(layerId)) {
         safeMoveLayer(layerId);
@@ -2933,6 +2990,10 @@ import { installMapExport } from "./app/utils/map-export.js";
         safeMoveLayer(layerId);
       }
     });
+    // Every GOES buffer is above geographic layers after style rebuilds and frame swaps.
+    state.cloudTop.mapLayer?.getLayerIds().forEach((layerId) => {
+      if (map.getLayer(layerId)) safeMoveLayer(layerId);
+    });
   }
 
   function restoreStateBoundaryHighlight() {
@@ -2940,12 +3001,8 @@ import { installMapExport } from "./app/utils/map-export.js";
     ["estado-highlight-halo", "estado-highlight"].forEach((layerId) => {
       if (!map.getLayer(layerId)) return;
       safeSetLayoutProperty(layerId, "visibility", visible ? "visible" : "none");
-      try {
-        map.moveLayer(layerId);
-      } catch (error) {
-        console.warn("No se pudo reposicionar el límite estatal resaltado:", error);
-      }
     });
+    ensureReferenceLayerOrder();
   }
 
   function injectMeasurementSources() {
@@ -3052,7 +3109,10 @@ import { installMapExport } from "./app/utils/map-export.js";
     });
     state.cloudTop.provider = createCloudTopProvider(CLOUD_TOP_PROVIDER_CONFIG);
     state.cloudTop.activeProvider = state.cloudTop.provider;
-    state.cloudTop.mapLayer = new CloudTopMapLayer(map, { opacity: state.cloudTop.opacity });
+    state.cloudTop.mapLayer = new CloudTopMapLayer(map, {
+      opacity: state.cloudTop.opacity,
+      beforeLayerIds: [],
+    });
     state.cloudTop.playback = new CloudTopPlaybackController({
       frameDurationMs: CLOUD_TOP_SPEEDS.normal,
       onFrameChange: (frame) => renderCloudTopFrame(frame),
@@ -3227,6 +3287,7 @@ import { installMapExport } from "./app/utils/map-export.js";
       const renderedFrame = await state.cloudTop.frameRenderer.loadFrame(frame);
       if (renderToken !== state.cloudTop.renderToken) return;
       await state.cloudTop.mapLayer.showFrame(renderedFrame);
+      ensureReferenceLayerOrder();
       state.cloudTop.visibleFrame = renderedFrame;
       state.cloudTop.lastValidFrame = renderedFrame;
       state.cloudTop.frameStats = state.cloudTop.frameRenderer.getStats();
@@ -3317,7 +3378,7 @@ import { installMapExport } from "./app/utils/map-export.js";
     } else {
       setCloudTopStatus(cloudTop.lastValidFrame ? "visible" : "loading", cloudTop.lastValidFrame ? "Cuadro visible." : "Actualizando datos satelitales...");
       if (cloudTop.lastValidFrame) {
-        cloudTop.mapLayer?.showFrame(cloudTop.lastValidFrame).catch((error) => {
+        cloudTop.mapLayer?.showFrame(cloudTop.lastValidFrame).then(() => ensureReferenceLayerOrder()).catch((error) => {
           if (!isExpectedCloudTopCancellation(error)) console.error("No se pudo restaurar el cuadro GOES IR:", error);
         });
       } else if (cloudTop.initialized) {
@@ -3450,6 +3511,12 @@ import { installMapExport } from "./app/utils/map-export.js";
   }
 
   function setStaticVisibility(layerId, visible) {
+    if (layerId === "cuerpos-agua") {
+      WATER_REFERENCE_LAYER_IDS.forEach((id) => safeSetLayoutProperty(id, "visibility", visible ? "visible" : "none"));
+    }
+    if (layerId === "carreteras") {
+      setReferenceRoadVisibility(state.referenceRoads.visibleLevel || state.referenceRoads.activeLevel || getReferenceRoadLevelForZoom(map.getZoom()));
+    }
     if (layerId === "estado") {
       safeSetLayoutProperty("estado", "visibility", visible ? "visible" : "none");
       safeSetLayoutProperty("estado-fill", "visibility", visible ? "visible" : "none");
@@ -4646,6 +4713,25 @@ import { installMapExport } from "./app/utils/map-export.js";
     if (!layer) return;
     const opacity = getLayerOpacity(layer);
 
+    if (layerId === "cuerpos-agua") {
+      safeSetPaintProperty("cuerpos-agua-fill", "fill-opacity", 0.58 * opacity);
+      safeSetPaintProperty("cuerpos-agua-outline", "line-opacity", 0.84 * opacity);
+      return;
+    }
+
+    if (layerId === "carreteras") {
+      Object.values(ROAD_REFERENCE_LEVELS).forEach((config) => {
+        const [casingId, centerId, labelId] = config.layerIds;
+        for (const [id, property] of [[casingId, "line-opacity"], [centerId, "line-opacity"], [labelId, "text-opacity"]]) {
+          const base = map.getLayer(id)?.paint?.[property];
+          if (base === undefined) continue;
+          const original = Array.isArray(base) && base[0] === "*" ? base[1] : base;
+          safeSetPaintProperty(id, property, opacity === 1 ? original : ["*", original, opacity]);
+        }
+      });
+      return;
+    }
+
     if (layerId === "estado") {
       safeSetPaintProperty("estado-fill", "fill-opacity", 0);
       safeSetPaintProperty("estado", "line-opacity", STATE_BOUNDARY_BASE_OPACITY * opacity);
@@ -4721,15 +4807,13 @@ import { installMapExport } from "./app/utils/map-export.js";
     const staticLayer = staticLayers.find((layer) => layer.id === layerId);
     const userLayer = state.userLayers.find((layer) => layer.id === layerId);
 
-    if (visible && isPublicVisitor()) {
-      updateLayerOpacity(layerId, 100, { persist: false });
-    }
-
     if (staticLayer) {
       staticLayer.visible = visible;
       setStaticVisibility(layerId, visible);
+      ensureReferenceLayerOrder();
       if (visible) state.renderedLayers.set(layerId, true);
       else state.renderedLayers.delete(layerId);
+      saveUserLayers();
     }
 
     if (userLayer && isIndependentReference(userLayer)) {
@@ -8450,7 +8534,7 @@ import { installMapExport } from "./app/utils/map-export.js";
     visit(geojson.coordinates);
   }
 
-  function upsertGeoJsonSource(id, data) {
+  function upsertGeoJsonSource(id, data, attribution) {
     const existing = map.getSource(id);
     if (existing) {
       existing.setData(data);
@@ -8460,6 +8544,7 @@ import { installMapExport } from "./app/utils/map-export.js";
     map.addSource(id, {
       type: "geojson",
       data,
+      ...(attribution ? { attribution } : {}),
     });
   }
 
@@ -8958,7 +9043,7 @@ import { installMapExport } from "./app/utils/map-export.js";
       fileType: config.fileType,
       sourceKind: config.sourceKind,
       resourceType: config.resourceType || config.sourceKind,
-      opacity: clampLayerOpacity(config.opacity ?? 1),
+      opacity: clampLayerOpacity(config.opacity ?? DEFAULT_THEMATIC_OPACITY),
       color: pickLayerColor(state.userLayers.length),
       lineColor: config.lineColor || null,
       fillColor: config.fillColor || null,
@@ -9775,7 +9860,7 @@ import { installMapExport } from "./app/utils/map-export.js";
         return {
           ...layer,
           visible,
-          opacity: clampLayerOpacity(preference?.opacity ?? layer.opacity ?? 1),
+          opacity: clampLayerOpacity(preference?.opacity ?? layer.opacity ?? DEFAULT_THEMATIC_OPACITY),
         };
       });
       thematicSelection.clear();
@@ -9783,14 +9868,15 @@ import { installMapExport } from "./app/utils/map-export.js";
       state.userLayers = [...localLayers, ...remoteLayers];
       const selectedId = latestThematicId(state.userLayers, state.activeLayerStack);
       for (const layer of state.userLayers) if (!isIndependentReference(layer)) layer.visible = layer.id === selectedId;
-      saveUserLayers();
-
+      const currentStaticPreferences = loadPersistedLayerPreferences();
       staticLayers.forEach((layer) => {
-        const preference = persistedPreferences.get(layer.id);
+        const preference = currentStaticPreferences.get(layer.id);
         if (preference) {
           layer.opacity = clampLayerOpacity(preference.opacity ?? layer.opacity ?? 1);
+          layer.visible = preference.visible;
         }
       });
+      saveUserLayers();
 
       state.backendStatus.reachable = true;
       state.backendStatus.lastError = null;
@@ -9897,7 +9983,7 @@ import { installMapExport } from "./app/utils/map-export.js";
           item.layerKey || item.backendLayerId,
           {
             visible: Boolean(item.visible),
-            opacity: clampLayerOpacity(item.opacity ?? 1),
+            opacity: clampLayerOpacity(item.opacity ?? DEFAULT_THEMATIC_OPACITY),
           },
         ])
       );
@@ -10101,7 +10187,7 @@ import { installMapExport } from "./app/utils/map-export.js";
       symbology: null,
       legend: null,
       visible: false,
-      opacity: 1,
+      opacity: DEFAULT_THEMATIC_OPACITY,
       processingStatus: record.processingStatus || record.metadata?.properties?.processingStatus || null,
     };
   }

@@ -3990,6 +3990,11 @@ select {
   .topbar {
     padding: 10px;
     border-radius: 16px;
+    flex-wrap: wrap;
+  }
+
+  .topbar-brand {
+    flex: 1 0 100%;
   }
 
   .app-shell--topbar-collapsed .topbar {
@@ -4013,6 +4018,9 @@ select {
 
   .topbar-actions {
     max-width: none;
+    width: 100%;
+    justify-content: flex-end;
+    margin-left: 0;
   }
 
   .topbar-actions .ghost-button,
@@ -4495,6 +4503,9 @@ select {
 
   .map-legend-float__body {
     max-width: min(190px, calc(100vw - 12px));
+    max-height: min(100px, 12vh);
+    overflow-y: auto;
+    overflow-x: hidden;
   }
 
   .maplibregl-ctrl-bottom-right,
