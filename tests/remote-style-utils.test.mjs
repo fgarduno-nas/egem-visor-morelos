@@ -600,7 +600,7 @@ test("el GeoJSON municipal oficial usa WGS84, 36 municipios y geometria no vacia
 
 test("el encabezado usa un único menú de acciones sin botones distribuidos", async () => {
   const topbarActions = htmlSource.match(/<div class="topbar-actions">(?<body>[\s\S]*?)<\/div>\s*<div class="topbar-compact-menu"/u)?.groups.body || "";
-  const menu = htmlSource.match(/<div class="topbar-compact-menu"(?<body>[\s\S]*?)<\/div>/u)?.groups.body || "";
+  const menu = htmlSource.match(/<div class="topbar-compact-menu"(?<body>[\s\S]*?)<\/header>/u)?.groups.body || "";
   const menuItemIds = ["toggle-sidebar", "compact-open-territorial-query", "open-help", "open-user-admin", "logout-session", "open-login"];
 
   assert.equal((htmlSource.match(/topbar-menu-toggle__label">Menú/g) || []).length, 1);

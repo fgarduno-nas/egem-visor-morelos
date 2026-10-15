@@ -1,3 +1,4 @@
+import { createTimedDisclosure } from "./app/utils/timed-disclosure.js";
 import { createPointIconLoader, canonicalPointSymbol } from "./app/utils/point-icon-resource.js";
 import { immutableLegendSnapshot } from "./app/utils/export-legend.js";
 import { createThematicSelection, latestThematicId, isIndependentReference } from "./app/utils/thematic-selection.js";
@@ -546,6 +547,7 @@ import { installMapExport } from "./app/utils/map-export.js";
 
   const map = new maplibregl.Map({
     container: "map",
+    attributionControl: window.innerWidth <= 1180 ? { compact: true } : true,
     style: createBaseMapStyle(state.activeBaseMap),
     center: MORELOS_CENTER,
     zoom: 8.2,
@@ -554,6 +556,13 @@ import { installMapExport } from "./app/utils/map-export.js";
     dragRotate: true,
     pitchWithRotate: true,
     touchPitch: true,
+  });
+
+  map.once("load", () => {
+    if (window.innerWidth > 1180) return;
+    const attribution = map.getContainer().querySelector(".maplibregl-ctrl-attrib");
+    attribution?.removeAttribute("open");
+    attribution?.classList.remove("maplibregl-compact-show");
   });
 
   map.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-right");
@@ -692,6 +701,16 @@ import { installMapExport } from "./app/utils/map-export.js";
     territorialQueryModal: document.getElementById("territorial-query-modal"),
     closeTerritorialQuery: document.getElementById("close-territorial-query"),
   };
+
+  // Visual viewport shrinks with the virtual keyboard, without changing export geometry.
+  const syncVisualViewport = () => {
+    document.documentElement.style.setProperty("--visual-height", `${window.visualViewport?.height || window.innerHeight}px`);
+    document.documentElement.style.setProperty("--visual-offset", `${window.visualViewport?.offsetTop || 0}px`);
+    queueMapResize();
+  };
+  window.visualViewport?.addEventListener("resize", syncVisualViewport);
+  window.visualViewport?.addEventListener("scroll", syncVisualViewport);
+  syncVisualViewport();
 
   mountOrientationControl();
 
@@ -879,7 +898,9 @@ import { installMapExport } from "./app/utils/map-export.js";
       closeCompactMenu();
     });
     elements.reopenSidebar.addEventListener("click", toggleSidebar);
-    elements.collapseMobilePanel?.addEventListener("click", toggleSidebar);
+    elements.collapseMobilePanel?.addEventListener("click", () => setPhoneSheetMode(state.phoneSheetMode === "minimized" ? "half" : "minimized"));
+    document.getElementById("expand-mobile-panel")?.addEventListener("click", () => setPhoneSheetMode(state.phoneSheetMode === "expanded" ? "half" : "expanded"));
+    document.getElementById("close-mobile-panel")?.addEventListener("click", closeSidebar);
     elements.topbarBrandToggle?.addEventListener("click", toggleTopbar);
     elements.toggleTopbar.addEventListener("click", toggleTopbar);
     elements.toggleCompactMenu?.addEventListener("click", toggleCompactMenu);
@@ -3072,18 +3093,45 @@ import { installMapExport } from "./app/utils/map-export.js";
     indicator.setAttribute("title", GOES_IR_ACCESSIBLE_DESCRIPTION);
     indicator.setAttribute("aria-label", GOES_IR_ACCESSIBLE_DESCRIPTION);
     indicator.innerHTML = `
-      <p class="goes-ir-indicator__line">
+      <div class="goes-summary">
+        <button class="goes-info-trigger" id="goes-info-trigger" type="button" aria-expanded="false" aria-controls="goes-details" aria-label="Consultar información GOES">GOES <span aria-hidden="true">ⓘ</span></button>
         <button class="goes-ir-toggle" id="goes-ir-toggle" type="button" aria-pressed="true" aria-label="Desactivar visualización GOES">
-          <span class="goes-ir-toggle__state" aria-hidden="true">●</span>
-          <strong>GOES</strong>
+          <span class="goes-ir-toggle__state" aria-hidden="true">●</span><span class="goes-toggle-label" aria-hidden="true">Activo</span><strong>GOES</strong>
         </button>
-        <span>Infrarrojo de nubes</span>
-        <span id="goes-ir-current-time">Cargando...</span>
-        <span class="goes-ir-indicator__status" id="goes-ir-status">Actualizando</span>
-        <span>NOAA nowCOAST</span>
-      </p>
-      <span class="visually-hidden" id="goes-ir-updated">Actualización: pendiente</span>
+      </div>
+      <div class="goes-details" id="goes-details">
+        <div class="goes-details-heading"><strong>Información GOES</strong><button class="goes-info-close" type="button" aria-label="Cerrar información GOES">×</button></div>
+        <p class="goes-ir-indicator__line">
+          <span>Infrarrojo de nubes</span>
+          <span id="goes-ir-current-time">Cargando...</span>
+          <span class="goes-ir-indicator__status" id="goes-ir-status">Actualizando</span>
+          <span>NOAA nowCOAST</span>
+        </p>
+        <span class="visually-hidden" id="goes-ir-updated">Actualización: pendiente</span>
+        <p class="goes-details-status" id="goes-details-status"></p>
+      </div>
     `;
+    const infoTrigger = indicator.querySelector(".goes-info-trigger");
+    const details = indicator.querySelector(".goes-details");
+    elements.goesDisclosure = createTimedDisclosure({
+      onChange: (open) => {
+        indicator.classList.toggle("is-info-open", open);
+        infoTrigger.setAttribute("aria-expanded", String(open));
+        if (!open && details.contains(document.activeElement)) infoTrigger.focus({ preventScroll: true });
+      },
+    });
+    infoTrigger.addEventListener("click", () => elements.goesDisclosure.toggle());
+    indicator.querySelector(".goes-info-close").addEventListener("click", () => elements.goesDisclosure.hide());
+    details.addEventListener("focusin", () => elements.goesDisclosure.pause("focus"));
+    details.addEventListener("focusout", (event) => { if (!details.contains(event.relatedTarget)) elements.goesDisclosure.resume("focus"); });
+    details.addEventListener("pointerenter", (event) => { if (event.pointerType === "mouse") elements.goesDisclosure.pause("pointer"); });
+    details.addEventListener("pointerleave", () => elements.goesDisclosure.resume("pointer"));
+    details.addEventListener("pointerdown", () => elements.goesDisclosure.pause("touch"));
+    details.addEventListener("pointerup", () => elements.goesDisclosure.resume("touch"));
+    details.addEventListener("pointercancel", () => elements.goesDisclosure.resume("touch"));
+    indicator.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); elements.goesDisclosure.hide(); infoTrigger.focus({ preventScroll: true }); }
+    });
     if (goesOverlay) {
       goesOverlay.replaceChildren(indicator);
     } else {
@@ -3401,6 +3449,8 @@ import { installMapExport } from "./app/utils/map-export.js";
     elements.cloudTopToggle.setAttribute("aria-label", enabled ? "Desactivar visualización GOES" : "Activar visualización GOES");
     const stateMarker = elements.cloudTopToggle.querySelector(".goes-ir-toggle__state");
     if (stateMarker) stateMarker.textContent = enabled ? "●" : "○";
+    const stateLabel = elements.cloudTopToggle.querySelector(".goes-toggle-label");
+    if (stateLabel) stateLabel.textContent = enabled ? "Activo" : "Inactivo";
   }
 
   function renderCloudTopPanel() {
@@ -3420,6 +3470,10 @@ import { installMapExport } from "./app/utils/map-export.js";
     elements.cloudTopCurrentTime.textContent = timeText;
     elements.cloudTopStatus.textContent = compactStatus;
     elements.cloudTopUpdated.textContent = updatedLabel;
+    const needsAttention = state.cloudTop.userEnabled && ["unavailable", "frame-error"].includes(state.cloudTop.status);
+    elements.cloudTopPanel.querySelector("#goes-details-status").textContent = needsAttention ? (state.cloudTop.statusMessage || visibleStatus) : visibleStatus;
+    elements.cloudTopPanel.classList.toggle("needs-attention", needsAttention);
+    elements.goesDisclosure?.setPinned(needsAttention);
     elements.cloudTopPanel.setAttribute(
       "title",
       `${GOES_IR_ACCESSIBLE_DESCRIPTION} ${updatedLabel}. Estado: ${visibleStatus}`
@@ -6235,10 +6289,21 @@ import { installMapExport } from "./app/utils/map-export.js";
     syncSidebarState();
   }
 
+  function closeSidebar() {
+    state.sidebarCollapsed = true;
+    elements.appShell.classList.add("app-shell--sidebar-collapsed");
+    syncSidebarState();
+    elements.reopenSidebar.focus({ preventScroll: true });
+    queueMapResize();
+  }
+
   function toggleSidebar() {
+    const panelHadFocus = document.querySelector(".control-panel").contains(document.activeElement);
+    if (state.sidebarCollapsed) state.phoneSheetMode = "half";
     state.sidebarCollapsed = !state.sidebarCollapsed;
     elements.appShell.classList.toggle("app-shell--sidebar-collapsed", state.sidebarCollapsed);
     syncSidebarState();
+    if (state.sidebarCollapsed && panelHadFocus) elements.reopenSidebar.focus({ preventScroll: true });
     queueMapResize();
   }
 
@@ -6262,27 +6327,63 @@ import { installMapExport } from "./app/utils/map-export.js";
     }
   }
 
+  function isPhoneViewport() {
+    return window.matchMedia("(max-width: 600px), (max-width: 940px) and (max-height: 540px)").matches;
+  }
+
+  function setPhoneSheetMode(mode) {
+    const panel = document.querySelector(".control-panel");
+    const hadFocus = panel.contains(document.activeElement);
+    state.phoneSheetMode = mode;
+    state.sidebarCollapsed = false;
+    elements.appShell.classList.remove("app-shell--sidebar-collapsed");
+    syncSidebarState();
+    if (hadFocus && mode === "minimized") elements.collapseMobilePanel.focus({ preventScroll: true });
+    if (hadFocus && mode === "half") document.getElementById("expand-mobile-panel").focus({ preventScroll: true });
+    queueMapResize();
+  }
+
   function syncSidebarState() {
-    const isMobile = window.innerWidth <= 760;
     const isCollapsed = elements.appShell.classList.contains("app-shell--sidebar-collapsed");
-    elements.reopenSidebar.classList.toggle("hidden", isMobile || !isCollapsed);
+    const mode = state.phoneSheetMode || "half";
+    elements.reopenSidebar.classList.toggle("hidden", !isCollapsed);
+    document.querySelector(".control-panel").inert = isCollapsed;
+    elements.appShell.dataset.sheet = isCollapsed ? "closed" : mode;
+    elements.toolbarTogglePanel?.setAttribute("aria-expanded", String(!isCollapsed));
+    elements.reopenSidebar.setAttribute("aria-expanded", String(!isCollapsed));
+    elements.reopenSidebar.setAttribute("aria-controls", "layers-control-panel");
     if (elements.collapseMobilePanel) {
-      elements.collapseMobilePanel.textContent = isCollapsed ? "Expandir panel" : "Minimizar panel";
-      elements.collapseMobilePanel.setAttribute("aria-expanded", String(!isCollapsed));
+      elements.collapseMobilePanel.textContent = mode === "minimized" ? "Mostrar" : "Minimizar";
+      elements.collapseMobilePanel.setAttribute("aria-expanded", String(!isCollapsed && mode !== "minimized"));
     }
+    const expand = document.getElementById("expand-mobile-panel");
+    expand.textContent = mode === "expanded" ? "Volver al mapa" : "Ampliar";
+    expand.setAttribute("aria-expanded", String(mode === "expanded"));
   }
 
   function syncResponsiveLayout() {
-    const nextMode = window.innerWidth <= 760 ? "mobile" : window.innerWidth <= 1180 ? "tablet" : "desktop";
-    if (state.viewportMode === nextMode) return;
-
-    state.viewportMode = nextMode;
-    if (state.topbarCollapsed === null) {
-      state.topbarCollapsed = nextMode !== "desktop";
+    const nextMode = isPhoneViewport() ? "phone" : window.innerWidth <= 1180 ? "tablet" : "desktop";
+    elements.appShell.classList.toggle("app-shell--phone", nextMode === "phone");
+    // In landscape the search shares the sheet header, leaving room for the list.
+    const search = elements.layerSearch.closest(".search-box");
+    const searchHome = document.querySelector("#layers-panel .panel-content");
+    const searchHost = nextMode === "phone" && window.innerWidth > 600
+      ? document.querySelector(".control-panel-mobile-bar") : searchHome;
+    if (search.parentElement !== searchHost) {
+      const hadFocus = document.activeElement === elements.layerSearch;
+      const selection = [elements.layerSearch.selectionStart, elements.layerSearch.selectionEnd];
+      searchHost.prepend(search);
+      if (hadFocus) {
+        elements.layerSearch.focus({ preventScroll: true });
+        elements.layerSearch.setSelectionRange(...selection);
+      }
     }
+    if (state.viewportMode === nextMode) return;
+    state.viewportMode = nextMode;
+    if (state.topbarCollapsed === null) state.topbarCollapsed = nextMode !== "desktop";
+    state.phoneSheetMode = "half";
     state.sidebarCollapsed = false;
     elements.appShell.classList.remove("app-shell--sidebar-collapsed");
-
     syncTopbarState();
     syncSidebarState();
     queueMapResize();

@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>Atlas del Estado de Morelos</title>
   <meta
     name="description"
@@ -21,7 +21,7 @@
   />
 
   <link rel="icon" href="data:," />
-  <link rel="stylesheet" href="css/style.css?v=ui0606" />
+  <link rel="stylesheet" href="css/style.css?v=ui1015" />
 </head>
 <body>
   <div class="app-shell" tabindex="-1">
@@ -79,6 +79,7 @@
       </div>
 
       <div class="topbar-compact-menu" id="topbar-compact-menu" role="menu" aria-label="Acciones del visor" hidden>
+        <div class="menu-institution"><img src="assets/Convivencia_page-0003.png" alt="Gobierno de Morelos — Protección Civil" /><strong>Atlas del Estado de Morelos</strong><span>VGEM 2.1</span></div>
         <p class="topbar-menu-group-label">Navegación y consulta</p>
         <button class="menu-action" id="toggle-sidebar" type="button" role="menuitem">Panel lateral</button>
         <button
@@ -100,13 +101,17 @@
     </header>
 
     <main class="workspace">
-      <aside class="control-panel">
+      <aside class="control-panel" id="layers-control-panel" aria-label="Capas e información">
         <div class="control-panel-mobile-bar">
           <div class="control-panel-mobile-copy">
             <p class="section-kicker">Panel operativo</p>
             <strong>Capas e información</strong>
           </div>
-          <button class="ghost-button" id="collapse-mobile-panel" type="button">Minimizar panel</button>
+          <div class="sheet-actions">
+            <button class="ghost-button" id="collapse-mobile-panel" type="button" aria-controls="layers-control-panel">Minimizar</button>
+            <button class="ghost-button" id="expand-mobile-panel" type="button" aria-controls="layers-control-panel" aria-expanded="false">Ampliar</button>
+            <button class="ghost-button" id="close-mobile-panel" type="button" aria-label="Cerrar panel de capas">Cerrar</button>
+          </div>
         </div>
 
         <div class="panel-quicknav" id="panel-quicknav">
@@ -127,7 +132,7 @@
           <div class="panel-content">
             <label class="search-box">
               <span>Buscar capa</span>
-              <input id="layer-search" type="search" placeholder="Ej. inundación, Cuernavaca" />
+              <input id="layer-search" type="search" aria-label="Buscar capa" enterkeyhint="search" autocapitalize="none" autocomplete="off" placeholder="Ej. inundación, Cuernavaca" />
             </label>
 
             <p class="layer-catalog-notice hidden" id="layer-catalog-notice"></p>
@@ -864,6 +869,6 @@
       retryDelayMs: 450
     };
   </script>
-  <script type="module" src="js/map.js?v=ui0606"></script>
+  <script type="module" src="js/map.js?v=ui1015"></script>
 </body>
 </html>
