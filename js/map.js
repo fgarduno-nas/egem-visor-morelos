@@ -704,8 +704,11 @@ import { installMapExport } from "./app/utils/map-export.js";
 
   // Visual viewport shrinks with the virtual keyboard, without changing export geometry.
   const syncVisualViewport = () => {
-    document.documentElement.style.setProperty("--visual-height", `${window.visualViewport?.height || window.innerHeight}px`);
-    document.documentElement.style.setProperty("--visual-offset", `${window.visualViewport?.offsetTop || 0}px`);
+    const visualHeight = window.visualViewport?.height || window.innerHeight;
+    const visualOffset = window.visualViewport?.offsetTop || 0;
+    document.documentElement.style.setProperty("--visual-height", `${visualHeight}px`);
+    document.documentElement.style.setProperty("--visual-offset", `${visualOffset}px`);
+    document.documentElement.style.setProperty("--visual-center", `${visualOffset + visualHeight / 2}px`);
     queueMapResize();
   };
   window.visualViewport?.addEventListener("resize", syncVisualViewport);
@@ -5327,7 +5330,12 @@ import { installMapExport } from "./app/utils/map-export.js";
   function openInfoPopup({ ownerLayerId, resourceType, mapLayerId, overlayId = null, coordinate, html, info }) {
     closeActiveInfoPopup();
     updateInfoPanel(info);
-    const popup = new maplibregl.Popup({ closeButton: true, closeOnClick: true })
+    const popup = new maplibregl.Popup({
+      closeButton: true,
+      closeOnClick: true,
+      maxWidth: isPhoneViewport() ? "calc(100vw - 24px)" : "250px",
+      offset: isPhoneViewport() ? 12 : 0,
+    })
       .setLngLat(coordinate)
       .setHTML(html)
       .addTo(map);

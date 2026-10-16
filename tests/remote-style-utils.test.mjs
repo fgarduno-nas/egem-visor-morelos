@@ -418,6 +418,15 @@ test("el aviso institucional de bienvenida se muestra en cada carga sin persiste
   assert.doesNotMatch(showSource + closeSource, /toggleLayerVisibility|openFloatingLegendForLayer|closeFloatingLegend|fetch|listPublicLayersRequest|ensureLayerResourcesLoaded/);
 });
 
+test("el aviso móvil centra su tarjeta y mantiene el cierre fuera del contenido desplazable", () => {
+  assert.match(htmlSource, /modal-card modal-card--trial-notice[\s\S]*?id="close-trial-notice"[\s\S]*?class="trial-notice-scroll"/u);
+  assert.match(cssSource, /\.modal-card--trial-notice > #close-trial-notice \{[\s\S]*?position: absolute;[\s\S]*?top: 12px;[\s\S]*?right: 12px;/u);
+  assert.match(cssSource, /\.modal--trial-notice \{[\s\S]*?top: var\(--visual-center, 50dvh\) !important;[\s\S]*?left: 50% !important;[\s\S]*?transform: translate\(-50%, -50%\);/u);
+  assert.match(cssSource, /\.trial-notice-scroll \{[\s\S]*?overflow-y: auto;[\s\S]*?overscroll-behavior: contain;/u);
+  assert.match(cssSource, /\.modal-card--trial-notice > #close-trial-notice \{[\s\S]*?width: 44px;[\s\S]*?height: 44px;/u);
+  assert.match(mapSource, /--visual-center.*visualOffset \+ visualHeight \/ 2/u);
+});
+
 test("el panel compacto GOES IR no afirma lluvia ni radiacion UV", () => {
   const setupGoesSource = extractFunctionSource(mapSource, "setupCloudTopPanel");
   const renderGoesSource = extractFunctionSource(mapSource, "renderCloudTopPanel");
@@ -2401,6 +2410,16 @@ test("el popup tematico mantiene etiquetas completas y valores ajustables", () =
   assert.match(cssSource, /@media \(max-width: 760px\) \{[\s\S]*?\.feature-popup__row \{[\s\S]*?grid-template-columns: minmax\(82px, max-content\) minmax\(0, 1fr\);[\s\S]*?gap: 6px;[\s\S]*?padding: 5px 9px;/);
   assert.match(cssSource, /\.maplibregl-popup-content \{[\s\S]*?width: 250px;[\s\S]*?max-width: 250px;/);
   assert.match(cssSource, /\.feature-popup \{[\s\S]*?max-width: 250px;[\s\S]*?overflow: hidden;/);
+});
+
+test("el popup móvil mide su contenido y desplaza internamente la información extensa", () => {
+  const openPopupSource = extractFunctionSource(mapSource, "openInfoPopup");
+  assert.match(openPopupSource, /maxWidth: isPhoneViewport\(\) \? "calc\(100vw - 24px\)" : "250px"/u);
+  assert.match(openPopupSource, /offset: isPhoneViewport\(\) \? 12 : 0/u);
+  assert.match(cssSource, /\.app-shell--phone \.maplibregl-popup-content \{[^}]*width: max-content;[^}]*max-width: min\(320px, calc\(100vw - 24px\)\);[^}]*overflow: hidden;/u);
+  assert.match(cssSource, /\.app-shell--phone \.feature-popup__body \{[^}]*overflow-y: auto;[^}]*overflow-x: hidden;[^}]*overscroll-behavior: contain;/u);
+  assert.match(cssSource, /\.app-shell--phone \.map-stage:has\(\.maplibregl-popup\) \.map-legend-float \{[^}]*visibility: hidden !important;[^}]*pointer-events: none;/u);
+  assert.doesNotMatch(cssSource, /\.app-shell--phone \.maplibregl-popup \{[^}]*left: 8px !important/u);
 });
 
 test("el popup raster y los limites conservan rutas separadas", () => {

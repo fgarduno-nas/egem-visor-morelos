@@ -500,20 +500,22 @@
     aria-describedby="trial-notice-message"
   >
     <div class="modal-card modal-card--trial-notice">
-      <div class="modal-header">
-        <div>
-          <p class="section-kicker">Aviso institucional</p>
-          <h2 id="trial-notice-title">Bienvenido al Visualizador Geoespacial del Estado de Morelos</h2>
+      <button class="icon-button" id="close-trial-notice" type="button" aria-label="Cerrar aviso de bienvenida">×</button>
+      <div class="trial-notice-scroll">
+        <div class="modal-header">
+          <div>
+            <p class="section-kicker">Aviso institucional</p>
+            <h2 id="trial-notice-title">Bienvenido al Visualizador Geoespacial del Estado de Morelos</h2>
+          </div>
         </div>
-        <button class="icon-button" id="close-trial-notice" type="button" aria-label="Cerrar aviso de bienvenida">x</button>
-      </div>
 
-      <p class="modal-copy" id="trial-notice-message">
-        Consulta información geoespacial del estado de Morelos y explora las capas disponibles en el mapa.
-      </p>
+        <p class="modal-copy" id="trial-notice-message">
+          Consulta información geoespacial del estado de Morelos y explora las capas disponibles en el mapa.
+        </p>
 
-      <div class="modal-actions modal-actions--end">
-        <button class="primary-button" id="accept-trial-notice" type="button">Entendido</button>
+        <div class="modal-actions modal-actions--end">
+          <button class="primary-button" id="accept-trial-notice" type="button">Entendido</button>
+        </div>
       </div>
     </div>
   </dialog>
