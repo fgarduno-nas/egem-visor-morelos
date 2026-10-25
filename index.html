@@ -344,7 +344,7 @@
   </div>
 
   <input id="file-input" type="file" accept=".kml,.kmz,.geojson,.tif,.tiff,.zip,.shp,.dbf,.prj,.cpg" multiple hidden />
-  <input id="upload-draft-input" type="file" accept=".kml,.kmz,.geojson,.tif,.tiff,.zip,.shp,.dbf,.prj,.cpg" hidden />
+  <input id="upload-draft-input" type="file" accept=".kml,.kmz,.geojson,.tif,.tiff,.zip,.shp,.dbf,.prj,.cpg" aria-describedby="upload-size-limit" hidden />
 
   <dialog class="modal modal--upload-panel" id="upload-layer-modal">
     <form class="modal-card modal-card--upload-panel" id="upload-layer-form" method="dialog">
@@ -369,9 +369,10 @@
             <span>Archivo</span>
             <small id="upload-file-summary">Selecciona un archivo</small>
           </summary>
-          <button class="ghost-button upload-file-button upload-action-button" id="upload-select-files" type="button">
+          <button class="ghost-button upload-file-button upload-action-button" id="upload-select-files" type="button" aria-describedby="upload-size-limit">
             Seleccionar archivo
           </button>
+          <p class="empty-state" id="upload-size-limit"></p>
           <div class="upload-selected-files" id="upload-selected-files">
             <p class="empty-state">Aún no has seleccionado archivos.</p>
           </div>
@@ -868,6 +869,6 @@
       retryDelayMs: 450
     };
   </script>
-  <script type="module" src="js/map.js?v=ui1024-release"></script>
+  <script type="module" src="js/map.js?v=upload-reliability"></script>
 </body>
 </html>

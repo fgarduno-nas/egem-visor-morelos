@@ -1,3 +1,4 @@
+import { MAX_UPLOAD_FILES } from "../../../../shared/upload-limits.js";
 import { Router } from "express";
 import { classificationContractController, requireClassificationContract } from "./classification-contract.js";
 
@@ -6,6 +7,8 @@ import { validate } from "../../middlewares/validate.middleware.js";
 import { authMiddleware } from "../../middlewares/auth.middleware.js";
 import { authorizeRoles } from "../../middlewares/roles.middleware.js";
 import { upload } from "../../config/upload.js";
+import { env } from "../../config/env.js";
+import { guardedUpload } from "./upload-control.js";
 import { ROLE_CODES } from "../../shared/constants/roles.js";
 import {
   approveLayerController,
@@ -64,9 +67,7 @@ layersRouter.post(
   "/",
   authorizeRoles(ROLE_CODES.ADMIN, ROLE_CODES.DATA_PROVIDER),
   requireClassificationContract,
-  upload.array("files", 10),
-  validate(uploadLayerSchema),
-  asyncHandler(uploadLayerController)
+  guardedUpload(env.UPLOAD_BASE_DIR, upload.array("files", MAX_UPLOAD_FILES), validate(uploadLayerSchema), uploadLayerController)
 );
 layersRouter.patch(
   "/:id/approve",

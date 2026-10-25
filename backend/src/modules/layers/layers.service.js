@@ -12,11 +12,12 @@ import { LAYER_STATUS } from "../../shared/constants/layer-status.js";
 import { ROLE_CODES } from "../../shared/constants/roles.js";
 import {
   buildPublicFileUrl,
-  computeFileChecksum,
+  computeFileChecksumAsync,
   getFileExtension,
 } from "../../shared/utils/file-utils.js";
 import { getRequestMetadata } from "../../shared/utils/request-metadata.js";
-import { processUploadedLayer } from "./layer-processing.service.js";
+import { processLayerOffThread, summarizeUploadOffThread } from "./layer-processing-runner.js";
+import { uploadFingerprint, findUploadRetry } from "./upload-retry.js";
 import { isLayerPubliclyAccessible } from "./layer-public-policy.js";
 import {
   getPhenomenonSearchTokens,
@@ -34,12 +35,20 @@ export async function uploadLayer({ body, files, actor, req }) {
   const divisionError = divisionUploadTagsError(body.tags, body.division, [body.phenomenon, body.phenomenonKey]);
   if (divisionError) throw new AppError(divisionError, 400);
 
+  const requestId = req.get?.("Idempotency-Key")?.toLowerCase() || null;
+  const checkedFiles = await Promise.all(files.map(async file => ({ ...file, checksum: await computeFileChecksumAsync(file.path) })));
+  const fingerprint = uploadFingerprint(body, checkedFiles);
+  if (req.aborted || req.res?.destroyed) throw new AppError("La conexión se cerró antes de registrar la carga.", 400);
+  const previous = await findUploadRetry(prisma, actor.sub, requestId, fingerprint);
+  if (previous) return mapLayer(previous, { audience: actor.role === ROLE_CODES.ADMIN ? "admin" : "owner", actor });
+
   const slugBase = slugify(body.title, { lower: true, strict: true });
   const slug = `${slugBase}-${Date.now()}`;
   const sourceType = path.extname(files[0].originalname).replace(".", "").toLowerCase();
   const status =
     actor.role === ROLE_CODES.ADMIN ? LAYER_STATUS.APPROVED : LAYER_STATUS.PENDING_REVIEW;
-  const institutionalMetadata = buildInstitutionalMetadata(body, files, sourceType);
+  const institutionalMetadata = await buildInstitutionalMetadata(body, files, sourceType);
+  if (req.aborted || req.res?.destroyed) throw new AppError("La conexión se cerró antes de registrar la carga.", 400);
   const vectorLegend = parseVectorLegend(body.vectorLegend);
 
   const created = await prisma.layer.create({
@@ -57,18 +66,18 @@ export async function uploadLayer({ body, files, actor, req }) {
           featureCount: institutionalMetadata.featureCount,
           geometryType: institutionalMetadata.geometryType,
           crs: institutionalMetadata.crs,
-          properties: institutionalMetadata.properties,
+          properties: { ...institutionalMetadata.properties, uploadRequestId: requestId, uploadFingerprint: fingerprint },
         },
       },
       files: {
-        create: files.map((file) => ({
+        create: checkedFiles.map((file) => ({
           originalName: file.originalname,
           storedName: file.filename,
           storagePath: file.path,
           mimeType: file.mimetype || "application/octet-stream",
           extension: getFileExtension(file.originalname).replace(".", ""),
           sizeBytes: file.size,
-          checksum: computeFileChecksum(file.path),
+          checksum: file.checksum,
           uploadedById: actor.sub,
         })),
       },
@@ -81,7 +90,8 @@ export async function uploadLayer({ body, files, actor, req }) {
       },
     },
   });
-  const processing = await processUploadedLayer(created, files);
+  req.uploadPersisted = true;
+  const processing = await processLayerOffThread(created, files);
   const rasterLegend = parseUploadRasterLegendForProcessing(body.rasterLegend, processing);
   const persistedRasterLegend = rasterLegend || processing.rasterLegend || null;
   const persistedVectorLegend = vectorLegend || processing.vectorLegend || null;
@@ -899,8 +909,8 @@ function mapSafeUser(user, options = {}) {
   return safe;
 }
 
-function buildInstitutionalMetadata(body, files, sourceType) {
-  const geoJsonSummary = summarizeGeoJsonUpload(files[0], sourceType);
+async function buildInstitutionalMetadata(body, files, sourceType) {
+  const geoJsonSummary = await summarizeUploadOffThread(files, sourceType);
   const geometryType = geoJsonSummary.geometryType || inferGeometryTypeFromSource(sourceType);
   const uploadedFileNames = files.map((file) => file.originalname);
 
@@ -1345,33 +1355,6 @@ function inferResourceTypeFromProperties(properties) {
     return "ground-overlay";
   }
   return "vector";
-}
-
-function summarizeGeoJsonUpload(file, sourceType) {
-  if (!["geojson", "json"].includes(String(sourceType || "").toLowerCase())) {
-    return { featureCount: null, geometryType: null };
-  }
-
-  try {
-    const raw = fs.readFileSync(file.path, "utf8");
-    const parsed = JSON.parse(raw);
-    const features =
-      parsed.type === "FeatureCollection"
-        ? parsed.features || []
-        : parsed.type === "Feature"
-          ? [parsed]
-          : [];
-    const geometryTypes = new Set(
-      features.map((feature) => feature.geometry?.type).filter(Boolean)
-    );
-
-    return {
-      featureCount: features.length,
-      geometryType: geometryTypes.size ? [...geometryTypes].join(", ") : "Vector GeoJSON",
-    };
-  } catch (_error) {
-    return { featureCount: null, geometryType: "Vector GeoJSON" };
-  }
 }
 
 function normalizeOptionalText(value) {

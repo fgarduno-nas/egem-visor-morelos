@@ -27,7 +27,7 @@ test('administrative division filter paginates after filtering and rejects label
  assert.equal((await fetch(base+'/admin?division=Peligro',{headers:{Authorization:`Bearer ${token}`}})).status,400);
 });
 test('upload HTTP rejects missing or invalid division before persistence',async()=>{
- for(const division of [null,'other']){const data=new FormData();data.set('title','Prueba');data.set('tags','category:geologicos');if(division)data.set('division',division);const response=await fetch(base,{method:'POST',headers:{Authorization:`Bearer ${token}`,'X-EGEM-Classification-Version':'1'},body:data});assert.equal(response.status,400);const body=await response.json();assert.match(JSON.stringify(body),/secci[oó]n|Invalid enum/i);}
+ for(const division of [null,'other']){const data=new FormData();data.set('title','Prueba');data.set('tags','category:geologicos');if(division)data.set('division',division);const response=await fetch(base,{method:'POST',headers:{Authorization:`Bearer ${token}`,'X-EGEM-Classification-Version':'1','Idempotency-Key':crypto.randomUUID()},body:data});assert.equal(response.status,400);const body=await response.json();assert.match(JSON.stringify(body),/secci[oó]n|Invalid enum/i);}
 });
 
 test('free tags before the phenomenon cannot erase the thematic division in any DTO',()=>{

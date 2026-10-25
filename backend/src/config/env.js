@@ -2,6 +2,7 @@ import dotenv from "dotenv";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
+import { MAX_UPLOAD_SIZE_MB } from "../../../shared/upload-limits.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -20,7 +21,10 @@ const envSchema = z.object({
   CORS_ORIGIN: z.string().default("http://localhost:5500,http://127.0.0.1:5500"),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().default(900000),
   RATE_LIMIT_MAX: z.coerce.number().default(150),
-  MAX_UPLOAD_SIZE_MB: z.coerce.number().default(100),
+  MAX_UPLOAD_SIZE_MB: z.coerce.number().default(MAX_UPLOAD_SIZE_MB).refine(
+    (value) => value === MAX_UPLOAD_SIZE_MB,
+    `MAX_UPLOAD_SIZE_MB debe ser ${MAX_UPLOAD_SIZE_MB} para coincidir con el límite del visualizador.`
+  ),
   UPLOAD_BASE_DIR: z.string().default("uploads"),
   PUBLIC_BASE_URL: z.string().url().default("http://localhost:4000"),
   DEFAULT_ADMIN_EMAIL: z.string().email(),

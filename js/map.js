@@ -1,4 +1,5 @@
 import { createTimedDisclosure } from "./app/utils/timed-disclosure.js";
+import { validateUploadSizes, UPLOAD_LIMIT_LABEL, UPLOAD_SIZE_ERROR } from "../shared/upload-limits.js";
 import { createPointIconLoader, canonicalPointSymbol } from "./app/utils/point-icon-resource.js";
 import { immutableLegendSnapshot } from "./app/utils/export-legend.js";
 import { createThematicSelection, latestThematicId, isIndependentReference } from "./app/utils/thematic-selection.js";
@@ -25,7 +26,7 @@ import {
   rejectLayerRequest,
   setPublishStateRequest,
   uploadLayerRequest,
-} from "./app/services/layers-api.js";
+} from "./app/services/layers-api.js?v=upload-reliability";
 import {
   analyzeStyleField,
   buildInstitutionalHazardLegend,
@@ -54,7 +55,7 @@ import { createFallbackPointIcon } from "./app/utils/point-icon-utils.js";
 import {
   analyzeGeospatialFile,
   createGroundOverlayObjectUrls,
-} from "./app/utils/geospatial-importer.js";
+} from "./app/utils/geospatial-importer.js?v=archive128";
 import {
   GROUND_OVERLAY_NOTICE,
   buildGroundOverlayInfoLines,
@@ -535,6 +536,7 @@ import { installMapExport } from "./app/utils/map-export.js";
       division: null,
       previewLayers: [],
       previewVisible: false,
+      serverPreviewRequired: false,
       minimized: false,
       rasterLegendItems: [],
       rasterLegendTitle: "",
@@ -923,6 +925,7 @@ import { installMapExport } from "./app/utils/map-export.js";
     elements.uploadSelectFiles.addEventListener("click", () => {
       elements.uploadDraftInput.click();
     });
+    document.getElementById("upload-size-limit").textContent = `Tamaño máximo por archivo: ${UPLOAD_LIMIT_LABEL}.`;
 
     elements.minimizeUploadLayer?.addEventListener("click", () => {
       minimizeUploadModal();
@@ -6542,6 +6545,7 @@ import { installMapExport } from "./app/utils/map-export.js";
   }
 
   function resetUploadDraft() {
+    state.uploadDraft.serverPreviewRequired = false;
     state.uploadDraft.division = null;
     state.uploadDraft.kind = "thematic";
     elements.uploadLayerKind.value = "thematic";
@@ -6563,6 +6567,7 @@ import { installMapExport } from "./app/utils/map-export.js";
   }
 
   function clearUploadDraftDerivedState(options = {}) {
+    state.uploadDraft.serverPreviewRequired = false;
     const category = options.preserveCategory === false
       ? elements.uploadLayerCategory?.value || ""
       : state.uploadDraft.category || elements.uploadLayerCategory?.value || "";
@@ -6586,6 +6591,13 @@ import { installMapExport } from "./app/utils/map-export.js";
   async function setUploadDraftFiles(files) {
     clearUploadDraftDerivedState({ keepMessage: true });
     const [firstFile] = files;
+    try {
+      validateUploadSizes(firstFile ? [firstFile] : []);
+    } catch (error) {
+      elements.uploadLayerFeedback.textContent = error.message;
+      syncUploadDraftUi();
+      return;
+    }
     state.uploadDraft.files = firstFile ? [firstFile] : [];
     state.uploadDraft.previewLayers = [];
     state.uploadDraft.previewVisible = false;
@@ -6677,6 +6689,7 @@ import { installMapExport } from "./app/utils/map-export.js";
     });
 
     if (elements.uploadPreviewToggle) {
+      elements.uploadPreviewToggle.disabled = state.uploadDraft.serverPreviewRequired;
       elements.uploadPreviewToggle.classList.toggle("is-active", state.uploadDraft.previewVisible);
       elements.uploadPreviewToggle.textContent = state.uploadDraft.previewVisible
         ? "Ocultar vista previa"
@@ -6684,7 +6697,9 @@ import { installMapExport } from "./app/utils/map-export.js";
     }
 
     if (elements.uploadPreviewState) {
-      elements.uploadPreviewState.textContent = state.uploadDraft.previewVisible
+      elements.uploadPreviewState.textContent = state.uploadDraft.serverPreviewRequired
+        ? "Vista previa disponible desde el catálogo después del procesamiento en el servidor."
+        : state.uploadDraft.previewVisible
         ? "La capa se está visualizando en el mapa."
         : "La capa se visualizará automáticamente al seleccionarla.";
     }
@@ -6787,7 +6802,11 @@ import { installMapExport } from "./app/utils/map-export.js";
       elements.uploadLayerFeedback.textContent = "";
       syncUploadDraftUi();
     } catch (error) {
-      console.error(error);
+      state.uploadDraft.serverPreviewRequired = error.code === "SERVER_PREVIEW_REQUIRED";
+      if (state.uploadDraft.serverPreviewRequired && !elements.uploadLayerTitle.value.trim()) {
+        elements.uploadLayerTitle.value = state.uploadDraft.files[0].name.replace(/\.[^.]+$/, "");
+      }
+      if (!state.uploadDraft.serverPreviewRequired) console.error(error);
       state.uploadDraft.previewLayers = [];
       state.uploadDraft.previewVisible = false;
       elements.uploadLayerFeedback.textContent =
@@ -6884,6 +6903,8 @@ import { installMapExport } from "./app/utils/map-export.js";
   }
 
   async function buildUploadErrorMessage(error) {
+    if (error?.status === 413 || error?.code === "LIMIT_FILE_SIZE") return UPLOAD_SIZE_ERROR;
+    if ((error?.status && error.status < 500) || error?.code === "UPLOAD_BUSY") return error.message;
     const savedLayer = await findRecentlySavedUploadDraftLayer();
     if (savedLayer) {
       await syncLayersFromBackend({ preserveSessionVisibility: false });
@@ -6891,11 +6912,11 @@ import { installMapExport } from "./app/utils/map-export.js";
     }
 
     if (error?.name === "TimeoutError" || error?.code === "TimeoutError") {
-      return "La carga excedio el tiempo de espera del visor. No se encontro una capa registrada con esos datos; puedes intentar nuevamente.";
+      return "La carga excedió el tiempo de espera del visor. El servidor puede seguir procesándola; revisa el catálogo antes de reintentar. El reintento conserva la misma clave de carga.";
     }
 
     if (error?.name === "AbortError" || error?.code === "AbortError") {
-      return "La carga fue cancelada antes de completarse. No se encontro una capa registrada con esos datos; puedes intentar nuevamente.";
+      return "La conexión se cerró antes de confirmar la carga. El servidor puede seguir procesándola; revisa el catálogo antes de reintentar.";
     }
 
     if (error?.status) {
@@ -8783,6 +8804,11 @@ import { installMapExport } from "./app/utils/map-export.js";
   async function createKmlLayer(file) {
     const extension = getExtension(file.name);
     const analysis = await analyzeGeospatialFile(file);
+    if (analysis.requiresServerProcessing) {
+      const error = new Error(analysis.message);
+      error.code = "SERVER_PREVIEW_REQUIRED";
+      throw error;
+    }
     const text = analysis.kmlText || (extension === "kmz" ? await readKmz(file) : await file.text());
     const geojson = analysis.vector.geometryCount ? parseKml(text) : { type: "FeatureCollection", features: [] };
     applyDetectedVectorLegendStyle(geojson, analysis.vectorLegend);

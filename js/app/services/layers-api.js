@@ -1,5 +1,7 @@
 import { runtimeConfig } from "../config/runtime-config.js";
 import { invalidateCache, request } from "./http-client.js";
+import { validateUploadSizes, UPLOAD_SIZE_ERROR, validateUploadFileCount } from "../../../shared/upload-limits.js";
+import { uploadRetryKey, confirmUploadRetry } from "./upload-retry-key.js";
 
 export const LAYER_UPLOAD_TIMEOUT_MS = 5 * 60 * 1000;
 
@@ -96,6 +98,8 @@ export function shouldSendVectorLegend(metadata = {}) {
 }
 
 export function buildLayerUploadFormData(metadata, files) {
+  validateUploadSizes(files);
+  validateUploadFileCount(files);
   const formData = new FormData();
   formData.append("title", metadata.title);
   if (metadata.division) formData.append("division", metadata.division);
@@ -120,6 +124,8 @@ export function buildLayerUploadFormData(metadata, files) {
 }
 
 export async function uploadLayerRequest(token, metadata, files) {
+  validateUploadSizes(files);
+  validateUploadFileCount(files);
   let contract;
   try {
     contract = await request("/layers/classification-contract", { retries: 0, dedupe: false, cacheTtlMs: 0 });
@@ -130,17 +136,26 @@ export async function uploadLayerRequest(token, metadata, files) {
     throw new Error("La clasificación del servidor se está actualizando. No se envió ningún archivo; vuelve a intentarlo cuando termine la actualización.");
   }
   const formData = buildLayerUploadFormData(metadata, files);
+  const requestId = await uploadRetryKey(metadata, files);
 
   const payload = await request("/layers", {
     method: "POST",
     token,
     body: formData,
-    headers: { "X-EGEM-Classification-Version": "1" },
+    headers: { "X-EGEM-Classification-Version": "1", "Idempotency-Key": requestId },
     timeoutMs: LAYER_UPLOAD_TIMEOUT_MS,
     retries: 0,
+  }).catch((error) => {
+    if (error.payload?.code === "UPLOAD_BUSY") error.code = "UPLOAD_BUSY";
+    if (error.status === 413 || error.payload?.code === "LIMIT_FILE_SIZE") {
+      error.message = UPLOAD_SIZE_ERROR;
+      error.code = "LIMIT_FILE_SIZE";
+    }
+    throw error;
   });
 
   invalidateCache("/layers");
+  if (payload?.data?.id) await confirmUploadRetry(metadata, files);
   return payload?.data ?? null;
 }
 

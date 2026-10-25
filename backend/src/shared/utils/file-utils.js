@@ -15,3 +15,9 @@ export function computeFileChecksum(filePath) {
   const content = fs.readFileSync(filePath);
   return crypto.createHash("sha256").update(content).digest("hex");
 }
+
+export async function computeFileChecksumAsync(filePath) {
+  const hash = crypto.createHash("sha256");
+  for await (const chunk of fs.createReadStream(filePath)) hash.update(chunk);
+  return hash.digest("hex");
+}

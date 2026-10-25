@@ -1,3 +1,6 @@
+import { validateUploadSizes } from "../../../shared/upload-limits.js";
+import { validateArchiveSizes, MAX_CLIENT_KML_PREVIEW_BYTES, SERVER_PREVIEW_MESSAGE } from "../../../shared/archive-limits.js";
+
 export const GROUND_OVERLAY_IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "webp"]);
 
 const VECTOR_TAGS = ["Point", "MultiPoint", "LineString", "MultiLineString", "Polygon", "MultiPolygon", "MultiGeometry", "GeometryCollection"];
@@ -8,6 +11,8 @@ export async function analyzeGeospatialFile(file, options = {}) {
     return analyzeKmzFile(file, options);
   }
   if (extension === "kml") {
+    validateUploadSizes([file]);
+    if (file.size > MAX_CLIENT_KML_PREVIEW_BYTES) return deferredPreview(file);
     const text = await file.text();
     return analyzeKmlText(text, { ...options, sourceName: file.name });
   }
@@ -24,6 +29,7 @@ export async function analyzeGeospatialFile(file, options = {}) {
 }
 
 export async function analyzeKmzFile(file, options = {}) {
+  validateUploadSizes([file]);
   const zip = await window.JSZip.loadAsync(file);
   const entries = Object.values(zip.files);
   validateArchiveEntries(entries, file.size);
@@ -43,6 +49,10 @@ export async function analyzeKmzFile(file, options = {}) {
       errors: ["El KMZ no contiene archivos KML."],
       canPreview: false,
     };
+  }
+
+  if (kmlEntries.reduce((total, entry) => total + Number(entry._data?.uncompressedSize || 0), 0) > MAX_CLIENT_KML_PREVIEW_BYTES) {
+    return deferredPreview(file);
   }
 
   const analyzed = await Promise.all(
@@ -100,6 +110,10 @@ export async function analyzeKmzFile(file, options = {}) {
     bbox: mergeBboxes([selected.analysis.vector.bbox, ...overlays.map((overlay) => overlay.bbox)]),
     canPreview: Boolean(selected.analysis.vector.geometryCount || overlays.some((overlay) => overlay.isValid)),
   };
+}
+
+function deferredPreview(file) {
+  return { requiresServerProcessing: true, fileName: file.name, canPreview: false, message: SERVER_PREVIEW_MESSAGE };
 }
 
 export function analyzeKmlText(kmlText, options = {}) {
@@ -485,14 +499,14 @@ function parseGroundOverlays(kmlText) {
   return overlays;
 }
 
-function validateArchiveEntries(entries, compressedSize) {
-  if (!entries.length) throw new Error("El KMZ no contiene entradas legibles.");
-  if (entries.length > 250) throw new Error("El KMZ excede el máximo de entradas permitido.");
-  if (compressedSize > 120 * 1024 * 1024) throw new Error("El KMZ excede el tamaño máximo comprimido permitido.");
+export function validateArchiveEntries(entries, compressedSize) {
+  validateArchiveSizes(entries.map((entry) => ({
+    name: entry.name,
+    compressedSize: entry._data?.compressedSize ?? 0,
+    uncompressedSize: entry._data?.uncompressedSize ?? 0,
+  })), { compressedSize });
   entries.forEach((entry) => {
     if (isUnsafeArchivePath(entry.name)) throw new Error(`El KMZ contiene una ruta no segura: ${entry.name}`);
-    const size = Number(entry._data?.uncompressedSize || 0);
-    if (size > 120 * 1024 * 1024) throw new Error(`La entrada ${entry.name} excede el tamaño permitido.`);
   });
 }
 

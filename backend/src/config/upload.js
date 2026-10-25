@@ -1,6 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import multer from "multer";
+import { randomUUID } from "node:crypto";
+import { pipeline } from "node:stream";
+import { MAX_UPLOAD_BYTES, MAX_UPLOAD_FILES } from "../../../shared/upload-limits.js";
 
 import { env } from "./env.js";
 import { AppError } from "../shared/errors/app-error.js";
@@ -36,20 +39,28 @@ function buildStoragePath(req, file) {
   const normalizedName = file.originalname.replace(/\s+/g, "_").replace(/[^a-zA-Z0-9._-]/g, "");
   return {
     targetDir,
-    filename: `${timestamp}-${normalizedName}`,
+    filename: `${timestamp}-${randomUUID()}-${normalizedName}`,
   };
 }
 
-const storage = multer.diskStorage({
-  destination(req, file, cb) {
-    const { targetDir } = buildStoragePath(req, file);
-    cb(null, targetDir);
+const storage = {
+  _handleFile(req, file, cb) {
+    const { targetDir, filename } = buildStoragePath(req, file);
+    const target = path.join(targetDir, filename);
+    (req.uploadTemporaryPaths ||= []).push(target);
+    const output = fs.createWriteStream(target, { flags: "wx" });
+    const abort = () => output.destroy(new Error("Recepción de archivo cancelada."));
+    req.once("aborted", abort);
+    pipeline(file.stream, output, error => {
+      req.removeListener("aborted", abort);
+      if (error) return fs.rm(target, { force: true }, () => cb(error));
+      cb(null, { destination: targetDir, filename, path: target, size: output.bytesWritten });
+    });
   },
-  filename(req, file, cb) {
-    const { filename } = buildStoragePath(req, file);
-    cb(null, filename);
+  _removeFile(_req, file, cb) {
+    fs.rm(file.path, { force: true }, cb);
   },
-});
+};
 
 function fileFilter(_req, file, cb) {
   const extension = path.extname(file.originalname).toLowerCase();
@@ -62,8 +73,10 @@ function fileFilter(_req, file, cb) {
 export const upload = multer({
   storage,
   limits: {
-    fileSize: env.MAX_UPLOAD_SIZE_MB * 1024 * 1024,
-    files: 10,
+    // Busboy marca truncado al alcanzar el límite, incluso sin bytes adicionales.
+    // El byte centinela permite exactamente MAX_UPLOAD_BYTES y rechaza desde +1.
+    fileSize: MAX_UPLOAD_BYTES + 1,
+    files: MAX_UPLOAD_FILES,
   },
   fileFilter,
 });

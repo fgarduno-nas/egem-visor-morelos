@@ -1,13 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import zlib from "node:zlib";
+import { ARCHIVE_LIMITS, validateArchiveSizes, archiveEntrySizeError } from "../../../../shared/archive-limits.js";
+import { validateUploadSizes } from "../../../../shared/upload-limits.js";
 
-export const IMPORT_LIMITS = {
-  maxArchiveEntries: 250,
-  maxCompressedBytes: 120 * 1024 * 1024,
-  maxUncompressedBytes: 450 * 1024 * 1024,
-  maxSingleEntryBytes: 120 * 1024 * 1024,
-};
+export const IMPORT_LIMITS = ARCHIVE_LIMITS;
 
 export const GROUND_OVERLAY_IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "webp"]);
 
@@ -90,15 +87,17 @@ export function analyzeKmzFile(filePath) {
     };
   }
 
-  const analyzed = kmlEntries.map((entry) => {
+  let selected = null;
+  for (const entry of kmlEntries) {
     const kmlText = readZipEntryText(filePath, entry);
-    return {
+    const candidate = {
       entry,
       kmlText,
       analysis: analyzeKmlText(kmlText, { sourceName: entry.name }),
     };
-  });
-  const selected = choosePrimaryKmlAnalysis(analyzed);
+    // Mismo orden y desempate; no retener a la vez todos los KML descomprimidos.
+    selected = choosePrimaryKmlAnalysis(selected ? [selected, candidate] : [candidate]);
+  }
   const overlays = selected.analysis.groundOverlays.map((overlay) => ({
     ...overlay,
     imageEntry: resolveKmzHrefEntry(entries, selected.entry.name, overlay.href),
@@ -196,6 +195,7 @@ export function extractGroundOverlayImages({ archivePath, layerId, overlays, out
 }
 
 export function readZipEntries(filePath) {
+  validateUploadSizes([{ size: fs.statSync(filePath).size }]);
   const buffer = fs.readFileSync(filePath);
   const entries = [];
   let offset = 0;
@@ -241,33 +241,26 @@ export function readZipEntryBuffer(filePath, entry) {
   const dataStart = offset + 30 + fileNameLength + extraLength;
   const compressed = buffer.subarray(dataStart, dataStart + entry.compressedSize);
 
-  if (entry.compressionMethod === 0) return compressed;
-  if (entry.compressionMethod === 8) return zlib.inflateRawSync(compressed);
-  throw new Error(`Metodo de compresion no soportado para ${entry.name}.`);
+  let result;
+  try {
+    if (entry.compressionMethod === 0) result = compressed;
+    else if (entry.compressionMethod === 8) result = zlib.inflateRawSync(compressed, { maxOutputLength: IMPORT_LIMITS.maxSingleEntryBytes });
+    else throw new Error(`Método de compresión no soportado para ${entry.name}.`);
+  } catch (error) {
+    if (error.code === "ERR_BUFFER_TOO_LARGE") throw archiveEntrySizeError(entry.name);
+    throw error;
+  }
+  if (result.length > IMPORT_LIMITS.maxSingleEntryBytes) throw archiveEntrySizeError(entry.name);
+  if (result.length !== entry.uncompressedSize) throw new Error(`La entrada interna «${entry.name}» no coincide con el tamaño declarado; el archivo puede estar dañado.`);
+  return result;
 }
 
 export function validateArchiveEntries(entries, limits = IMPORT_LIMITS) {
-  if (!entries.length) {
-    throw new Error("El archivo comprimido no contiene entradas legibles.");
-  }
-  if (entries.length > limits.maxArchiveEntries) {
-    throw new Error(`El archivo comprimido excede el máximo de ${limits.maxArchiveEntries} entradas.`);
-  }
-
-  let compressedTotal = 0;
-  let uncompressedTotal = 0;
+  validateArchiveSizes(entries, { limits });
   for (const entry of entries) {
     if (isUnsafeArchivePath(entry.name)) {
       throw new Error(`El archivo comprimido contiene una ruta no segura: ${entry.name}`);
     }
-    compressedTotal += entry.compressedSize || 0;
-    uncompressedTotal += entry.uncompressedSize || 0;
-    if ((entry.uncompressedSize || 0) > limits.maxSingleEntryBytes) {
-      throw new Error(`La entrada ${entry.name} excede el tamaño máximo permitido.`);
-    }
-  }
-  if (compressedTotal > limits.maxCompressedBytes || uncompressedTotal > limits.maxUncompressedBytes) {
-    throw new Error("El archivo comprimido excede los limites de seguridad de extraccion.");
   }
 }
 

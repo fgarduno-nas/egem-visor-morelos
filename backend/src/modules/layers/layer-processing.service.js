@@ -307,7 +307,9 @@ export async function convertWithOgr2Ogr({
     if (singleLayerName) {
       args.push("-nln", singleLayerName);
     }
-    await execFileAsync("ogr2ogr", args);
+    // Acota solo la conversión externa (antes no tenía plazo). La muestra real
+    // completa tardó 139 s; este presupuesto no amplía el timeout HTTP del cliente.
+    await execFileAsync("ogr2ogr", args, { timeout: 180000, killSignal: "SIGKILL" });
   } catch (error) {
     throw new Error(`No se pudo convertir la capa con GDAL/ogr2ogr: ${error.message}`);
   }
@@ -937,7 +939,7 @@ function getExtension(filename) {
   return path.extname(filename).replace(".", "").toLowerCase();
 }
 
-function buildProcessingResult({
+export function buildProcessingResult({
   status,
   message = null,
   resourceType = "vector",
@@ -992,4 +994,31 @@ function mergeProcessingBboxes(primary, secondary) {
     ],
     [Infinity, Infinity, -Infinity, -Infinity]
   );
+}
+
+export function summarizeGeoJsonUpload(file, sourceType) {
+  if (!["geojson", "json"].includes(String(sourceType || "").toLowerCase())) {
+    return { featureCount: null, geometryType: null };
+  }
+
+  try {
+    const raw = fs.readFileSync(file.path, "utf8");
+    const parsed = JSON.parse(raw);
+    const features =
+      parsed.type === "FeatureCollection"
+        ? parsed.features || []
+        : parsed.type === "Feature"
+          ? [parsed]
+          : [];
+    const geometryTypes = new Set(
+      features.map((feature) => feature.geometry?.type).filter(Boolean)
+    );
+
+    return {
+      featureCount: features.length,
+      geometryType: geometryTypes.size ? [...geometryTypes].join(", ") : "Vector GeoJSON",
+    };
+  } catch (_error) {
+    return { featureCount: null, geometryType: "Vector GeoJSON" };
+  }
 }

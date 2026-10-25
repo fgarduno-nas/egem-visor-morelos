@@ -15,6 +15,8 @@ const adminDetailSource = await fs.readFile(path.resolve("js/app/utils/admin-lay
 const mapSource = await fs.readFile(path.resolve("js/map.js"), "utf8");
 const layersApiSource = await fs.readFile(path.resolve("js/app/services/layers-api.js"), "utf8");
 const layersApiModuleSource = layersApiSource
+  .replace('"./upload-retry-key.js"', JSON.stringify(pathToFileURL(path.resolve("js/app/services/upload-retry-key.js")).href))
+  .replace('"../../../shared/upload-limits.js"', JSON.stringify(pathToFileURL(path.resolve("shared/upload-limits.js")).href))
   .replace(/import \{ runtimeConfig \} from "\.\.\/config\/runtime-config\.js";\r?\n/, "const runtimeConfig = { publicLayerCacheTtlMs: 0, requestTimeoutMs: 1000, retryAttempts: 0, retryDelayMs: 0 };\n")
   .replace(/import \{ invalidateCache, request \} from "\.\/http-client\.js";\r?\n/, "function invalidateCache() {}\nasync function request() { return { data: null }; }\n");
 const layersApiModule = await import(`data:text/javascript;base64,${Buffer.from(layersApiModuleSource).toString("base64")}`);

@@ -139,7 +139,7 @@ test("backend expone actualizacion acotada de rasterLegend para capas existentes
 });
 
 test("uploadLayer persiste leyenda raster automatica sin sobrescribir una explicita", () => {
-  assert.match(source, /const processing = await processUploadedLayer\(created, files\)/);
+  assert.match(source, /const processing = await processLayerOffThread\(created, files\)/);
   assert.match(source, /const rasterLegend = parseUploadRasterLegendForProcessing\(body\.rasterLegend, processing\)/);
   assert.match(source, /const persistedRasterLegend = rasterLegend \|\| processing\.rasterLegend \|\| null/);
   assert.match(source, /const persistedVectorLegend = vectorLegend \|\| processing\.vectorLegend \|\| null/);
@@ -289,7 +289,7 @@ test("inventario administrativo sigue restringido a ADMIN y Director conserva DA
     routesSource,
     /layersRouter\.get\(\s*"\/admin",\s*authorizeRoles\(ROLE_CODES\.ADMIN,\s*ROLE_CODES\.DATA_PROVIDER\)/,
   );
-  assert.match(routesSource, /authorizeRoles\(ROLE_CODES\.ADMIN, ROLE_CODES\.DATA_PROVIDER\)[\s\S]*upload\.array\("files", 10\)/);
+  assert.match(routesSource, /authorizeRoles\(ROLE_CODES\.ADMIN, ROLE_CODES\.DATA_PROVIDER\)[\s\S]*upload\.array\("files", MAX_UPLOAD_FILES\)/);
   assert.match(routesSource, /layersRouter\.get\(\s*"\/mine",\s*authorizeRoles\(ROLE_CODES\.ADMIN, ROLE_CODES\.DATA_PROVIDER\)/);
 });
 

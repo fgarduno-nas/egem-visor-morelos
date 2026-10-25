@@ -23,6 +23,16 @@ const pngBytes = Buffer.from("89504e470d0a1a0a0000000d49484452", "hex");
 const jpgBytes = Buffer.from("ffd8ffe000104a464946", "hex");
 const realSe02KmzPath = "D:/EGEM_Mapas/4.- SE Fenómeno Sanitario - Ecológico-20260812T192017Z-1-001/4.- SE Fenómeno Sanitario - Ecológico/SE 02 Sitios de descargas de aguas residuales sin tratamiento.kmz";
 
+test("análisis secuencial conserva elección por contenido y desempate a favor de doc.kml", () => {
+  const point = '<Placemark><Point><coordinates>-99,18</coordinates></Point></Placemark>';
+  const kml = count => `<kml><Document>${point.repeat(count)}</Document></kml>`;
+  const more = analyzeKmzFile(writeKmz({ "a.kml": kml(1), "doc.kml": kml(1), "b.kml": kml(2) }));
+  assert.equal(more.kmlEntry.name, "b.kml");
+  assert.equal(more.vector.geometryCount, 2);
+  const tied = analyzeKmzFile(writeKmz({ "a.kml": kml(1), "doc.kml": kml(1), "z.kml": kml(1) }));
+  assert.equal(tied.kmlEntry.name, "doc.kml");
+});
+
 test("detecta KMZ GroundOverlay válido y extrae imagen georreferenciada", () => {
   const filePath = writeKmz({
     "doc.kml": kmlWithOverlay({ href: "Layer0.png" }),
