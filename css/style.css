@@ -5406,3 +5406,27 @@ select {
     hyphens: none;
   }
 }
+
+/* Distance results retain the current popup placement, with content-sized presentation. */
+.distance-popup .maplibregl-popup-content {
+  box-sizing: border-box;
+  width: max-content;
+  min-width: 0;
+  max-width: min(280px, calc(100vw - 32px));
+  padding: 8px 24px;
+  text-align: center;
+  white-space: normal;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+}
+.distance-popup__result {
+  margin-top: 2px;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.app-shell--phone .distance-popup .maplibregl-popup-content {
+  min-width: 0;
+  padding: 8px 44px;
+}

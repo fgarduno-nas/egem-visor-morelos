@@ -2270,13 +2270,10 @@ test("el popup tematico tiene prioridad sobre municipios y conserva atributos ut
   assert.match(thematicPopupSource, /<strong>\$\{escapeHtml\(popupTitle \|\| "Capa seleccionada"\)\}<\/strong>/);
   assert.doesNotMatch(thematicPopupSource, /feature-popup__highlight/);
   assert.match(thematicPopupSource, /Sin información temática disponible\./);
-  assert.match(thematicAttributesSource, /parseKmlDescriptionHtmlAttributes/);
-  assert.match(thematicAttributesSource, /const exactLegendClass = symbolDescriptor \|\| getFeatureLegendClass\(mergedProperties, legend\)/);
-  assert.match(thematicAttributesSource, /applyVisibleLegendLabelForPopup\(mergedProperties, legend, exactLegendClass\)/);
-  assert.match(thematicAttributesSource, /return \{ Categoría: visibleLegendLabel \}/);
-  assert.match(thematicAttributesSource, /const fallbackCategory = getThematicCategoryFallbackLabel\(lookup\)/);
-  assert.match(fieldsSource, /label: "Intensidad"[\s\S]*?"Intensid_1"[\s\S]*?fallbackAliases: \["Magni_unid", "MAGNI_UNID", "Magni_uni"\]/);
-  assert.doesNotMatch(fieldsSource, /"Intensidad original"/);
+  assert.match(thematicAttributesSource, /return cleanFeatureAttributes\(properties\)/);
+  assert.doesNotMatch(thematicAttributesSource, /applyVisibleLegendLabelForPopup|buildPointKmlPopupAttributes|Categoría/);
+  assert.match(fieldsSource, /label: "Intensidad"[\s\S]*?"Intensid_1"/);
+  assert.doesNotMatch(fieldsSource, /Riesgo|Nivel|Magni_uni|Clasificación|Amenaza/);
   assert.match(usableValueSource, /value === null \|\| value === undefined/);
   assert.match(usableValueSource, /String\(value\)\.trim\(\) !== ""/);
   assert.match(technicalSource, /"gridcode"/);
@@ -2288,7 +2285,7 @@ test("el popup tematico tiene prioridad sobre municipios y conserva atributos ut
   assert.doesNotMatch(municipiosSource, /updateInfoPanel/);
 });
 
-test("el popup tematico conserva cuatro campos para amenazas y agrega ruta puntual por atributos", () => {
+test("el popup tematico comparte dos campos verificados entre poligonos y puntos", () => {
   const popupSource = extractFunctionSource(mapSource, "buildThematicFeaturePopup");
   const attributesSource = extractFunctionSource(mapSource, "cleanThematicPopupAttributes");
   const pointAttributesSource = extractFunctionSource(mapSource, "buildPointKmlPopupAttributes");
@@ -2297,11 +2294,10 @@ test("el popup tematico conserva cuatro campos para amenazas y agrega ruta puntu
   const fieldsSource = mapSource.match(/const THEMATIC_POPUP_FIELDS = \[[\s\S]*?\n  \];/)?.[0] || "";
   const pointFieldsSource = mapSource.match(/const POINT_KML_POPUP_FIELDS = \[[\s\S]*?\n  \];/)?.[0] || "";
 
-  assert.match(fieldsSource, /label: "Intensidad"[\s\S]*label: "Detalles"[\s\S]*label: "Clasificación"[\s\S]*label: "Amenaza"/);
+  assert.match(fieldsSource, /label: "Intensidad"[\s\S]*label: "Detalles"/);
+  assert.equal((fieldsSource.match(/label:/g) || []).length, 2);
   assert.doesNotMatch(fieldsSource, /Municipio|Magnitud|Indicador|Fuente|IVS_FINAL|R_P_V_E_A/);
-  assert.match(attributesSource, /const attributes = THEMATIC_POPUP_FIELDS\.reduce/);
-  assert.match(attributesSource, /return attributes/);
-  assert.match(attributesSource, /const pointAttributes = buildPointKmlPopupAttributes\(lookup\)/);
+  assert.match(attributesSource, /return cleanFeatureAttributes\(properties\)/);
   assert.match(pointFieldsSource, /label: "Estado"[\s\S]*"StatusTipo"[\s\S]*label: "Caudal tratado"[\s\S]*"Caudal_Tra"/);
   assert.match(pointAttributesSource, /getPopupLookupValue\(lookup, \["PtarNombre", "StatusTipo"\]\)/);
   assert.match(pointAttributesSource, /attributes\.Coordenadas = `\$\{lat\}, \$\{lon\}`/);
@@ -2314,7 +2310,7 @@ test("el popup tematico conserva cuatro campos para amenazas y agrega ruta puntu
   assert.doesNotMatch(popupSource, /mainAttribute|findMainFeatureAttribute|feature-popup__highlight|Clasificación.*<strong>|Intensidad.*<strong>/s);
 });
 
-test("el popup tematico omite campos ausentes, conserva cero y deduplica aliases", () => {
+test("el popup tematico conserva cero y limita aliases a campos comprobados", () => {
   const lookupSource = extractFunctionSource(mapSource, "buildPopupAttributeLookup");
   const valueSource = extractFunctionSource(mapSource, "getThematicPopupFieldValue");
   const usableSource = extractFunctionSource(mapSource, "isUsablePopupValue");
@@ -2338,9 +2334,8 @@ test("el popup tematico omite campos ausentes, conserva cero y deduplica aliases
   assert.match(shouldApplySource, /getPropertyValueByAlias\(properties, \[field\]\)/);
   assert.match(genericSource, /normalized === "clase"/);
   assert.match(genericSource, /clase sin etiqueta/);
-  assert.match(fieldsSource, /"Detalles", "DETALLES", "Detalle", "DETALLE"/);
-  assert.match(fieldsSource, /"Clasificación", "Clasificacion", "Fen_Clasif", "FEN_CLASIF"/);
-  assert.match(fieldsSource, /"Amenaza", "Ame_Ampl", "AME_AMPL"/);
+  assert.match(fieldsSource, /aliases: \["Detalles"\]/);
+  assert.doesNotMatch(fieldsSource, /Riesgo|Nivel|Magni_uni|Clasificación|Amenaza/);
 });
 
 test("los popups de capas importadas usan titulo canonico de capa y no codigos de feature", () => {
@@ -2366,7 +2361,7 @@ test("los popups de capas importadas usan titulo canonico de capa y no codigos d
   assert.doesNotMatch(titleSource, /\["Name"|Nombre|PtarNombre|__geometryRole|manantial|pozo/);
   assert.match(popupSource, /getThematicPopupTitle\(layerName\)/);
   assert.match(popupSource, /escapeHtml\(popupTitle \|\| "Capa seleccionada"\)/);
-  assert.match(attributesSource, /addElementNamePopupAttribute\(attributes, lookup\)/);
+  assert.doesNotMatch(attributesSource, /addElementNamePopupAttribute\(attributes, lookup\)/);
   assert.match(elementSource, /aliases: \["PtarNombre", "Nombre", "Name", "name", "NOMBRE"\]|getPopupLookupValue\(lookup, \["PtarNombre", "Nombre", "Name", "name", "NOMBRE"\]\)/);
   assert.match(elementSource, /attributes\.Elemento = name/);
   assert.match(technicalTitleSource, /\^\[.*?\\d/);
@@ -2432,7 +2427,7 @@ test("el popup raster y los limites conservan rutas separadas", () => {
   assert.match(thematicSource, /showGroundOverlayPopup\(hit, lngLat\)/);
   assert.match(staticSource, /html: buildFeaturePopup\(title, props\)/);
   assert.match(rasterSource, /html: buildGroundOverlayPopup\(layer\)/);
-  assert.match(rasterPopupSource, /Imagen raster georreferenciada/);
+  assert.match(rasterPopupSource, /return buildThematicFeaturePopup\(layer\.title/);
   assert.doesNotMatch(rasterPopupSource, /Sin información temática disponible/);
 });
 

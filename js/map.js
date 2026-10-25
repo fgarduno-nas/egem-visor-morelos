@@ -1264,8 +1264,8 @@ import { installMapExport } from "./app/utils/map-export.js";
 
   function renderBaseMapOptions() {
     const basemaps = [
-      { id: "satelite", title: "Satelite", description: "Imagen satelital", thumbnail: "satellite" },
-      { id: "topografico", title: "Topografico", description: "Relieve", thumbnail: "topographic" },
+      { id: "satelite", title: "Satélite", description: "Imagen satelital", thumbnail: "satellite" },
+      { id: "topografico", title: "Topográfico", description: "Relieve", thumbnail: "topographic" },
       { id: "claro", title: "Claro", description: "Calles claras", thumbnail: "light" },
       { id: "oscuro", title: "Oscuro", description: "Alto contraste", thumbnail: "dark" },
     ];
@@ -3901,9 +3901,9 @@ import { installMapExport } from "./app/utils/map-export.js";
         ],
       });
 
-      new maplibregl.Popup({ closeButton: true, closeOnClick: true })
+      new maplibregl.Popup({ closeButton: true, closeOnClick: true, className: "distance-popup", maxWidth: "min(280px, calc(100vw - 32px))" })
         .setLngLat(midpoint)
-        .setHTML(`<strong>Distancia</strong><br />${escapeHtml(formatDistance(meters))}`)
+        .setHTML(`<strong>Distancia</strong><div class="distance-popup__result">${escapeHtml(formatDistance(meters))}</div>`)
         .addTo(map);
     } else {
       updateInfoPanel({
@@ -5483,29 +5483,8 @@ import { installMapExport } from "./app/utils/map-export.js";
   }
 
   function buildGroundOverlayPopup(layer) {
-    const rows = getGroundOverlayInfoLines(layer)
-      .map(({ label, value }) => `
-        <tr>
-          <td>${escapeHtml(label)}</td>
-          <td>${escapeHtml(String(value))}</td>
-        </tr>
-      `)
-      .join("");
-    const legend = renderLayerLegend(getLayerSymbology(layer));
-
-    return `
-      <section class="feature-popup">
-        <header class="feature-popup__header">
-          <strong>${escapeHtml(layer.title || "Capa raster")}</strong>
-          <span class="feature-popup__highlight">Imagen raster georreferenciada</span>
-        </header>
-        <div class="feature-popup__body">
-          ${rows ? `<table class="feature-popup__table">${rows}</table>` : ""}
-          ${legend}
-          <p class="feature-popup__empty">${escapeHtml(GROUND_OVERLAY_NOTICE)}</p>
-        </div>
-      </section>
-    `;
+    // GroundOverlay has no per-location attributes; catalog metadata is not a substitute.
+    return buildThematicFeaturePopup(layer.title || "Capa raster");
   }
 
   function getGroundOverlayInfoLines(layer) {
@@ -5766,36 +5745,7 @@ import { installMapExport } from "./app/utils/map-export.js";
   }
 
   function buildFeaturePopup(layerName, properties = {}, legend = null) {
-    const attributes = cleanFeatureAttributes(properties, legend);
-    const mainAttribute = findMainFeatureAttribute(attributes);
-    const rows = Object.entries(attributes)
-      .map(([key, value]) => `
-        <tr>
-          <td>${escapeHtml(formatAttributeLabel(key))}</td>
-          <td>${escapeHtml(String(value))}</td>
-        </tr>
-      `)
-      .join("");
-
-    return `
-      <section class="feature-popup">
-        <header class="feature-popup__header">
-          <strong>${escapeHtml(layerName || "Capa seleccionada")}</strong>
-          ${
-            mainAttribute
-              ? `<span class="feature-popup__highlight">${escapeHtml(mainAttribute.label)}: ${escapeHtml(String(mainAttribute.value))}</span>`
-              : ""
-          }
-        </header>
-        <div class="feature-popup__body">
-          ${
-            rows
-              ? `<table class="feature-popup__table">${rows}</table>`
-              : `<p class="feature-popup__empty">Sin atributos disponibles para este elemento</p>`
-          }
-        </div>
-      </section>
-    `;
+    return buildThematicFeaturePopup(layerName, properties, legend);
   }
 
   function buildThematicFeaturePopup(layerName, properties = {}, legend = null, symbolDescriptor = null) {
@@ -5827,15 +5777,8 @@ import { installMapExport } from "./app/utils/map-export.js";
   }
 
   const THEMATIC_POPUP_FIELDS = [
-    {
-      label: "Intensidad",
-      aliases: ["Intensidad", "INTENSIDAD", "Intensid_1", "Intensidad_1", "Intensid1", "Riesgo", "RIESGO", "Nivel", "NIVEL"],
-      fallbackAliases: ["Magni_unid", "MAGNI_UNID", "Magni_uni"],
-      acceptsFallback: isIntensityCategoryValue,
-    },
-    { label: "Detalles", aliases: ["Detalles", "DETALLES", "Detalle", "DETALLE"] },
-    { label: "Clasificación", aliases: ["Clasificación", "Clasificacion", "Fen_Clasif", "FEN_CLASIF"] },
-    { label: "Amenaza", aliases: ["Amenaza", "Ame_Ampl", "AME_AMPL"] },
+    { label: "Intensidad", aliases: ["Intensidad", "Intensid_1", "Intensidad_1", "Intensid1"] },
+    { label: "Detalles", aliases: ["Detalles"] },
   ];
 
   const POINT_KML_POPUP_FIELDS = [
@@ -5851,44 +5794,8 @@ import { installMapExport } from "./app/utils/map-export.js";
   }
 
   function cleanThematicPopupAttributes(properties = {}, legend = null, symbolDescriptor = null) {
-    const descriptionAttributes = parseKmlDescriptionHtmlAttributes(
-      getPropertyValueByAlias(properties, ["description", "Description"])
-    );
-    const mergedProperties = { ...properties };
-    Object.entries(descriptionAttributes).forEach(([key, value]) => {
-      if (!isUsablePopupValue(mergedProperties[key])) {
-        mergedProperties[key] = value;
-      }
-    });
-    const exactLegendClass = symbolDescriptor || getFeatureLegendClass(mergedProperties, legend);
-    const visibleLegendLabel = exactLegendClass?.displayLabel || exactLegendClass?.label || null;
-    applyVisibleLegendLabelForPopup(mergedProperties, legend, exactLegendClass);
-
-    const lookup = buildPopupAttributeLookup(mergedProperties);
-    const kmlFolderAttributes = buildFolderKmlPopupAttributes(lookup);
-    if (Object.keys(kmlFolderAttributes).length) {
-      return kmlFolderAttributes;
-    }
-    const pointAttributes = buildPointKmlPopupAttributes(lookup);
-    if (Object.keys(pointAttributes).length) {
-      return pointAttributes;
-    }
-    if (isUsablePopupValue(visibleLegendLabel) && !isGenericPopupLegendLabel(visibleLegendLabel) && !isIntensityCategoryValue(visibleLegendLabel)) {
-      return { Categoría: visibleLegendLabel };
-    }
-    const fallbackCategory = getThematicCategoryFallbackLabel(lookup);
-    if (fallbackCategory) {
-      return { Categoría: fallbackCategory };
-    }
-    const attributes = THEMATIC_POPUP_FIELDS.reduce((acc, field) => {
-      const value = getThematicPopupFieldValue(field, lookup);
-      if (isUsablePopupValue(value)) {
-        acc[field.label] = value;
-      }
-      return acc;
-    }, {});
-    addElementNamePopupAttribute(attributes, lookup);
-    return attributes;
+    // Legend labels, feature categories and technical fields do not supply these attributes.
+    return cleanFeatureAttributes(properties);
   }
 
   function getThematicCategoryFallbackLabel(lookup) {
@@ -6075,36 +5982,16 @@ import { installMapExport } from "./app/utils/map-export.js";
     );
     const mergedProperties = { ...properties };
     Object.entries(descriptionAttributes).forEach(([key, value]) => {
-      if (!isUsablePopupValue(mergedProperties[key])) {
-        mergedProperties[key] = value;
-      }
+      if (!isUsablePopupValue(mergedProperties[key])) mergedProperties[key] = value;
     });
-    applyVisibleLegendLabelForPopup(mergedProperties, legend);
-
     const sourceEntries = Object.entries(mergedProperties)
-      .filter(([key, value]) => isVisiblePopupAttribute(key, value));
-    const normalizedLookup = new Map(
-      sourceEntries.map(([key, value]) => [normalizeAttributeKey(key), { key, value: String(value).trim() }])
-    );
-    const usedKeys = new Set();
-    const attributes = {};
-
-    getPopupAttributeSchema().forEach(({ label, keys }) => {
-      const matchKey = keys.map(normalizeAttributeKey).find((key) => normalizedLookup.has(key));
-      if (!matchKey) return;
-      const entry = normalizedLookup.get(matchKey);
-      attributes[label] = entry.value;
-      usedKeys.add(normalizeAttributeKey(entry.key));
-    });
-
-    sourceEntries.forEach(([key, value]) => {
-      const normalizedKey = normalizeAttributeKey(key);
-      if (usedKeys.has(normalizedKey)) return;
-      attributes[key] = String(value).trim();
-      usedKeys.add(normalizedKey);
-    });
-
-    return attributes;
+      .filter(([, value]) => isUsablePopupValue(value));
+    return Object.fromEntries(getPopupAttributeSchema().map(({ label, keys }) => {
+      const match = keys.map(normalizeAttributeKey)
+        .map((alias) => sourceEntries.find(([key]) => normalizeAttributeKey(key) === alias))
+        .find(Boolean);
+      return [label, match ? String(match[1]).trim() : "Sin información"];
+    }));
   }
 
   function applyVisibleLegendLabelForPopup(properties, legend = null, legendClass = null) {
@@ -6144,20 +6031,10 @@ import { installMapExport } from "./app/utils/map-export.js";
   }
 
   function getPopupAttributeSchema() {
+    // Intensity aliases match applyBackendAttributeAliases and the actual KML tables.
     return [
-      { label: "Municipio", keys: ["Municipio", "MUN", "NOM_MUN", "NOMBRE"] },
-      { label: "Intensidad", keys: ["Intensidad", "INTENSIDAD", "Intensid_1", "Intensidad_1", "Intensid1", "Riesgo", "RIESGO", "Nivel", "NIVEL"] },
-      { label: "Detalles", keys: ["Detalles", "DETALLES", "Descripcion", "Descripción", "DESCRIP"] },
-      { label: "Clasificación", keys: ["Clasificacion", "Clasificación", "Fen_Clasif", "FEN_CLASIF"] },
-      { label: "Amenaza", keys: ["Amenaza", "Ame_Ampl", "AME_AMPL"] },
-      { label: "Magnitud", keys: ["Magnitud", "Magni_num", "MAGNI_NUM", "Valor", "VALOR"] },
-      { label: "Indicador", keys: ["Indicador", "R_P_V_E_A", "INDICADOR"] },
-      { label: "Fuente", keys: ["Fuente", "FUENTE"] },
-      { label: "Metodologia", keys: ["Metodologia", "METODOLOGIA", "Metodo", "Metodolog"] },
-      { label: "Tipo", keys: ["Tipo", "TIPO", "Type"] },
-      { label: "Unidad", keys: ["Unidad", "UNIDAD", "Unit", "Magni_uni"] },
-      { label: "Periodo de retorno", keys: ["Periodo de retorno", "Periodo_Retorno", "PERIODO_RETORNO", "Perlo_Ret", "Tr", "TR"] },
-      { label: "IVS_FINAL", keys: ["IVS_FINAL"] },
+      { label: "Intensidad", keys: ["Intensidad", "Intensid_1", "Intensidad_1", "Intensid1"] },
+      { label: "Detalles", keys: ["Detalles"] },
     ];
   }
 
@@ -10492,9 +10369,8 @@ import { installMapExport } from "./app/utils/map-export.js";
   }
 
   function hasPopupProperties(properties = {}) {
-    return Object.entries(properties || {}).some(([key, value]) => {
-      return !key.startsWith("__") && isUsablePopupValue(value);
-    });
+    // A feature with empty properties still has two explicit missing-value rows.
+    return properties !== null && typeof properties === "object" && !Array.isArray(properties);
   }
 
   function normalizeBackendProcessedGeoJson(geojson, record = null) {
